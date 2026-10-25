@@ -45,6 +45,7 @@ Current state (25 Oct 2026): only `mobile/` exists, as an unmodified `flutter cr
 | Backend | Firebase Auth, Cloud Firestore, Cloud Storage, Cloud Functions v2 (TypeScript, Node 22, region `asia-southeast1`), FCM (best-effort, late) |
 | Validation | `zod` schemas in every callable; client validation is for UX only |
 | Tests | `flutter_test` + `mocktail`; Vitest for `functions/` and `admin/`; `@firebase/rules-unit-testing` against the Emulator Suite |
+| Firebase project | `campusniaga-usm` (Blaze plan, Firestore in `asia-southeast1`). Used only when the user asks to deploy |
 | Local development | Firebase Emulator Suite only. No deploy, no production data, until the user explicitly asks |
 
 Things that cannot change without the user's approval (record them as an ADR in `docs/decisions/`):
