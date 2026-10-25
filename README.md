@@ -60,6 +60,26 @@ CampusNiaga/
 
 ## Getting started
 
-Setup and run instructions are added as each part of Phase 1 is completed.
+Prerequisites: Flutter (stable), Node.js 22+, Java 21+ (for the Firebase emulators) and the Firebase CLI.
 
-Prerequisites: Flutter (stable), Node.js 22+, Java 17+ (for the Firebase emulators) and the Firebase CLI.
+### Cloud Functions
+
+```bash
+cd functions
+npm install        # first time only
+npm run build      # compile TypeScript to lib/ (the emulator runs lib/)
+npm run lint
+npm test           # unit tests
+```
+
+### Firebase emulators
+
+Build the functions first, then from the repository root:
+
+```bash
+firebase emulators:start
+```
+
+Open the Emulator UI at http://127.0.0.1:4000. Stop with Ctrl+C.
+
+More setup steps are added as Phase 1 continues.
