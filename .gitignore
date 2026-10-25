@@ -1,0 +1,27 @@
+# Node (functions/, admin/, seed/)
+node_modules/
+dist/
+/functions/lib/
+coverage/
+*.tsbuildinfo
+
+# Firebase
+.firebase/
+emulator-data/
+*-debug.log
+firebase-debug.*.log
+ui-debug.log
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+service-account*.json
+
+# Claude Code per-user settings
+.claude/settings.local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
