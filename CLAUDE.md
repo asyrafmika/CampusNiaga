@@ -92,10 +92,12 @@ Run from the repository root. Commands marked (P1) work after Phase 1 scaffoldin
 | Mobile: get, analyze, format check, test | `cd mobile && flutter pub get && flutter analyze && dart format --set-exit-if-changed lib test && flutter test` |
 | Mobile: run against emulators | `cd mobile && flutter run --dart-define=USE_EMULATORS=true` (P1) |
 | Functions: build / typecheck / lint / unit tests | `npm --prefix functions run build`, `run typecheck`, `run lint`, `run test` |
-| Rules + integration tests | `firebase emulators:exec --only auth,firestore,storage,functions "npm --prefix functions run test:emulator"` (P1) |
+| Functions emulator tests | `npm --prefix functions run test:emulator` (starts Auth + Firestore emulators with project `demo-campusniaga`, runs `test/emulator`, shuts down) |
 | Admin: dev / typecheck / lint / test | `npm --prefix admin run dev`, `run typecheck`, `run lint`, `run test` (P1) |
 
 Never run `firebase deploy`, connect to a production project, install global tools, or add dependencies unless the user asks for it in the current task.
+
+Windows note: the Firestore emulator's Java process often survives shutdown and keeps port 8080, so the next emulator run fails with "port taken". Check the ports before an emulator run; if one is held, ask the user to free it with `Get-NetTCPConnection -LocalPort 8080 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }`.
 
 ## Testing requirements
 

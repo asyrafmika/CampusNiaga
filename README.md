@@ -70,6 +70,15 @@ npm install        # first time only
 npm run build      # compile TypeScript to lib/ (the emulator runs lib/)
 npm run lint
 npm test           # unit tests
+npm run test:emulator   # integration tests on the Auth + Firestore emulators
+```
+
+Emulator tests always use the project ID `demo-campusniaga`, and refuse to run without the emulators, so they can never touch the real Firebase project.
+
+On Windows, if an emulator run fails with "port taken", a previous Firestore emulator is still running. Free the port in PowerShell:
+
+```powershell
+Get-NetTCPConnection -LocalPort 8080 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
 ```
 
 ### Firebase emulators

@@ -11,8 +11,10 @@
     "build:watch": "tsc -p tsconfig.build.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "vitest run test/unit",
-    "test:watch": "vitest test/unit"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:emulator": "firebase emulators:exec --only auth,firestore --project demo-campusniaga \"npm run test:emulator:run\"",
+    "test:emulator:run": "vitest run --config vitest.emulator.config.mts"
   },
   "dependencies": {
     "firebase-admin": "^14.5.0",

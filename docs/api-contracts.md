@@ -45,3 +45,29 @@ Each function's full input, output and side effects are documented when it is im
 ---
 
 <!-- Detailed contracts are appended below as each function is implemented. -->
+
+## `syncStudentStatus`
+
+Grants the `student` claim to a verified USM student and creates or updates their `users/{uid}` profile. The app calls it after sign-in and after the user verifies their email.
+
+| | |
+|---|---|
+| **Caller** | Any signed-in user |
+| **Input** | None. Anything sent is ignored; the email and verification status are read from Firebase Auth on the server |
+| **Output** | `{ student: true, claimsChanged: boolean }`. When `claimsChanged` is `true`, the client must refresh its ID token (`getIdToken(true)`) to see the claim |
+| **Eligibility** | Email verified, **and** the email's domain exactly matches one of `config/app.studentEmailDomains` (default `student.usm.my`), **or** the email is in `config/app.testAllowlist`. Matching is case-insensitive; subdomains and look-alike domains don't match. A missing or malformed `config/app` uses the default domain |
+| **Errors** | `FORBIDDEN` (not signed in, or account suspended) · `NOT_VERIFIED_STUDENT` (email not verified, or not an eligible email) · `NOT_FOUND` (Auth user missing) |
+| **Side effects** | Creates `users/{uid}` (`verified: true`, `accountStatus: 'active'`, `roleFlags`) or updates `verified`, `email` and `roleFlags.student`. Merges `student: true` into the custom claims, keeping other claims. Writes audit entry `student.verified` the first time only |
+| **Idempotent** | Yes. Repeated calls change nothing and write no new audit entries |
+
+## `setStaffRole`
+
+Grants or removes the `reviewer` or `admin` role.
+
+| | |
+|---|---|
+| **Caller** | Admin (`admin` claim) |
+| **Input** | `{ uid: string (1–128 chars), role: 'reviewer' \| 'admin', enabled: boolean }` |
+| **Output** | `{ uid, role, enabled, changed: boolean }`. `changed` is `false` when the user already had (or already lacked) the role |
+| **Errors** | `FORBIDDEN` (not signed in, not an admin, or an admin removing their own admin role) · `INVALID_INPUT` · `NOT_FOUND` (no such user) |
+| **Side effects** | When `changed`: merges the claim (other claims kept), updates `users/{uid}.roleFlags.<role>` (creating a minimal profile for staff who never used the app), and writes audit entry `role.granted` or `role.revoked` with `metadata.role`. Removing a role also revokes the user's refresh tokens, so they must sign in again |
