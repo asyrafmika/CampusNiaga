@@ -32,7 +32,7 @@ Changing any of these is a migration, not a refactor. Stop and propose it to the
 | Long `build` method or component (more than about 80 lines) | Extract widgets/components inside the same feature |
 | The same widget/component in two or more features | Move it to `core/widgets` or `shared/ui` |
 | `if/else` chains over statuses | Transition table + `assertTransition` / `switch` over a sealed type or enum |
-| Duplicate zod schemas or types | Single definition in `functions/src/domain` or `shared/types/domain.ts` |
+| Duplicate zod schemas or types | Single definition in `functions/src/domain`, imported by `admin/` |
 | Callable handler with Firestore logic | Split into handler (guard + parse) and service |
 | Speculative interface with one implementation | Inline it (remove the abstraction) |
 

@@ -62,7 +62,8 @@ Each feature (or sub-feature) has the same three layers:
 - All privileged operations (reserve, resolve reservation, submit/resubmit application, place order, transition order, toggle interest) go through `core/firebase/callable_client.dart`. It converts `FirebaseFunctionsException.details['reason']` into an `AppFailure` subtype.
 - Queries are paginated (`limit` + `startAfterDocument`, page size 20) and use only indexed field combinations declared in `firebase/firestore.indexes.json`.
 - Use streams (`snapshots()`) only for things the user watches change: own reservations, orders, application status. Use one-shot `get()` for feeds.
-- Upload photos through the repository, with size and type checked before upload (rules enforce it again).
+- Upload photos through the repository: resize on the device first (about 1280 px longest side, 80% JPEG quality), then check size and type (rules enforce it again).
+- Listing create/edit calls `upsertListing`; the app never writes `listings` documents directly (ADR 0002).
 
 **UI**
 - Material 3, a theme from `core/theme`, and no hard-coded colors or text styles in feature widgets.

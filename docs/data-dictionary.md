@@ -4,13 +4,13 @@ This is the single definition of CampusNiaga's Cloud Firestore and Cloud Storage
 
 Each codebase mirrors these definitions in exactly one file:
 
-| Codebase | Mirror file |
+| Codebase | Definition |
 |---|---|
-| Cloud Functions | `functions/src/domain/types.ts` |
-| Admin dashboard | `admin/src/shared/types/domain.ts` |
-| Mobile app | `mobile/lib/core/domain/` |
+| Cloud Functions | `functions/src/domain/types.ts` (the TypeScript source of truth) |
+| Admin dashboard | Imports the Functions file directly (type-only imports), so there is no separate copy |
+| Mobile app | `mobile/lib/core/domain/` (Dart mirror) |
 
-Any change to this document must update all three mirror files in the same commit.
+Any change to this document must update the Functions types and the Dart mirror in the same commit.
 
 ## Conventions
 
@@ -23,7 +23,7 @@ Any change to this document must update all three mirror files in the same commi
 | Time | Firestore `Timestamp`, written with server timestamps |
 | Common fields | Every document has `createdAt` and `updatedAt` |
 | Owner fields | `ownerUid`, `applicantUid`, `buyerUid`, `creatorUid` and `reporterUid` cannot change after creation |
-| Written by | **Client**: the app may write it directly, as limited by Security Rules. **Server**: only Cloud Functions write it |
+| Written by | **Client**: the app may write it directly, as limited by Security Rules. **Server**: only Cloud Functions write it. **Input**: supplied by the user but validated and written by a Cloud Function |
 
 Optional fields are marked with `?`.
 
@@ -43,23 +43,27 @@ A user profile, created by the server at first sign-in.
 
 ### `listings/{listingId}`
 
-A product, shared by personal sellers and approved businesses.
+A product, shared by personal sellers and approved businesses. All listing writes go through the `upsertListing` and `setListingStatus` functions ([ADR 0002](decisions/0002-server-mediated-writes-and-query-strategy.md)), so every field is server-written; "Input" marks fields the seller supplies.
 
-| Field | Type | Written by | Notes |
+| Field | Type | Source | Notes |
 |---|---|---|---|
-| `ownerUid` | string | Client (create) | Must equal the creator's UID; can't change |
-| `mode` | `personal` \| `business` | Client (create) | `business` requires the owner's `businessId` claim |
-| `businessId?` | string | Client (create) | Required when `mode == business` |
-| `title` | string | Client | 3–80 characters |
-| `normalizedTitle` | string | Server | Lowercased, punctuation removed; used for search and M4 matching |
-| `description` | string | Client | Up to 1,000 characters |
-| `category` | string | Client | One of the configured categories |
-| `priceSen` | integer | Client | 0–10,000,000 |
-| `condition` | `new` \| `like_new` \| `good` \| `fair` | Client | |
-| `photoPaths` | string[] | Client | Storage paths, 1–5 photos |
-| `stock` | integer | Client (personal) / Server (business orders) | 0 or more; personal items are usually 1 |
-| `pickupArea` | string | Client | Campus pickup location |
-| `status` | see below | Client / Server | |
+| `ownerUid` | string | Server | The caller's UID; can't change |
+| `mode` | `personal` \| `business` | Input (create only) | `business` requires the caller's `businessId` claim |
+| `businessId?` | string | Server | Taken from the caller's claim when `mode == business` |
+| `sellerName` | string | Server | Snapshot of the seller's display name, so feed cards need no extra read |
+| `businessName?` | string | Server | Snapshot of the business name for business listings |
+| `title` | string | Input | 3–80 characters |
+| `normalizedTitle` | string | Server | Lowercased, punctuation removed; used for M4 matching |
+| `searchTokens` | string[] | Server | Normalized words of title and category; queried with `array-contains` |
+| `description` | string | Input | Up to 1,000 characters |
+| `category` | string | Input | One of the configured categories |
+| `priceSen` | integer | Input | 0–10,000,000 |
+| `condition` | `new` \| `like_new` \| `good` \| `fair` | Input | |
+| `photoPaths` | string[] | Input | Storage paths under the caller's folder, 1–5 photos (resized on the device before upload) |
+| `stock` | integer | Input (personal) / Server (business orders) | 0 or more; personal items are usually 1 |
+| `soldQty` | integer | Server | Incremented when an order completes; used for M5 top products |
+| `pickupArea` | string | Input | Campus pickup location |
+| `status` | see below | Server | |
 | `hidden` | boolean | Server | Set by admin moderation; hidden listings are excluded from feeds and M4 supply counts |
 
 **Listing status:** `draft` → `available` → `reserved` → `sold`. Also `closed` (the seller withdrew it). A seller may return a `reserved` listing to `available` when its reservation is cancelled or expires.
@@ -78,6 +82,8 @@ A buyer's request for a personal listing.
 | `expiresAt?` | Timestamp | Server | |
 
 Only one accepted active reservation may exist per personal listing.
+
+Expiry is evaluated when a reservation is read or acted on: a `requested` or `accepted` reservation whose `expiresAt` has passed is treated as `expired`, and the next function that touches it stores that status. There is no scheduled expiry job.
 
 ### `businessApplications/{applicationId}`
 
@@ -147,6 +153,7 @@ A buyer's order from an approved business: ready stock or pre-order.
 | `status` | `pending_confirmation` \| `confirmed` \| `preparing` \| `ready_for_pickup` \| `completed` \| `cancelled` | Server | |
 | `collectionDetails` | string | Server | |
 | `costSen?` | integer | Server | Seller-entered cost, used for estimated profit (M5) |
+| `completedAt?` | Timestamp | Server | Set when the order completes; M5 date filters and `sum()`/`count()` aggregation queries use it |
 
 **Order status:** `pending_confirmation` → `confirmed` → `preparing` → `ready_for_pickup` → `completed`. Can move to `cancelled` from any state before `completed`. Pending and confirmed orders reserve campaign capacity; cancellation releases it.
 

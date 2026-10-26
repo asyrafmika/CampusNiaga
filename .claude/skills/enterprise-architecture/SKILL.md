@@ -20,7 +20,7 @@ Read `CLAUDE.md` first. Its non-negotiables and data conventions apply here and 
 
 **Rule for choosing direct write vs callable:** a client may write a document directly only if (a) the caller owns it, (b) the change can't affect another user, stock, money, roles or any status other than its own draft/edit state, and (c) rules can fully validate it. Everything else is a callable.
 
-Examples: editing an own listing's title or price while it's `available` → direct write. Reserving, ordering, approving, toggling interest, hiding listings → callable.
+Examples: editing own profile name, saving a business-application draft, marking own notification read → direct write. Creating or editing listings (rate limits and derived search fields, ADR 0002), reserving, ordering, approving, toggling interest, hiding listings → callable.
 
 ## Module-to-code map
 

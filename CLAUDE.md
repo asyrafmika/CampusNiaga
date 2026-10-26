@@ -34,7 +34,7 @@ CampusNiaga/
 └─ docs/                     data-dictionary.md, api-contracts.md, decisions/ (ADRs)
 ```
 
-Current state (25 Oct 2026): only `mobile/` exists, as an unmodified `flutter create` scaffold. Everything else is created in Phase 1. Do not rename the Dart package `mobile` or change the bundle ID without asking.
+Current state (26 Oct 2026): Phase 1 in progress. `docs/`, `firebase/` and the `functions/` scaffold exist; `mobile/` is still the `flutter create` scaffold; `admin/` and `seed/` come later in Phase 1. Do not rename the Dart package `mobile` or change the bundle ID without asking.
 
 ## Technology stack and architectural decisions
 
@@ -63,8 +63,8 @@ Things that cannot change without the user's approval (record them as an ADR in 
 - Times are Firestore `Timestamp`. Every document has `createdAt` and `updatedAt`, set with server timestamps.
 - Owner IDs (`ownerUid`, `applicantUid`, `buyerUid`, `creatorUid`) can't change after creation.
 - Canonical collections: `users`, `listings`, `reservations`, `businessApplications`, `businesses`, `campaigns`, `orders`, `productRequests`, `requestInterests` (doc ID `{requestId}_{uid}`), `opportunities` (doc ID `clusterKey`), `reports`, `auditLogs`, plus the supporting `config` (app settings, such as student email domains) and `notifications` (in-app notices).
-- Every status value and field name is defined once in `docs/data-dictionary.md` and mirrored in exactly one file per codebase:
-  `mobile/lib/core/domain/` enums, `admin/src/shared/types/domain.ts`, `functions/src/domain/types.ts`. A schema change updates the dictionary and all three files in the same change.
+- Every status value and field name is defined once in `docs/data-dictionary.md`. The TypeScript source of truth is `functions/src/domain/types.ts`; `admin/` imports it directly (type-only), and `mobile/lib/core/domain/` is the Dart mirror. A schema change updates the dictionary, the Functions types and the Dart mirror in the same change.
+- Listings are written only through Cloud Functions (`upsertListing`, `setListingStatus`). Search uses server-built `searchTokens` with `array-contains`, reservations expire lazily, and M5 uses aggregation queries. See `docs/decisions/0002-server-mediated-writes-and-query-strategy.md`.
 - Callable errors use `HttpsError` with `details.reason` set to one of: `NOT_VERIFIED_STUDENT`, `FORBIDDEN`, `INVALID_INPUT`, `NOT_FOUND`, `INVALID_TRANSITION`, `ITEM_UNAVAILABLE`, `CAPACITY_FULL`, `ALREADY_EXISTS`, `RATE_LIMITED`. Clients map `reason` to a user message in one place.
 
 ## Engineering principles
@@ -91,7 +91,7 @@ Run from the repository root. Commands marked (P1) work after Phase 1 scaffoldin
 | Seed emulators | `npm --prefix seed run seed` (P1) |
 | Mobile: get, analyze, format check, test | `cd mobile && flutter pub get && flutter analyze && dart format --set-exit-if-changed lib test && flutter test` |
 | Mobile: run against emulators | `cd mobile && flutter run --dart-define=USE_EMULATORS=true` (P1) |
-| Functions: build / lint / unit tests | `npm --prefix functions run build`, `run lint`, `run test` (P1) |
+| Functions: build / typecheck / lint / unit tests | `npm --prefix functions run build`, `run typecheck`, `run lint`, `run test` |
 | Rules + integration tests | `firebase emulators:exec --only auth,firestore,storage,functions "npm --prefix functions run test:emulator"` (P1) |
 | Admin: dev / typecheck / lint / test | `npm --prefix admin run dev`, `run typecheck`, `run lint`, `run test` (P1) |
 

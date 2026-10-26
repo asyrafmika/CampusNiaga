@@ -28,6 +28,8 @@ Each function's full input, output and side effects are documented when it is im
 |---|---|---|---|
 | `syncStudentStatus` | 1 | Any signed-in user | Grant the `student` claim if the email is verified and matches the USM domain or the test allowlist; create the user profile |
 | `setStaffRole` | 1 | Admin | Grant or remove the `reviewer` / `admin` claim |
+| `upsertListing` | 2 | Student (business mode: business owner) | Create or edit a listing; validates input, rate-limits, computes `normalizedTitle` and `searchTokens`, snapshots seller names |
+| `setListingStatus` | 2 | Listing owner | Publish a draft, close a listing, or return it to available |
 | `requestReservation` | 2 | Student | Reserve a personal listing |
 | `resolveReservation` | 2 | Seller / buyer | Accept, decline, cancel or mark collected |
 | `moderateListing` | 2 | Admin | Hide or restore a reported listing |

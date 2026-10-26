@@ -25,7 +25,7 @@ admin/src/
 │  └─ audit/                     audit log viewer
 └─ shared/
    ├─ firebase/                  client.ts (app/auth/db/storage/functions; emulator wiring), callable.ts
-   ├─ types/domain.ts            mirrors docs/data-dictionary.md
+   ├─ types/domain.ts            type-only re-export of functions/src/domain (no copy; ADR 0002)
    ├─ lib/                       money.ts, dates.ts, errors.ts (reason -> message)
    └─ ui/                        components used by 2+ features (DataTable, StatusChip, ConfirmDialog)
 ```
@@ -73,7 +73,7 @@ Import another feature only through its `index.ts`. Never import from `shared/` 
 ## Workflow
 
 1. Confirm the screen is in the handoff (Web: Reviewer Login / Applications Queue / Application Detail / Decision & Notes / Status Summary; admin: moderation, user access, audit).
-2. Add or extend types in `shared/types/domain.ts` if the data dictionary changed.
+2. If the data dictionary changed, update `functions/src/domain/` (the dashboard picks it up through `shared/types/domain.ts`). Reuse its zod schemas for form validation.
 3. Service function, then a hook, then components, then the page and route.
 4. Tests: hooks/services with mocked Firebase modules; components with React Testing Library (see `unit-testing`).
 5. Run `npm --prefix admin run typecheck && npm --prefix admin run lint && npm --prefix admin run test`.

@@ -49,7 +49,7 @@ function isActiveAccount() { return get(/databases/$(database)/documents/users/$
 
 | Resource | Student | Business owner | Reviewer | Admin |
 |---|---|---|---|---|
-| `listings` (visible) | read; create/update own personal | + own `mode:'business'` with own `businessId` | (none) | read all; hide via callable |
+| `listings` (visible) | read; create/edit own personal via `upsertListing` | + own `mode:'business'` (callable checks `businessId` claim) | (none) | read all; hide via callable |
 | `reservations` | read where buyer/seller; changes via callable | same | (none) | read |
 | `businessApplications` | read own; edit own while `draft`/`info_requested` (content fields only) | same | read non-draft; decide via callable | read |
 | `businesses`, `campaigns`, `orders` | read public storefront; read own orders | read/manage own via callables | (none) | read |

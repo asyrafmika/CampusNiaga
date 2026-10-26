@@ -71,7 +71,8 @@ Use `db.runTransaction` for any read-then-write that another user could race:
 
 - Start with `match /{document=**} { allow read, write: if false; }` and open access per collection.
 - Shared helper functions at the top of `firestore.rules` (`isSignedIn`, `isStudent`, `isReviewer`, `isAdmin`, `isOwner`, `ownsBusiness`) are **defined by the `authentication-authorization` skill**. Reuse them; don't redefine them.
-- Direct client writes must restrict fields: `request.resource.data.diff(resource.data).affectedKeys().hasOnly([...])`, and validate types and sizes. Owner fields are immutable.
+- `listings` is read-only for clients; writes go through `upsertListing` / `setListingStatus`, which also build `searchTokens` with the shared normalizer (ADR 0002). Reservation expiry is lazy (no scheduler), and M5 figures use `count()`/`sum()` aggregation queries plus the `soldQty` counter.
+- Direct client writes (where still allowed, e.g. profile name, application drafts) must restrict fields: `request.resource.data.diff(resource.data).affectedKeys().hasOnly([...])`, and validate types and sizes. Owner fields are immutable.
 - Collections written only by functions (`auditLogs`, `opportunities`, `requestInterests`, `orders`, `campaigns.allocatedQty`, `businesses`, application status) have `allow write: if false` for clients.
 - Storage: product photos at `listings/{uid}/{listingId}/{file}`, owner write, image/jpeg|png|webp, ≤ 5 MB, read by students. Private application documents are specified in `business-registration-workflow`.
 
