@@ -57,6 +57,13 @@ describe('setStaffRole', () => {
     expect(await claimsOf('ali')).toEqual({ student: true });
   });
 
+  it('refuses a removed admin whose unexpired token still says admin', async () => {
+    const staleToken = requestAs('ali', { student: true, admin: true }, { uid: 'ali', role: 'reviewer', enabled: true });
+
+    await expectReason(() => setStaffRoleHandler(staleToken), 'FORBIDDEN');
+    expect(await claimsOf('ali')).toEqual({ student: true });
+  });
+
   it('refuses an unauthenticated caller', async () => {
     await expectReason(
       () => setStaffRoleHandler(anonymousRequest({ uid: 'ali', role: 'admin', enabled: true })),

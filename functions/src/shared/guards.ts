@@ -1,6 +1,7 @@
 import type { CallableRequest } from 'firebase-functions/v2/https';
 import { claimsFromToken } from '../domain/claims';
 import type { AppClaims } from '../domain/types';
+import { findAuthUser } from './authClaims';
 import { fail } from './errors';
 
 /** The parts of a callable request that handlers use; keeps handlers easy to test. */
@@ -17,8 +18,14 @@ export function requireAuth(req: CallableInput): Actor {
   return { uid: req.auth.uid, claims: claimsFromToken(req.auth.token) };
 }
 
-export function requireAdmin(req: CallableInput): Actor {
-  const actor = requireAuth(req);
-  if (actor.claims.admin !== true) fail('FORBIDDEN', 'Administrator access required.');
-  return actor;
+/**
+ * Checks the caller's current claims in Firebase Auth, not the ones in their
+ * token: an ID token stays valid for up to an hour after a role is removed.
+ */
+export async function requireAdmin(req: CallableInput): Promise<Actor> {
+  const { uid } = requireAuth(req);
+  const user = await findAuthUser(uid);
+  const claims = claimsFromToken(user?.customClaims ?? {});
+  if (claims.admin !== true) fail('FORBIDDEN', 'Administrator access required.');
+  return { uid, claims };
 }

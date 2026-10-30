@@ -29,8 +29,9 @@ export interface SetStaffRoleResult {
 
 /**
  * Grants or removes a staff role. Removing a role also revokes the user's
- * refresh tokens, so the change takes effect at their next request instead
- * of when their current ID token expires.
+ * refresh tokens, so they can't renew their session. Staff callables re-check
+ * live claims and refuse them at once; Security Rules only see the token, so
+ * rule-based reads can continue until it expires (up to an hour).
  */
 export async function setStaffRole(actor: Actor, input: SetStaffRoleInput): Promise<SetStaffRoleResult> {
   if (input.uid === actor.uid && input.role === 'admin' && !input.enabled) {

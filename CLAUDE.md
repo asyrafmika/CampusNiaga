@@ -97,7 +97,7 @@ Run from the repository root. Commands marked (P1) work after Phase 1 scaffoldin
 
 Never run `firebase deploy`, connect to a production project, install global tools, or add dependencies unless the user asks for it in the current task.
 
-Windows note: the Firestore emulator's Java process often survives shutdown and keeps port 8080, so the next emulator run fails with "port taken". Check the ports before an emulator run; if one is held, ask the user to free it with `Get-NetTCPConnection -LocalPort 8080 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }`.
+Windows note: the Firestore emulator's Java process often survives shutdown and keeps port 8080, so the next emulator run fails with "port taken". Check the ports before an emulator run; if one is held, ask the user to free it with `Get-CimInstance Win32_Process -Filter "Name='java.exe'" | Where-Object { $_.CommandLine -like '*cloud-firestore-emulator*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`.
 
 ## Testing requirements
 
