@@ -78,7 +78,7 @@ Emulator tests always use the project ID `demo-campusniaga`, and refuse to run w
 On Windows, if an emulator run fails with "port taken", a previous Firestore emulator is still running. Free the port in PowerShell:
 
 ```powershell
-Get-NetTCPConnection -LocalPort 8080 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+Get-CimInstance Win32_Process -Filter "Name='java.exe'" | Where-Object { $_.CommandLine -like '*cloud-firestore-emulator*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 ```
 
 ### Firebase emulators

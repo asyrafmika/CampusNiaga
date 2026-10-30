@@ -35,7 +35,7 @@ A user profile, created by the server at first sign-in.
 
 | Field | Type | Written by | Notes |
 |---|---|---|---|
-| `name` | string | Client | Display name |
+| `name` | string | Client | Display name, 1–60 characters. The only field an owner may change, and only while `accountStatus` is `active` |
 | `email` | string | Server | Copied from Firebase Auth |
 | `verified` | boolean | Server | Verified USM student (mirrors the `student` claim) |
 | `roleFlags` | map `{ student, business, reviewer, admin }` of booleans | Server | **Display only.** Access is decided by custom claims, never by this field |
