@@ -30,6 +30,7 @@ This skill is the **single definition** of who may do what. Other skills reuse t
 ## Security Rules helpers (define once at the top of `firebase/firestore.rules`)
 
 ```
+// Add each helper to the rules file when a rule first uses it, so every helper is covered by tests.
 function isSignedIn()      { return request.auth != null; }
 function isStudent()       { return isSignedIn() && request.auth.token.email_verified == true
                                     && request.auth.token.student == true; }
@@ -64,7 +65,7 @@ function isActiveAccount() { return get(/databases/$(database)/documents/users/$
 - `requireAuth(req)` → `{ uid, token }` or throws `FORBIDDEN`.
 - `requireStudent(req)` → also checks `email_verified`, `student`, and `users/{uid}.accountStatus === 'active'`. Throws `NOT_VERIFIED_STUDENT` or `FORBIDDEN`.
 - `requireBusinessOwner(req, businessId)` → `requireStudent` + claim match + `businesses/{id}.status === 'approved'`.
-- `requireReviewer(req)` / `requireAdmin(req)`.
+- `requireReviewer(req)` / `requireAdmin(req)` are async and check the caller's **current** claims with `adminAuth.getUser`, because an ID token stays valid for up to an hour after a role is removed. Security Rules can only see the token, so keep privileged writes in callables; rule-based staff reads have that window.
 - Guards return a typed `Actor` that services receive. Services never read `req` directly.
 
 ## Staff and role management
