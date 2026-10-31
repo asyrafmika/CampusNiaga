@@ -34,7 +34,7 @@ CampusNiaga/
 └─ docs/                     data-dictionary.md, api-contracts.md, decisions/ (ADRs)
 ```
 
-Current state (26 Oct 2026): Phase 1 in progress. `docs/`, `firebase/` and the `functions/` scaffold exist; `mobile/` is still the `flutter create` scaffold; `admin/` and `seed/` come later in Phase 1. Do not rename the Dart package `mobile` or change the bundle ID without asking.
+Current state (31 Oct 2026): Phase 1 in progress. `docs/`, `firebase/`, `functions/` and `seed/` exist; `mobile/` is still the `flutter create` scaffold; `admin/` comes later in Phase 1. Do not rename the Dart package `mobile` or change the bundle ID without asking.
 
 ## Technology stack and architectural decisions
 
@@ -87,8 +87,9 @@ Run from the repository root. Commands marked (P1) work after Phase 1 scaffoldin
 
 | Task | Command |
 |---|---|
-| Start emulators | `firebase emulators:start --import=./emulator-data --export-on-exit` (P1) |
-| Seed emulators | `npm --prefix seed run seed` (P1) |
+| Start emulators | `npm --prefix functions run build`, then `firebase emulators:start --project demo-campusniaga`. Always pass `--project`: the seed and the apps use `demo-campusniaga`, and the Emulator UI shows only the project it was started with |
+| Seed emulators | `npm --prefix seed run seed` (with the emulators running; safe to repeat). Accounts and password are in `seed/src/scenario.ts` |
+| Seed: typecheck / lint / unit / emulator tests | `npm --prefix seed run typecheck`, `run lint`, `run test`, `run test:emulator` |
 | Mobile: get, analyze, format check, test | `cd mobile && flutter pub get && flutter analyze && dart format --set-exit-if-changed lib test && flutter test` |
 | Mobile: run against emulators | `cd mobile && flutter run --dart-define=USE_EMULATORS=true` (P1) |
 | Functions: build / typecheck / lint / unit tests | `npm --prefix functions run build`, `run typecheck`, `run lint`, `run test` |

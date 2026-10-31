@@ -65,9 +65,9 @@ expect((await campaign()).allocatedQty).toBe(2);
 - Wrap renders in a test `QueryClientProvider` (retries off) and a `MemoryRouter`.
 - Query elements by role and label (`getByRole('button', { name: /approve/i })`), not by CSS class.
 
-## Scenario fixture (`seed/scenario.ts`, used by seed and emulator tests)
+## Scenario fixture (`seed/src/scenario.ts`, used by the seed and its emulator tests)
 
-2 students, 1 applicant, 1 approved business seller, 1 reviewer, 1 admin; 2 personal listings, 2 business products, 1 pre-order campaign (capacity 3); 3 similar requests ("brownie", "brownies", "chocolate brownie"); 1 competing listing. Export typed IDs so tests reference `fx.users.reviewer.uid`, not string literals.
+Target: 2 students, 1 applicant, 1 approved business seller, 1 reviewer, 1 admin; 2 personal listings, 2 business products, 1 pre-order campaign (capacity 3); 3 similar requests ("brownie", "brownies", "chocolate brownie"); 1 competing listing. Each phase adds its part; Phase 1 has the students, reviewer, admin and a refused outsider. Export typed IDs so code references `users.reviewer.uid`, not string literals.
 
 ## Workflow
 
