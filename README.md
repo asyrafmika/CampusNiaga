@@ -86,9 +86,31 @@ Get-CimInstance Win32_Process -Filter "Name='java.exe'" | Where-Object { $_.Comm
 Build the functions first, then from the repository root:
 
 ```bash
-firebase emulators:start
+firebase emulators:start --project demo-campusniaga
 ```
 
-Open the Emulator UI at http://127.0.0.1:4000. Stop with Ctrl+C.
+Open the Emulator UI at http://127.0.0.1:4000. Stop with Ctrl+C. Always pass `--project demo-campusniaga`: a `demo-` project can't reach any real Firebase service, and the Emulator UI shows only the project it was started with.
+
+### Test accounts
+
+The emulators start empty. With them running, open a second terminal and fill them with test data:
+
+```bash
+cd seed
+npm install        # first time only
+npm run seed       # safe to repeat
+```
+
+Every account uses the password `CampusNiaga#2026`. These accounts exist only in the emulators.
+
+| Email | Role | Use it to test |
+|---|---|---|
+| `ali.test@student.usm.my` | Student | Student features |
+| `siti.test@student.usm.my` | Student | A second student, e.g. a buyer |
+| `reviewer@campusniaga.test` | Reviewer | Web dashboard: reviewing |
+| `admin@campusniaga.test` | Admin | Web dashboard: administration |
+| `outsider@example.com` | None | Being refused as a non-USM user |
+
+Running the seed again restores these accounts and `config/app`, and leaves everything else alone. It refuses to run against anything but local emulators and a `demo-` project.
 
 More setup steps are added as Phase 1 continues.
