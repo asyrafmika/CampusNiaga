@@ -1,6 +1,6 @@
 # 0001: Technology stack and architecture
 
-- **Status:** Accepted
+- **Status:** Superseded by [0003](0003-move-backend-to-supabase.md) for the backend; the client choices still apply
 - **Date:** 26 Oct 2026
 
 ## Context

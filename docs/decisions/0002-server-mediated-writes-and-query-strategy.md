@@ -1,6 +1,6 @@
 # 0002: Server-mediated listing writes and query strategy
 
-- **Status:** Accepted
+- **Status:** Superseded by [0003](0003-move-backend-to-supabase.md), which lists what was kept and replaced
 - **Date:** 26 Oct 2026
 
 ## Context

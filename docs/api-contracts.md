@@ -1,74 +1,68 @@
 # API contracts
 
-The Cloud Functions that the mobile app and admin dashboard call. Data shapes are defined in the [data dictionary](data-dictionary.md).
+The server functions the mobile app and admin dashboard call. They are PostgreSQL functions in Supabase, called over RPC (`supabase.rpc('name', {...})`). Data shapes are in the [data dictionary](data-dictionary.md).
 
-All functions are Firebase **callable** functions in region `asia-southeast1`. Any operation that grants privileges, changes another user's data, or could conflict with another user (stock, capacity, reservations) goes through one of these functions. Clients never write those fields directly.
+Anything that grants privileges, changes another user's data, or could conflict with another user (stock, capacity, reservations) goes through one of these functions. Each one checks the caller, validates its input and makes its changes, including the audit entry, in a single transaction.
 
 ## Errors
 
-Every function reports failures as an `HttpsError`. The error's `details.reason` is one of the values below, and clients map each reason to a user-facing message.
+A refused call fails with SQL state `P0001`. Its `details` field holds one of the reasons below, and clients map each reason to a user-facing message. Calls the caller isn't allowed to make at all (for example, signed out) fail with SQL state `42501`.
 
-| `details.reason` | Meaning |
+| `details` | Meaning |
 |---|---|
-| `NOT_VERIFIED_STUDENT` | Caller is signed in but is not a verified USM student |
-| `FORBIDDEN` | Caller lacks the required role or doesn't own the resource |
+| `NOT_VERIFIED_STUDENT` | Signed in, but not a verified USM student |
+| `FORBIDDEN` | Not signed in, lacks the required role, or doesn't own the resource |
 | `INVALID_INPUT` | Input failed validation |
-| `NOT_FOUND` | A referenced document doesn't exist |
-| `INVALID_TRANSITION` | The requested status change isn't allowed from the current status |
-| `ITEM_UNAVAILABLE` | Listing is no longer available or stock ran out |
-| `CAPACITY_FULL` | Pre-order campaign capacity is reached |
+| `NOT_FOUND` | A referenced record doesn't exist |
+| `INVALID_TRANSITION` | The status change isn't allowed from the current status |
+| `ITEM_UNAVAILABLE` | Listing no longer available, or stock ran out |
+| `CAPACITY_FULL` | Pre-order capacity reached |
 | `ALREADY_EXISTS` | Duplicate, e.g. an existing active reservation or open application |
 | `RATE_LIMITED` | Too many requests in a short time |
 
-## Planned functions
-
-Each function's full input, output and side effects are documented when it is implemented.
+## Functions
 
 | Function | Phase | Caller | Purpose |
 |---|---|---|---|
-| `syncStudentStatus` | 1 | Any signed-in user | Grant the `student` claim if the email is verified and matches the USM domain or the test allowlist; create the user profile |
-| `setStaffRole` | 1 | Admin | Grant or remove the `reviewer` / `admin` claim |
-| `upsertListing` | 2 | Student (business mode: business owner) | Create or edit a listing; validates input, rate-limits, computes `normalizedTitle` and `searchTokens`, snapshots seller names |
-| `setListingStatus` | 2 | Listing owner | Publish a draft, close a listing, or return it to available |
-| `requestReservation` | 2 | Student | Reserve a personal listing |
-| `resolveReservation` | 2 | Seller / buyer | Accept, decline, cancel or mark collected |
-| `moderateListing` | 2 | Admin | Hide or restore a reported listing |
-| `setAccountStatus` | 2 | Admin | Suspend or reactivate an account |
-| `submitBusinessApplication` | 3 | Student (applicant) | Submit or resubmit an application |
-| `reviewBusinessApplication` | 3 | Reviewer | Start review, request info, approve or reject |
-| `setBusinessStatus` | 3 | Admin | Suspend or reinstate a business |
-| `placeOrder` | 4 | Student | Order ready stock or join a pre-order campaign |
-| `transitionOrder` | 4 | Business owner / buyer | Move an order through its statuses, or cancel it |
-| `toggleRequestInterest` | 5 | Student | Add or remove interest in a product request |
-| `recomputeOpportunities` | 5 | Trigger / schedule | Recalculate the M4 opportunity ranking |
+| `get_my_access` | 1 ✅ | Signed-in user | What the user may do: student, reviewer, admin, account status |
+| `set_staff_role` | 1 ✅ | Admin | Grant or remove the reviewer / admin role |
+| `upsert_listing` | 2 | Student (business mode: approved business owner) | Create or edit a listing; validates, rate-limits, sets derived fields |
+| `set_listing_status` | 2 | Listing owner | Publish a draft, close a listing, or return it to available |
+| `request_reservation` | 2 | Student | Reserve a personal listing |
+| `resolve_reservation` | 2 | Seller / buyer | Accept, decline, cancel or mark collected |
+| `moderate_listing` | 2 | Admin | Hide or restore a reported listing |
+| `set_account_status` | 2 | Admin | Suspend or reactivate an account |
+| `submit_business_application` | 3 | Applicant | Submit or resubmit an application |
+| `review_business_application` | 3 | Reviewer | Start review, request info, approve or reject |
+| `set_business_status` | 3 | Admin | Suspend or reinstate a business |
+| `place_order` | 4 | Student | Order ready stock or join a pre-order campaign |
+| `transition_order` | 4 | Business owner / buyer | Move an order through its statuses, or cancel it |
+| `toggle_request_interest` | 5 | Student | Add or remove interest in a product request |
+| `recompute_opportunities` | 5 | Server (triggers) | Recalculate the M4 opportunity ranking |
+
+Each function's full contract is added below when it is implemented.
 
 ---
 
-<!-- Detailed contracts are appended below as each function is implemented. -->
-
-## `syncStudentStatus`
-
-Grants the `student` claim to a verified USM student and creates or updates their `users/{uid}` profile. The app calls it after sign-in and after the user verifies their email.
+## `get_my_access()`
 
 | | |
 |---|---|
 | **Caller** | Any signed-in user |
-| **Input** | None. Anything sent is ignored; the email and verification status are read from Firebase Auth on the server |
-| **Output** | `{ student: true, claimsChanged: boolean }`. When `claimsChanged` is `true`, the client must refresh its ID token (`getIdToken(true)`) to see the claim |
-| **Eligibility** | Email verified, **and** the email's domain exactly matches one of `config/app.studentEmailDomains` (default `student.usm.my`), **or** the email is in `config/app.testAllowlist`. Matching is case-insensitive; subdomains and look-alike domains don't match. A missing or malformed `config/app` uses the default domain |
-| **Errors** | `FORBIDDEN` (not signed in, or account suspended) · `NOT_VERIFIED_STUDENT` (email not verified, or not an eligible email) · `NOT_FOUND` (Auth user missing) |
-| **Side effects** | Creates `users/{uid}` (`verified: true`, `accountStatus: 'active'`, `roleFlags`) or updates `verified`, `email` and `roleFlags.student`. Merges `student: true` into the custom claims, keeping other claims. Writes audit entry `student.verified` the first time only |
-| **Idempotent** | Yes. Repeated calls change nothing and write no new audit entries |
+| **Input** | None. Everything is read on the server from the caller's account |
+| **Output** | `{ user_id, email, email_confirmed, account_status, is_student, is_reviewer, is_admin }` |
+| **Errors** | `FORBIDDEN` (no user in the request) · `42501` (signed out) |
+| **Notes** | Roles are read live, so the result reflects changes immediately. The apps use it to decide which screens to show; the database still enforces every rule itself |
 
-## `setStaffRole`
+`is_student` is true when the email is confirmed, the address's domain exactly matches one of `app_config.student_email_domains` (default `student.usm.my`) or the address is in `app_config.test_allowlist`, and the account is `active`. Matching is case-insensitive; sub-domains and look-alike domains don't match. Unlike the earlier Firebase design, there is no separate "sync" call: student status is worked out on every request.
 
-Grants or removes the `reviewer` or `admin` role.
+## `set_staff_role(target_user_id uuid, role text, enabled boolean)`
 
 | | |
 |---|---|
-| **Caller** | Admin (`admin` claim) |
-| **Input** | `{ uid: string (1–128 chars), role: 'reviewer' \| 'admin', enabled: boolean }` |
-| **Output** | `{ uid, role, enabled, changed: boolean }`. `changed` is `false` when the user already had (or already lacked) the role |
-| **Errors** | `FORBIDDEN` (not signed in, not an admin, or an admin removing their own admin role) · `INVALID_INPUT` · `NOT_FOUND` (no such user) |
-| **Side effects** | When `changed`: merges the claim (other claims kept), updates `users/{uid}.roleFlags.<role>` (creating a minimal profile for staff who never used the app), and writes audit entry `role.granted` or `role.revoked` with `metadata.role`. Removing a role also revokes the user's refresh tokens, so they must sign in again |
-| **Timing of removal** | Staff functions check the caller's current claims in Firebase Auth, so a removed role stops working for them at once. Security Rules can only see the ID token, so read access granted by rules can continue until that token expires (up to one hour). All privileged writes go through functions, so this window is read-only |
+| **Caller** | Admin |
+| **Input** | `target_user_id`: an existing account · `role`: `reviewer` or `admin` · `enabled`: grant (`true`) or remove (`false`) |
+| **Output** | `{ user_id, role, enabled, changed }`. `changed` is `false` when the user already had (or already lacked) the role |
+| **Errors** | `FORBIDDEN` (not an admin, or an admin removing their own admin role) · `INVALID_INPUT` · `NOT_FOUND` · `42501` (signed out) |
+| **Side effects** | When `changed`: adds or removes the `staff_roles` row and writes audit entry `role.granted` or `role.revoked` with `metadata.role` |
+| **Timing** | Takes effect on the user's next request; there is no token to expire |

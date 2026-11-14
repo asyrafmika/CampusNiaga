@@ -1,6 +1,6 @@
 ---
 name: flutter-development
-description: Implement or modify the CampusNiaga Flutter student app under mobile/. Use when creating screens, widgets, Riverpod controllers, repositories, domain models, go_router routes, theming, or Firebase client calls in Dart, or when fixing flutter analyze issues. Covers the feature-first layered structure and Dart standards. Auth guards and claims are covered by authentication-authorization; test-writing technique by unit-testing.
+description: Implement or modify the CampusNiaga Flutter student app under mobile/. Use when creating screens, widgets, Riverpod controllers, repositories, domain models, go_router routes, theming, or Supabase client calls in Dart, or when fixing flutter analyze issues. Covers the feature-first layered structure and Dart standards. Auth guards and roles are covered by authentication-authorization; test-writing technique by unit-testing.
 ---
 
 # Flutter development: `mobile/`
@@ -11,12 +11,13 @@ The app is used by verified USM students for M1-M5. Read `CLAUDE.md` for shared 
 
 ```
 mobile/lib/
-├─ main.dart                      bootstrap only: Firebase init, emulator wiring, ProviderScope, runApp
+├─ main.dart                      bootstrap only: Supabase init, ProviderScope, runApp (startup errors shown on screen)
 ├─ app.dart                       MaterialApp.router, theme, router provider
 ├─ core/
-│  ├─ config/env.dart             USE_EMULATORS and other --dart-define values
-│  ├─ firebase/                   firebase_providers.dart (Auth/Firestore/Storage/Functions instances),
-│  │                              callable_client.dart (wraps httpsCallable, maps errors)
+│  ├─ config/supabase_config.dart project URL and publishable key (public by design)
+│  ├─ supabase/                   supabase_bootstrap.dart (Supabase.initialize),
+│  │                              supabase_providers.dart (client provider),
+│  │                              rpc_client.dart (wraps client.rpc, maps error details to AppFailure)
 │  ├─ domain/                     shared enums mirroring docs/data-dictionary.md, app_failure.dart (sealed)
 │  ├─ router/                     app_router.dart, route names, redirect guard (logic from auth feature)
 │  ├─ theme/                      color scheme, text theme, spacing constants
@@ -36,8 +37,8 @@ Each feature (or sub-feature) has the same three layers:
 
 ```
 <feature>/
-├─ domain/        immutable models, enums, pure rules (no Flutter or Firebase imports)
-├─ data/          <aggregate>_repository.dart: Firestore/Storage reads, direct writes, callable invocations
+├─ domain/        immutable models, enums, pure rules (no Flutter or Supabase imports)
+├─ data/          <aggregate>_repository.dart: table reads, permitted direct writes, Storage, RPC calls
 └─ presentation/
    ├─ <name>_screen.dart
    ├─ widgets/
@@ -47,7 +48,7 @@ Each feature (or sub-feature) has the same three layers:
 ## Implementation standards
 
 **Models (domain)**
-- Immutable classes with `final` fields and `const` constructors, plus `factory X.fromFirestore(DocumentSnapshot<Map<String, Object?>>)` and `Map<String, Object?> toMap()` placed in the data layer as extension or mapper functions, so domain stays Firebase-free.
+- Immutable classes with `final` fields and `const` constructors, plus `fromRow(Map<String, Object?>)` / `toRow()` mappers for the `snake_case` columns, placed in the data layer so domain stays Supabase-free.
 - Statuses are enhanced enums with a `wireName` matching the snake_case value (`ReservationStatus.requested('requested')`), plus a `fromWire` that throws `FormatException` on unknown values.
 - Money is `int priceSen`. Format only through `core/utils/money.dart` (`formatRm(int sen)`). Never use `double` for money.
 - No code generation (freezed or json_serializable). Write `copyWith` only where it's used.
@@ -55,12 +56,12 @@ Each feature (or sub-feature) has the same three layers:
 **State management (Riverpod, no codegen)**
 - One controller per screen use case. Expose `AsyncValue<T>`, and render with `.when(data:, loading:, error:)`.
 - Repositories are exposed as plain `Provider`s, so tests override them with `ProviderScope(overrides: [...])`.
-- Controllers call repositories and apply domain rules. Widgets call controller methods and never call `FirebaseFirestore.instance` or `FirebaseFunctions.instance` directly.
+- Controllers call repositories and apply domain rules. Widgets call controller methods and never call `Supabase.instance.client` directly.
 - Use `ref.watch` in build and `ref.read` in callbacks. Cancel subscriptions via `ref.onDispose`.
 
 **Data access**
-- All privileged operations (reserve, resolve reservation, submit/resubmit application, place order, transition order, toggle interest) go through `core/firebase/callable_client.dart`. It converts `FirebaseFunctionsException.details['reason']` into an `AppFailure` subtype.
-- Queries are paginated (`limit` + `startAfterDocument`, page size 20) and use only indexed field combinations declared in `firebase/firestore.indexes.json`.
+- All privileged operations (reserve, resolve reservation, submit/resubmit application, place order, transition order, toggle interest) go through `core/supabase/rpc_client.dart`. It converts a `PostgrestException` whose `details` holds a reason (e.g. `ITEM_UNAVAILABLE`) into an `AppFailure` subtype.
+- Queries are paginated (`range` or keyset on `created_at`, page size 20), select only needed columns, and match indexes declared in the migrations.
 - Use streams (`snapshots()`) only for things the user watches change: own reservations, orders, application status. Use one-shot `get()` for feeds.
 - Upload photos through the repository: resize on the device first (about 1280 px longest side, 80% JPEG quality), then check size and type (rules enforce it again).
 - Listing create/edit calls `upsertListing`; the app never writes `listings` documents directly (ADR 0002).
@@ -85,16 +86,16 @@ Each feature (or sub-feature) has the same three layers:
 
 1. Identify the module and screen in the handoff's required-UI list.
 2. Create or extend domain models and enums, mirroring `docs/data-dictionary.md`.
-3. Data layer: repository methods, matching `docs/api-contracts.md` for callables.
+3. Data layer: repository methods, matching `docs/api-contracts.md` for database functions.
 4. Controller with unit tests (use repository fakes via provider overrides).
 5. Screen and widgets; add a widget test for the key states.
 6. Run: `cd mobile && dart format lib test && flutter analyze && flutter test`.
-7. Manual check with `flutter run --dart-define=USE_EMULATORS=true` against seeded emulators.
+7. Manual check with `flutter run` on an Android emulator against the hosted project.
 
 ## Verification checklist
 
-- [ ] No widget imports `cloud_firestore`, `firebase_auth` or `cloud_functions` directly.
-- [ ] Domain folder has no `package:flutter` or `package:cloud_firestore` imports.
+- [ ] No widget imports `supabase_flutter` directly.
+- [ ] Domain folder has no `package:flutter` or `package:supabase_flutter` imports.
 - [ ] Money is `int` sen end to end; RM appears only in formatted strings.
 - [ ] Status strings match the data dictionary exactly.
 - [ ] Loading, empty and error states are handled; errors are shown via `AppFailure` messages.

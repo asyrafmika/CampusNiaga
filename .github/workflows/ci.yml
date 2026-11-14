@@ -14,108 +14,50 @@ permissions:
   contents: read
 
 jobs:
-  functions:
-    name: Cloud Functions
+  mobile:
+    name: Mobile app
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: functions
+        working-directory: mobile
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v5
+      - uses: subosito/flutter-action@v2
         with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: functions/package-lock.json
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
 
       - name: Install dependencies
-        run: npm ci
+        run: flutter pub get
 
-      - name: Lint
-        run: npm run lint
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed lib test
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Analyze
+        run: flutter analyze
 
-      - name: Build
-        run: npm run build
+      - name: Tests
+        run: flutter test
 
-      - name: Unit tests
-        run: npm test
-
-  functions-emulator:
-    name: Cloud Functions (emulator tests)
+  database:
+    name: Database (Supabase)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: functions
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v5
+      - uses: supabase/setup-cli@v1
         with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: functions/package-lock.json
+          version: 2.122.0
 
-      # The Firestore emulator runs on Java.
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 21
+      # A throwaway local Postgres with Supabase's auth schema; the migrations
+      # in supabase/migrations are applied on start. Nothing reaches the real project.
+      - name: Start local database
+        run: supabase db start
 
-      - name: Cache emulator binaries
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/firebase/emulators
-          key: firebase-emulators-15.15.0
+      - name: Lint SQL
+        run: supabase db lint --fail-on error
 
-      - name: Install dependencies
-        run: npm ci
-
-      # demo- project: the emulators need no credentials and nothing can
-      # reach a real Firebase project.
-      - name: Emulator tests
-        run: npx --yes firebase-tools@15.15.0 emulators:exec --only auth,firestore --project demo-campusniaga "npm run test:emulator:run"
-
-  seed:
-    name: Seed script
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: seed
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: seed/package-lock.json
-
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 21
-
-      - name: Cache emulator binaries
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/firebase/emulators
-          key: firebase-emulators-15.15.0
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Unit tests
-        run: npm test
-
-      - name: Emulator tests
-        run: npx --yes firebase-tools@15.15.0 emulators:exec --only auth,firestore --project demo-campusniaga "npm run test:emulator:run"
+      - name: Database tests (pgTAP)
+        run: supabase test db
