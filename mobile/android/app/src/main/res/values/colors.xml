@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AppColors.primaryDark: the launch screen matches the Flutter splash. -->
+    <color name="launch_background">#26488F</color>
+</resources>

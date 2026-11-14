@@ -63,7 +63,8 @@ Prerequisites: Flutter (stable) with an Android emulator, and Node.js 22+ (only 
 
 1. Sign in at [supabase.com](https://supabase.com) and create a project named **CampusNiaga**, region **Southeast Asia (Singapore)**. Save the database password in a password manager; it is never stored in this repository.
 2. **Authentication → Sign In / Providers → Email:** keep it enabled, with **Confirm email** on. CampusNiaga only treats confirmed `@student.usm.my` addresses as students.
-3. **Authentication → Emails → SMTP Settings:** turn on custom SMTP. Supabase's built-in sender allows about 2 emails an hour and only to your project team, so students can't receive confirmation emails without it. A Gmail account with an app password works for a prototype (host `smtp.gmail.com`, port `465`).
+3. **Authentication → URL Configuration → Redirect URLs:** add `campusniaga://auth-callback`. Links in confirmation and password-reset emails then open the app.
+4. **Authentication → Emails → SMTP Settings:** turn on custom SMTP. Supabase's built-in sender allows about 2 emails an hour and only to your project team, so students can't receive confirmation emails without it. A Gmail account with an app password works for a prototype (host `smtp.gmail.com`, port `465`).
 
 ### 2. Apply the database migrations
 
@@ -100,7 +101,9 @@ flutter pub get    # first time only
 flutter run
 ```
 
-Use **Create account** with your USM email, confirm it from your inbox, then **Sign in and check**. `get_my_access` should report `"is_student": true`.
+The first launch shows the onboarding slides, then **Sign in**. Use **Create an account** with your USM email and confirm it from your inbox. If you open the link on the phone, it signs you in straight away; otherwise, sign in after confirming.
+
+**Photos:** onboarding and the sign-in header show navy placeholders until you add `onboarding_1.jpg`, `onboarding_2.jpg`, `onboarding_3.jpg` and `auth_header.jpg` to `mobile/assets/images/` (portrait photos, about 1080 px wide).
 
 Checks:
 

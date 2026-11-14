@@ -33,7 +33,7 @@ CampusNiaga/
 └─ docs/                     data-dictionary.md, api-contracts.md, decisions/ (ADRs)
 ```
 
-Current state (15 Nov 2026): Phase 1 in progress. The backend moved to Supabase (ADR 0003). `supabase/` holds the Phase 1 migration (profiles, student check, staff roles, app settings, audit log) and its tests. `mobile/` uses `supabase_flutter` and shows a temporary connection-check screen. The Android app ID is `com.asyrafmika.campusniaga`. Do not rename the Dart package `mobile` or change the app ID without asking.
+Current state (15 Nov 2026): Phase 1 in progress. The backend moved to Supabase (ADR 0003). `supabase/` holds the Phase 1 migration (profiles, student check, staff roles, app settings, audit log) and its tests. `mobile/` uses `supabase_flutter`, Riverpod and go_router, with a bright navy theme (primary `#3B66C4`, amber accent, bundled Montserrat; layouts from the Nestora and Pixel Market references). Navigation is driven by `get_my_access()` and the onboarding flag through `features/auth` (`redirectFor`): splash, first-launch onboarding, sign in, create account (separate pages), forgot/reset password, verify email, not eligible, suspended, then home (a placeholder until the Phase 2 marketplace, which follows the Nestora home layout). Email links use the deep link `campusniaga://auth-callback`. The Android app ID is `com.asyrafmika.campusniaga`. Do not rename the Dart package `mobile` or change the app ID without asking.
 
 ## Technology stack and architectural decisions
 
