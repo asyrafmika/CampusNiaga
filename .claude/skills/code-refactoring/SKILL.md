@@ -9,16 +9,17 @@ A refactor changes structure and keeps behavior identical. If behavior must chan
 
 ## Before you start
 
-1. **Read the code and its callers.** Find every reference (Grep for the symbol, collection name or callable name across `mobile/`, `admin/`, `functions/`, `firebase/`, `seed/`, `docs/`).
+1. **Read the code and its callers.** Find every reference (Grep for the symbol, table, column or function name across `mobile/`, `admin/`, `supabase/`, `docs/`).
 2. **Check the user's uncommitted changes.** If the project is under git, run `git status` / `git diff`; never move, rename or reformat a file with unsaved user edits without asking.
 3. **Make sure tests protect the behavior.** If the code to refactor has no tests, write characterization tests first that pin the current behavior (including odd behavior, which you report rather than fix).
 4. **State the goal in one sentence** (e.g. "move listing price formatting from the widget into `core/utils/money.dart`").
 
 ## What counts as a public contract (don't change it in a refactor)
 
-- Firestore collection names, field names, status values, document ID formats (`{requestId}_{uid}`, `clusterKey`).
-- Callable names, input and output shapes, `details.reason` values.
-- Storage paths, custom claim names, route paths used by deep links.
+- Table and column names, status values, key formats (`request_interests (request_id, user_id)`, `cluster_key`).
+- Database function names, parameters, output shapes, error reasons in `details`.
+- Storage buckets and paths, route paths used by deep links.
+- Applied migrations: never edit one that was pushed; add a new migration.
 - `algoVersion` semantics in M4 outputs.
 
 Changing any of these is a migration, not a refactor. Stop and propose it to the user with the affected data, clients and tests listed.
@@ -27,13 +28,13 @@ Changing any of these is a migration, not a refactor. Stop and propose it to the
 
 | Smell | Refactor to |
 |---|---|
-| Firestore/Functions call in a widget or React component | Move it into the feature's repository (Flutter) or service (React) |
+| Supabase call in a widget or React component | Move it into the feature's repository (Flutter) or service (React) |
 | Business rule in UI (status branching, price math) | Domain function with unit tests |
 | Long `build` method or component (more than about 80 lines) | Extract widgets/components inside the same feature |
 | The same widget/component in two or more features | Move it to `core/widgets` or `shared/ui` |
 | `if/else` chains over statuses | Transition table + `assertTransition` / `switch` over a sealed type or enum |
-| Duplicate zod schemas or types | Single definition in `functions/src/domain`, imported by `admin/` |
-| Callable handler with Firestore logic | Split into handler (guard + parse) and service |
+| Duplicate row types in `admin/` | Use the generated `Database` types |
+| The same check repeated across database functions | A shared SQL helper function (tested, with locked-down grants) |
 | Speculative interface with one implementation | Inline it (remove the abstraction) |
 
 Don't add new layers, generic base classes, dependency-injection frameworks or new packages as part of a refactor.
@@ -45,7 +46,7 @@ Don't add new layers, generic base classes, dependency-injection frameworks or n
    - Mobile: `cd mobile && flutter analyze && flutter test`
    - Admin: `npm --prefix admin run typecheck && npm --prefix admin run test`
    - Functions: `npm --prefix functions run build && npm --prefix functions run test`
-   - Rules: the emulator test command in CLAUDE.md
+   - Database: push the branch and check CI's database job
 3. Don't reformat untouched code. Keep diffs reviewable: moves in one step, edits in the next.
 4. Update imports, docs and skill references that name moved paths.
 5. Finish with the full checks for every touched package.

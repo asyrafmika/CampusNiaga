@@ -13,7 +13,7 @@ Today, students sell in WhatsApp and Telegram groups, where older listings are h
 | M1 | Student Marketplace Management | Mobile |
 | M2 | Digital Business Registration & Approval | Mobile + Web |
 | M3 | Digital Storefront & Business Order Management | Mobile |
-| M4 | Smart Business Opportunity Discovery | Mobile + Cloud Functions |
+| M4 | Smart Business Opportunity Discovery | Mobile + database |
 | M5 | Business Dashboard & Performance Monitoring | Mobile |
 
 Payments, delivery, chat and machine-learning recommendations are intentionally out of scope. Buyers and sellers arrange payment and campus pickup themselves.
@@ -24,27 +24,24 @@ Payments, delivery, chat and machine-learning recommendations are intentionally 
 |---|---|---|
 | `mobile/` | Flutter (Dart) | USM students and approved student businesses |
 | `admin/` | React + TypeScript (Vite, MUI) | University reviewers and system administrators |
-| `functions/` | Firebase Cloud Functions (TypeScript) | Trusted backend logic |
-| `firebase/` | Firestore and Storage security rules, indexes | Shared backend configuration |
+| `supabase/` | Supabase: PostgreSQL, Row Level Security, database functions, Auth, Storage | Trusted backend |
 
-All clients share one Firebase project (Authentication, Cloud Firestore, Cloud Storage, Cloud Functions). Permissions are enforced on the server, by Security Rules and Cloud Functions, never only by hiding buttons in the UI.
+Both apps use one Supabase project. Permissions are enforced in the database by Row Level Security and database functions, never only by hiding buttons in the UI. Roles are checked live on every request. See [ADR 0003](docs/decisions/0003-move-backend-to-supabase.md) for why the backend is Supabase.
 
 ## Repository layout
 
 ```
 CampusNiaga/
 ├─ mobile/      Flutter student app
-├─ admin/       React reviewer/admin dashboard        (Phase 1)
-├─ functions/   Cloud Functions                       (Phase 1)
-├─ firebase/    security rules and indexes            (Phase 1)
-├─ seed/        emulator test data                    (Phase 1)
+├─ admin/       React reviewer/admin dashboard          (later in Phase 1)
+├─ supabase/    migrations, database tests, CLI config
 └─ docs/        data dictionary, API contracts, architecture decisions
 ```
 
 ## Documentation
 
-- [Data dictionary](docs/data-dictionary.md): collections, fields and status values
-- [API contracts](docs/api-contracts.md): Cloud Functions callable by the apps
+- [Data dictionary](docs/data-dictionary.md): tables, columns, status values and storage buckets
+- [API contracts](docs/api-contracts.md): the database functions the apps call
 - [Architecture decisions](docs/decisions/): why the main technical choices were made
 
 ## Development status
@@ -60,57 +57,65 @@ CampusNiaga/
 
 ## Getting started
 
-Prerequisites: Flutter (stable), Node.js 22+, Java 21+ (for the Firebase emulators) and the Firebase CLI.
+Prerequisites: Flutter (stable) with an Android emulator, and Node.js 22+ (only for running the Supabase CLI with `npx`).
 
-### Cloud Functions
+### 1. Create the Supabase project (once)
 
-```bash
-cd functions
-npm install        # first time only
-npm run build      # compile TypeScript to lib/ (the emulator runs lib/)
-npm run lint
-npm test           # unit tests
-npm run test:emulator   # integration tests on the Auth + Firestore emulators
-```
+1. Sign in at [supabase.com](https://supabase.com) and create a project named **CampusNiaga**, region **Southeast Asia (Singapore)**. Save the database password in a password manager; it is never stored in this repository.
+2. **Authentication → Sign In / Providers → Email:** keep it enabled, with **Confirm email** on. CampusNiaga only treats confirmed `@student.usm.my` addresses as students.
+3. **Authentication → Emails → SMTP Settings:** turn on custom SMTP. Supabase's built-in sender allows about 2 emails an hour and only to your project team, so students can't receive confirmation emails without it. A Gmail account with an app password works for a prototype (host `smtp.gmail.com`, port `465`).
 
-Emulator tests always use the project ID `demo-campusniaga`, and refuse to run without the emulators, so they can never touch the real Firebase project.
+### 2. Apply the database migrations
 
-On Windows, if an emulator run fails with "port taken", a previous Firestore emulator is still running. Free the port in PowerShell:
-
-```powershell
-Get-CimInstance Win32_Process -Filter "Name='java.exe'" | Where-Object { $_.CommandLine -like '*cloud-firestore-emulator*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
-```
-
-### Firebase emulators
-
-Build the functions first, then from the repository root:
+From the repository root:
 
 ```bash
-firebase emulators:start --project demo-campusniaga
+npx supabase@2.122.0 login
+npx supabase@2.122.0 link --project-ref <your-project-ref>
+npx supabase@2.122.0 db push
 ```
 
-Open the Emulator UI at http://127.0.0.1:4000. Stop with Ctrl+C. Always pass `--project demo-campusniaga`: a `demo-` project can't reach any real Firebase service, and the Emulator UI shows only the project it was started with.
+The project ref is the part of the project URL before `.supabase.co`. `db push` applies every migration in `supabase/migrations/` that the project doesn't have yet.
 
-### Test accounts
+### 3. Make yourself an admin
 
-The emulators start empty. With them running, open a second terminal and fill them with test data:
+Sign up in the app first (step 4), then in the dashboard's **SQL Editor** run:
+
+```sql
+insert into public.staff_roles (user_id, role)
+select id, 'admin' from auth.users where email = 'your.email@student.usm.my';
+```
+
+After that, admins grant other roles with `set_staff_role` (the admin dashboard will do this from Phase 1's later commits).
+
+### 4. Run the mobile app
+
+1. In the dashboard, open **Project Settings → API** (Project URL) and **API Keys** (the **publishable** key). Paste both into `mobile/lib/core/config/supabase_config.dart`. The publishable key is designed to be public. Never paste the secret / `service_role` key.
+2. Start an Android emulator and run the app:
 
 ```bash
-cd seed
-npm install        # first time only
-npm run seed       # safe to repeat
+flutter emulators --launch Pixel_9
+cd mobile
+flutter pub get    # first time only
+flutter run
 ```
 
-Every account uses the password `CampusNiaga#2026`. These accounts exist only in the emulators.
+Use **Create account** with your USM email, confirm it from your inbox, then **Sign in and check**. `get_my_access` should report `"is_student": true`.
 
-| Email | Role | Use it to test |
-|---|---|---|
-| `ali.test@student.usm.my` | Student | Student features |
-| `siti.test@student.usm.my` | Student | A second student, e.g. a buyer |
-| `reviewer@campusniaga.test` | Reviewer | Web dashboard: reviewing |
-| `admin@campusniaga.test` | Admin | Web dashboard: administration |
-| `outsider@example.com` | None | Being refused as a non-USM user |
+Checks:
 
-Running the seed again restores these accounts and `config/app`, and leaves everything else alone. It refuses to run against anything but local emulators and a `demo-` project.
+```bash
+cd mobile
+flutter analyze
+dart format --output=none --set-exit-if-changed lib test
+flutter test
+```
 
-More setup steps are added as Phase 1 continues.
+### Database tests
+
+The pgTAP tests in `supabase/tests/database/` run in GitHub Actions on every pull request, against a throwaway local Supabase database. Running them locally needs Docker (`npx supabase@2.122.0 start`, then `npx supabase@2.122.0 test db`).
+
+### Free-plan notes
+
+- A free project **pauses after a week without activity**. Open the dashboard and restore it before a demo.
+- The free plan has no automatic backups.
