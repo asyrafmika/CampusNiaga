@@ -50,7 +50,7 @@ CampusNiaga/
 |---|---|---|
 | 1 Foundation | Project setup, sign-in, USM student check, staff-only web access | Done |
 | 2 Marketplace | Listings, search, reservations, reports | Done |
-| 3 Approval | Business application and reviewer workflow | Planned |
+| 3 Approval | Business application and reviewer workflow (simulated) | Done |
 | 4 Business | Storefront, stock, pre-orders, orders | Planned |
 | 5 Discovery | Product requests, interest, opportunity ranking | Planned |
 | 6 Dashboard + QA | Seller analytics, final testing | Planned |
@@ -78,6 +78,17 @@ The handoff's Phase 2 pass condition is that a student publishes an item, a seco
 | Database | `05_listings`, `06_reservations`, `07_moderation` | Every rule on its own: who may list, reserve, resolve, report and moderate; stock never goes below zero; expiry returns units; contact details stay hidden until acceptance |
 | Mobile | `mobile/test/features/marketplace/` | The screens: browse, search and filter, reserve (with quantity), refused reservations show the reason, publish, the listing form, accept a request, report, profile |
 | Admin | `admin/src/features/moderation/pages/ModerationPage.test.tsx` | Hide a listing, suspend a seller, dismiss a report |
+
+### Phase 3 check
+
+The handoff's Phase 3 pass condition is: submit → reviewer requests edits → applicant edits and resubmits → approve; business features are unavailable before approval; every change is audited. The approval is a **simulated** reviewer workflow for the FYP, not an official USM/HDC decision, and both apps say so.
+
+| Part | Test | What it proves |
+|---|---|---|
+| Database | `supabase/tests/database/11_phase3_pass_condition.test.sql` | The journey: Ali drafts an application with a document and submits it; the reviewer starts the review and asks for a price list; Ali reads the note, edits and resubmits with a reply; the reviewer approves. `get_my_business()` refuses Ali (`FORBIDDEN`) until approval and works straight after; the business row exists; the status history and the audit log both hold all six steps in order, with who did each |
+| Database | `09_business_applications`, `10_businesses` | Every (status, action) pair: allowed moves succeed, every other one fails with `INVALID_TRANSITION`. Applicants can't change status, reviewer or dates; drafts stay private from staff; other students see nothing; documents follow the same rules; reject and request-info need a note; no second business; suspension removes business access at once and reinstating restores it; the status summary counts by status |
+| Mobile | `mobile/test/features/business/application/` | Apply, save a draft, upload a document, submit; respond to a request for changes and resubmit with a reply; the timeline; approved and rejected states; refused submissions show the reason |
+| Admin | `admin/src/features/applications/` | The queue and status summary; only the decisions the state machine allows; a note is required to request changes or reject; approval is confirmed with the disclaimer; reviewers can't decide their own application; admins suspend a business |
 
 ## Getting started
 
