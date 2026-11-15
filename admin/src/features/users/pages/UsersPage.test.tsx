@@ -10,11 +10,15 @@ import { UsersPage } from './UsersPage';
 const mocks = vi.hoisted(() => ({
   listUsers: vi.fn<() => Promise<UserPage>>(),
   setStaffRole: vi.fn<(userId: string, role: string, enabled: boolean) => Promise<void>>(),
+  setAccountStatus: vi.fn<(userId: string, status: string, note: string) => Promise<void>>(),
 }));
 
 vi.mock('../services/usersService', () => ({
   listUsers: mocks.listUsers,
   setStaffRole: mocks.setStaffRole,
+}));
+vi.mock('../../moderation/services/moderationService', () => ({
+  setAccountStatus: mocks.setAccountStatus,
 }));
 vi.mock('../../auth', () => ({
   useAccess: () => ({
@@ -84,5 +88,23 @@ describe('UsersPage', () => {
     await userEvent.click(await screen.findByRole('switch', { name: 'Admin role for ali@student.usm.my' }));
 
     expect(await screen.findByText('Administrator access required.')).toBeInTheDocument();
+  });
+
+  it('suspends an account after confirmation, with a note', async () => {
+    mocks.setAccountStatus.mockResolvedValue();
+    renderAt(<UsersPage />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Suspend ali@student.usm.my' }));
+    await userEvent.type(screen.getByLabelText('Note (optional)'), 'Repeated scams');
+    await userEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+
+    expect(mocks.setAccountStatus).toHaveBeenCalledWith('ali', 'suspended', 'Repeated scams');
+    expect(await screen.findByText('ali@student.usm.my is suspended.')).toBeInTheDocument();
+  });
+
+  it('offers no suspend button on the admin’s own account', async () => {
+    renderAt(<UsersPage />);
+    await screen.findByText('ali@student.usm.my');
+    expect(screen.queryByRole('button', { name: 'Suspend me@student.usm.my' })).toBeNull();
   });
 });

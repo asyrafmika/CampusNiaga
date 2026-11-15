@@ -30,7 +30,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
     path: '/moderation',
     icon: <FlagOutlinedIcon />,
     role: 'admin',
-    comingIn: 'Phase 2',
   },
   { label: 'Users & Roles', path: '/users', icon: <ManageAccountsOutlinedIcon />, role: 'admin' },
   { label: 'Audit Log', path: '/audit', icon: <HistoryOutlinedIcon />, role: 'admin' },

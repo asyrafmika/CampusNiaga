@@ -2,6 +2,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import {
   Alert,
   Box,
+  Button,
   Chip,
   InputAdornment,
   Paper,
@@ -20,8 +21,10 @@ import {
 import { useState } from 'react';
 
 import { useAccess, type StaffRole } from '../../auth';
+import { useSetAccountStatus } from '../../moderation';
 import { messageOf } from '../../../shared/lib/errors';
 import { formatDateTime, PAGE_SIZE } from '../../../shared/lib/format';
+import { ActionDialog } from '../../../shared/ui/ActionDialog';
 import { useSetStaffRole, useUsers } from '../hooks/useUsers';
 import type { UserRow } from '../services/usersService';
 
@@ -32,6 +35,8 @@ export function UsersPage() {
   const [search, setSearch] = useState('');
   const users = useUsers(page, search);
   const setRole = useSetStaffRole();
+  const setStatus = useSetAccountStatus();
+  const [statusTarget, setStatusTarget] = useState<UserRow | null>(null);
   const [notice, setNotice] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
 
   const toggle = (user: UserRow, role: StaffRole, enabled: boolean) => {
@@ -51,11 +56,30 @@ export function UsersPage() {
     );
   };
 
+  const changeStatus = (note: string) => {
+    if (statusTarget === null) return;
+    const suspend = statusTarget.accountStatus === 'active';
+    const email = statusTarget.email;
+    setStatus.mutate(
+      { userId: statusTarget.id, status: suspend ? 'suspended' : 'active', note },
+      {
+        onSuccess: () => {
+          setStatusTarget(null);
+          setNotice({ severity: 'success', text: `${email} is ${suspend ? 'suspended' : 'active again'}.` });
+        },
+        onError: (error) => {
+          setStatusTarget(null);
+          setNotice({ severity: 'error', text: messageOf(error) });
+        },
+      },
+    );
+  };
+
   return (
     <Box>
       <Typography variant="h1">Users &amp; Roles</Typography>
       <Typography sx={{ color: 'text.secondary', mt: 0.5, mb: 3 }}>
-        Grant or remove reviewer and admin access. Every change is recorded in the audit log.
+        Grant or remove reviewer and admin access, and suspend accounts. Every change is recorded in the audit log.
       </Typography>
 
       <Paper sx={{ p: 3 }}>
@@ -91,6 +115,7 @@ export function UsersPage() {
                 <TableCell>Joined</TableCell>
                 <TableCell align="center">Reviewer</TableCell>
                 <TableCell align="center">Admin</TableCell>
+                <TableCell align="right">Account</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -132,12 +157,27 @@ export function UsersPage() {
                         slotProps={{ input: { 'aria-label': `Admin role for ${user.email}` } }}
                       />
                     </TableCell>
+                    <TableCell align="right">
+                      {!isMe && (
+                        <Button
+                          size="small"
+                          color={user.accountStatus === 'active' ? 'error' : 'primary'}
+                          disabled={setStatus.isPending}
+                          onClick={() => {
+                            setStatusTarget(user);
+                          }}
+                          aria-label={`${user.accountStatus === 'active' ? 'Suspend' : 'Reactivate'} ${user.email}`}
+                        >
+                          {user.accountStatus === 'active' ? 'Suspend' : 'Reactivate'}
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })}
               {users.data?.rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ color: 'text.secondary', py: 4 }}>
+                  <TableCell colSpan={7} align="center" sx={{ color: 'text.secondary', py: 4 }}>
                     No accounts match.
                   </TableCell>
                 </TableRow>
@@ -157,6 +197,25 @@ export function UsersPage() {
           }}
         />
       </Paper>
+
+      {statusTarget !== null && (
+        <ActionDialog
+          open
+          title={statusTarget.accountStatus === 'active' ? 'Suspend account?' : 'Reactivate account?'}
+          message={
+            statusTarget.accountStatus === 'active'
+              ? `${statusTarget.email} can no longer buy or sell, and their listings leave the marketplace.`
+              : `${statusTarget.email} can trade again.`
+          }
+          confirmLabel={statusTarget.accountStatus === 'active' ? 'Suspend' : 'Reactivate'}
+          danger={statusTarget.accountStatus === 'active'}
+          busy={setStatus.isPending}
+          onCancel={() => {
+            setStatusTarget(null);
+          }}
+          onConfirm={changeStatus}
+        />
+      )}
 
       <Snackbar
         open={notice !== null}

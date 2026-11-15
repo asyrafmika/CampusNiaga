@@ -19,10 +19,10 @@ Sign in with an account that has a staff role (see "Make yourself an admin" in t
 | Page | Who | What |
 |---|---|---|
 | Overview | Reviewer, admin | Admins: account and staff counts, audit events this week, recent activity. Reviewers: the Phase 3 application queue placeholder |
-| Users & Roles | Admin | Search accounts; grant or remove reviewer and admin roles (`set_staff_role`, audited). An admin can't remove their own admin role |
+| Users & Roles | Admin | Search accounts; grant or remove reviewer and admin roles (`set_staff_role`); suspend or reactivate accounts (`set_account_status`). All audited. An admin can't remove their own admin role or suspend themselves |
 | Audit Log | Admin | Every privileged change, newest first |
 | Applications | Reviewer, admin | Phase 3 |
-| Reports & Moderation | Admin | Phase 2 |
+| Reports & Moderation | Admin | Open and closed reports with the listing, reporter and seller. Hide or restore the listing (`moderate_listing`), suspend the seller (`set_account_status`) or dismiss the report (`dismiss_report`), each with an optional note. All audited |
 
 ## Checks
 
