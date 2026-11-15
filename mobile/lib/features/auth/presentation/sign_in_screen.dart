@@ -45,8 +45,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final request = ref.watch(signInControllerProvider);
 
     return AuthLayout(
-      title: 'Welcome back',
-      subtitle: 'Sign in with your USM student email to continue.',
+      title: 'Welcome ',
+      titleAccent: 'back.',
+      subtitle: 'Sign in with your USM student email to buy, sell and run your campus business.',
+      showBadge: true,
+      footer: AuthSwitchLink(
+        question: 'New to CampusNiaga?',
+        action: 'Create an account',
+        onPressed: () => context.push(AppRoutes.signUp),
+      ),
       children: [
         Form(
           key: _form,
@@ -96,12 +103,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 16),
-        AuthSwitchLink(
-          question: 'New to CampusNiaga?',
-          action: 'Create an account',
-          onPressed: () => context.push(AppRoutes.signUp),
         ),
       ],
     );
