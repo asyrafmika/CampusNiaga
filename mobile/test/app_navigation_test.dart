@@ -117,7 +117,7 @@ void main() {
 
     await tester.tap(find.byKey(OnboardingScreen.continueKey));
     await tester.pumpAndSettle();
-    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.text('Welcome back.', findRichText: true), findsOneWidget);
   });
 
   testWidgets('skip goes straight to sign-in', (tester) async {
@@ -127,14 +127,14 @@ void main() {
     await tester.tap(find.byKey(OnboardingScreen.skipKey));
     await tester.pumpAndSettle();
 
-    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.text('Welcome back.', findRichText: true), findsOneWidget);
   });
 
   testWidgets('a returning visitor goes straight to sign-in', (tester) async {
     await pumpApp(tester, () async => null);
     await tester.pumpAndSettle();
 
-    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.text('Welcome back.', findRichText: true), findsOneWidget);
     expect(find.text('Find campus deals'), findsNothing);
   });
 
@@ -186,8 +186,12 @@ void main() {
 
     await tester.tap(find.text('Create an account'));
     await tester.pumpAndSettle();
-    expect(find.text('Create your account'), findsOneWidget);
-    expect(find.text('Welcome back'), findsNothing);
+    expect(
+      find.text('Join the campus market.', findRichText: true),
+      findsOneWidget,
+    );
+    expect(find.text('Welcome back.', findRichText: true), findsNothing);
+    expect(find.text('Already have an account?'), findsOneWidget);
 
     Future<void> type(Key key, String text) => tester.enterText(
       find.descendant(of: find.byKey(key), matching: find.byType(EditableText)),
@@ -195,17 +199,18 @@ void main() {
     );
     await type(SignUpScreen.nameKey, 'Ali Bin Abu');
     await type(SignUpScreen.emailKey, 'ali@student.usm.my');
-    await type(SignUpScreen.passwordKey, 'campus2026');
-    await type(SignUpScreen.confirmKey, 'campus2026');
+    await type(SignUpScreen.passwordKey, 'Campus#2026');
     await tester.ensureVisible(find.byKey(SignUpScreen.submitKey));
     await tester.tap(find.byKey(SignUpScreen.submitKey));
     await tester.pumpAndSettle();
 
     expect(auth.calls, ['signUp Ali Bin Abu ali@student.usm.my']);
-    expect(find.text('Check your inbox'), findsOneWidget);
+    expect(find.text('Check your inbox.', findRichText: true), findsOneWidget);
   });
 
-  testWidgets('create account rejects mismatched passwords', (tester) async {
+  testWidgets('create account rejects a password under 8 characters', (
+    tester,
+  ) async {
     final auth = await pumpApp(tester, () async => null);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Create an account'));
@@ -217,13 +222,12 @@ void main() {
     );
     await type(SignUpScreen.nameKey, 'Ali');
     await type(SignUpScreen.emailKey, 'ali@student.usm.my');
-    await type(SignUpScreen.passwordKey, 'campus2026');
-    await type(SignUpScreen.confirmKey, 'campus2027');
+    await type(SignUpScreen.passwordKey, 'short1');
     await tester.ensureVisible(find.byKey(SignUpScreen.submitKey));
     await tester.tap(find.byKey(SignUpScreen.submitKey));
     await tester.pumpAndSettle();
 
-    expect(find.text('The passwords do not match.'), findsOneWidget);
+    expect(find.text('Use at least 8 characters.'), findsOneWidget);
     expect(auth.calls, isEmpty);
   });
 
@@ -233,14 +237,17 @@ void main() {
 
     await tester.tap(find.text('Forgot password?'));
     await tester.pumpAndSettle();
-    expect(find.text('Reset your password'), findsOneWidget);
+    expect(
+      find.text('Reset your password.', findRichText: true),
+      findsOneWidget,
+    );
 
     await tester.enterText(find.byType(TextFormField), 'ali@student.usm.my');
     await tester.tap(find.text('Send reset link'));
     await tester.pumpAndSettle();
 
     expect(auth.calls, ['reset ali@student.usm.my']);
-    expect(find.text('Check your inbox'), findsOneWidget);
+    expect(find.text('Check your inbox.', findRichText: true), findsOneWidget);
   });
 
   testWidgets('lets a verified USM student in', (tester) async {

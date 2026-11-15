@@ -103,7 +103,11 @@ flutter run
 
 The first launch shows the onboarding slides, then **Sign in**. Use **Create an account** with your USM email and confirm it from your inbox. If you open the link on the phone, it signs you in straight away; otherwise, sign in after confirming.
 
-**Photos:** onboarding and the sign-in header show navy placeholders until you add `onboarding_1.jpg`, `onboarding_2.jpg`, `onboarding_3.jpg` and `auth_header.jpg` to `mobile/assets/images/` (portrait photos, about 1080 px wide).
+**Images:** put these in `mobile/assets/images/`; until then the app shows placeholders.
+
+| File | Where | Format |
+|---|---|---|
+| `onboarding_1.jpg`, `onboarding_2.jpg`, `onboarding_3.jpg` | The three onboarding slides | Portrait photos, about 1080 px wide |
 
 Checks:
 

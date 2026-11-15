@@ -10,7 +10,6 @@ abstract final class AppImages {
     'assets/images/onboarding_2.jpg',
     'assets/images/onboarding_3.jpg',
   ];
-  static const String authHeader = 'assets/images/auth_header.jpg';
 }
 
 /// A cover-fit photo that falls back to a branded panel if the file is

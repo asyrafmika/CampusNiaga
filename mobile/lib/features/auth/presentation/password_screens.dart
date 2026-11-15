@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_colors.dart';
+import 'widgets/auth_style.dart';
 import '../domain/auth_failure.dart';
 import '../domain/auth_validators.dart';
 import 'auth_controller.dart';
@@ -43,14 +43,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
     if (request case AsyncData(value: final String sentTo)) {
       return AuthLayout(
-        title: 'Check your inbox',
+        title: 'Check your ',
+        titleAccent: 'inbox.',
         subtitle: 'If $sentTo has an account, a reset link is on its way.',
         showBack: true,
         children: [
           const Icon(
             Icons.mark_email_read_outlined,
             size: 72,
-            color: AppColors.primary,
+            color: AuthStyle.link,
           ),
           const SizedBox(height: 16),
           Text(
@@ -63,7 +64,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     }
 
     return AuthLayout(
-      title: 'Reset your password',
+      title: 'Reset your ',
+      titleAccent: 'password.',
       subtitle: 'Enter your email and we will send you a reset link.',
       showBack: true,
       children: [
@@ -131,7 +133,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     final request = ref.watch(resetPasswordControllerProvider);
 
     return AuthLayout(
-      title: 'Choose a new password',
+      title: 'Choose a new ',
+      titleAccent: 'password.',
       subtitle: 'You will stay signed in after saving it.',
       children: [
         Form(
