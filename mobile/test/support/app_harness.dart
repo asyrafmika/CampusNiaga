@@ -7,10 +7,13 @@ import 'package:mobile/core/storage/preferences.dart';
 import 'package:mobile/features/auth/data/auth_repository.dart';
 import 'package:mobile/features/auth/domain/auth_failure.dart';
 import 'package:mobile/features/auth/domain/user_access.dart';
+import 'package:mobile/features/business/application/data/business_application_repository.dart';
+import 'package:mobile/features/business/application/data/document_picker.dart';
 import 'package:mobile/features/marketplace/data/listing_repository.dart';
 import 'package:mobile/features/marketplace/data/reservation_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'business_fakes.dart';
 import 'marketplace_fakes.dart';
 
 const student = UserAccess(
@@ -59,6 +62,8 @@ Future<FakeAuthRepository> pumpApp(
   bool onboardingSeen = true,
   FakeListingRepository? listings,
   FakeReservationRepository? reservations,
+  FakeBusinessApplicationRepository? applications,
+  FakeDocumentPicker? documentPicker,
 }) async {
   // A Pixel 9-sized screen (the default test surface is 800x600).
   tester.view.physicalSize = const Size(1080, 2424);
@@ -81,6 +86,12 @@ Future<FakeAuthRepository> pumpApp(
         ),
         reservationRepositoryProvider.overrideWithValue(
           reservations ?? FakeReservationRepository(),
+        ),
+        businessApplicationRepositoryProvider.overrideWithValue(
+          applications ?? FakeBusinessApplicationRepository(),
+        ),
+        documentPickerProvider.overrideWithValue(
+          documentPicker ?? FakeDocumentPicker(),
         ),
       ],
       child: const CampusNiagaApp(),
