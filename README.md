@@ -33,7 +33,7 @@ Both apps use one Supabase project. Permissions are enforced in the database by 
 ```
 CampusNiaga/
 ├─ mobile/      Flutter student app
-├─ admin/       React reviewer/admin dashboard          (later in Phase 1)
+├─ admin/       React reviewer/admin dashboard
 ├─ supabase/    migrations, database tests, CLI config
 └─ docs/        data dictionary, API contracts, architecture decisions
 ```
@@ -48,12 +48,24 @@ CampusNiaga/
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 Foundation | Project setup, sign-in, USM student check, staff-only web access | In progress |
+| 1 Foundation | Project setup, sign-in, USM student check, staff-only web access | Done |
 | 2 Marketplace | Listings, search, reservations, reports | Planned |
 | 3 Approval | Business application and reviewer workflow | Planned |
 | 4 Business | Storefront, stock, pre-orders, orders | Planned |
 | 5 Discovery | Product requests, interest, opportunity ranking | Planned |
 | 6 Dashboard + QA | Seller analytics, final testing | Planned |
+
+### Phase 1 check
+
+The handoff's Phase 1 pass condition is that a USM student gets in, a non-USM email is refused, and a student can't open staff features. These automated tests prove it, and CI runs them on every pull request:
+
+| Part | Test | What it proves |
+|---|---|---|
+| Database | `supabase/tests/database/04_phase1_pass_condition.test.sql` | The whole journey: sign up, held until the email is confirmed, then let in; a confirmed gmail account refused; the student can't grant itself a role or read staff data; a role given by an admin works on the next request and its removal does too, both audited |
+| Mobile | `mobile/test/app_navigation_test.dart` | A verified student reaches home; a non-USM account stops at "CampusNiaga is for USM students"; a suspended account stops at "Account suspended" |
+| Admin | `admin/src/features/auth/components/RequireStaff.test.tsx` | A student who signs in to the dashboard is signed out with a "staff only" message; a reviewer can't open admin pages |
+
+The rules are enforced by the database, so the database test is the one that matters most; the app tests check that each app shows the right screen for the answer it gets.
 
 ## Getting started
 
@@ -87,7 +99,7 @@ insert into public.staff_roles (user_id, role)
 select id, 'admin' from auth.users where email = 'your.email@student.usm.my';
 ```
 
-After that, admins grant other roles with `set_staff_role` (the admin dashboard will do this from Phase 1's later commits).
+After that, grant reviewer and admin roles from the admin dashboard's **Users & Roles** page (step 5). Each change is written to the audit log.
 
 ### 4. Run the mobile app
 
@@ -117,6 +129,20 @@ flutter analyze
 dart format --output=none --set-exit-if-changed lib test
 flutter test
 ```
+
+### 5. Run the admin dashboard
+
+The web dashboard is for reviewers and admins. It uses the same Supabase project; its URL and publishable key are in `admin/src/shared/supabase/client.ts`.
+
+```bash
+cd admin
+npm install        # first time only
+npm run dev        # open http://localhost:5173
+```
+
+Sign in with a staff account (step 3). A student account is signed out with a "staff only" message. Checks: `npm run typecheck`, `npm run lint`, `npm test`. See [admin/README.md](admin/README.md) for its pages and structure.
+
+You don't need to run the dashboard to use the mobile app, or the other way round: both talk to the hosted Supabase project directly.
 
 ### Database tests
 

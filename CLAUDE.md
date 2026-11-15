@@ -29,11 +29,11 @@ CampusNiaga/
 │  ├─ migrations/            versioned SQL: tables, Row Level Security, database functions
 │  └─ tests/database/        pgTAP tests (`supabase test db`)
 ├─ mobile/                   Flutter student app (Dart package name: `mobile`)
-├─ admin/                    React + TypeScript reviewer/admin dashboard (Vite) (later in Phase 1)
+├─ admin/                    React + TypeScript reviewer/admin dashboard (Vite)
 └─ docs/                     data-dictionary.md, api-contracts.md, decisions/ (ADRs)
 ```
 
-Current state (15 Nov 2026): Phase 1 in progress. The backend moved to Supabase (ADR 0003). `supabase/` holds the Phase 1 migration (profiles, student check, staff roles, app settings, audit log) and its tests. `mobile/` uses `supabase_flutter`, Riverpod and go_router, with a bright navy theme (primary `#3B66C4`, amber accent, bundled Montserrat; layouts from the Nestora and Pixel Market references). Navigation is driven by `get_my_access()` and the onboarding flag through `features/auth` (`redirectFor`): splash, first-launch onboarding, sign in and create account (separate pages: brand navy gradient with blurred aurora glows, amber-accented headline, frosted-glass form card, white button; `features/auth/presentation/widgets/auth_layout.dart` and `auth_style.dart`), forgot/reset password, verify email, not eligible, suspended, then home (a placeholder until the Phase 2 marketplace, which follows the Nestora home layout). Email links use the deep link `campusniaga://auth-callback`. The Android app ID is `com.asyrafmika.campusniaga`. Do not rename the Dart package `mobile` or change the app ID without asking.
+Current state (15 Nov 2026): Phase 1 complete; Phase 2 (marketplace) is next. The backend moved to Supabase (ADR 0003). `supabase/` holds the Phase 1 migration (profiles, student check, staff roles, app settings, audit log) and its tests; `04_phase1_pass_condition.test.sql` is the Phase 1 pass condition as one journey (README "Phase 1 check"). `admin/` is the staff dashboard (Dabang purple, Poppins): staff login that signs out non-staff, Overview, Users & Roles (`set_staff_role`), Audit Log; see `admin/README.md`. `mobile/` uses `supabase_flutter`, Riverpod and go_router, with a bright navy theme (primary `#3B66C4`, amber accent, bundled Montserrat; layouts from the Nestora and Pixel Market references). Navigation is driven by `get_my_access()` and the onboarding flag through `features/auth` (`redirectFor`): splash, first-launch onboarding, sign in and create account (separate pages: brand navy gradient with blurred aurora glows, amber-accented headline, frosted-glass form card, white button; `features/auth/presentation/widgets/auth_layout.dart` and `auth_style.dart`), forgot/reset password, verify email, not eligible, suspended, then home (a placeholder until the Phase 2 marketplace, which follows the Nestora home layout). Email links use the deep link `campusniaga://auth-callback`. The Android app ID is `com.asyrafmika.campusniaga`. Do not rename the Dart package `mobile` or change the app ID without asking.
 
 ## Technology stack and architectural decisions
 
@@ -98,7 +98,7 @@ Run from the repository root.
 | Mobile: run | Start an Android emulator (`flutter emulators --launch Pixel_9`), then `cd mobile && flutter run`. The app connects to the hosted project in `mobile/lib/core/config/supabase_config.dart` |
 | Apply migrations to the hosted project | `npx supabase@2.122.0 link --project-ref <ref>` once, then `npx supabase@2.122.0 db push`. **This changes the real database: only when the user asks** |
 | Database tests | Run by CI (`supabase db start` then `supabase test db`). Locally they need Docker, which this machine doesn't have |
-| Admin: dev / typecheck / lint / test | `npm --prefix admin run dev`, `run typecheck`, `run lint`, `run test` (after the admin scaffold) |
+| Admin: dev / typecheck / lint / test | `npm --prefix admin run dev`, `run typecheck`, `run lint`, `run test` |
 
 Never run `db push`, change hosted-project settings, install global tools, or add dependencies unless the user asks for it in the current task. Never put the `service_role` key or database password in the repository; the publishable key in `supabase_config.dart` is meant to be public.
 
