@@ -31,10 +31,13 @@ A refused call fails with SQL state `P0001`. Its `details` field holds one of th
 | `set_listing_status` | 2 ✅ | Listing owner | Publish a draft, close or re-open a listing, or mark it sold |
 | `search_listings` | 2 ✅ | Student | The marketplace feed: search, filters, sort, pages |
 | `get_listing` | 2 ✅ | Student, owner, admin | One listing for the detail page |
-| `request_reservation` | 2 | Student | Reserve a personal listing |
-| `resolve_reservation` | 2 | Seller / buyer | Accept, decline, cancel or mark collected |
-| `moderate_listing` | 2 | Admin | Hide or restore a reported listing |
-| `set_account_status` | 2 | Admin | Suspend or reactivate an account |
+| `request_reservation` | 2 ✅ | Student | Reserve units of a listing; holds them at once |
+| `resolve_reservation` | 2 ✅ | Seller / buyer | Accept, decline, cancel or mark collected |
+| `my_reservations` | 2 ✅ | Student | My Reservations, buying or selling side |
+| `report_listing` | 2 ✅ | Student | Report a listing to the admins |
+| `moderate_listing` | 2 ✅ | Admin | Hide or restore a listing |
+| `dismiss_report` | 2 ✅ | Admin | Close a report without action |
+| `set_account_status` | 2 ✅ | Admin | Suspend or reactivate an account |
 | `submit_business_application` | 3 | Applicant | Submit or resubmit an application |
 | `review_business_application` | 3 | Reviewer | Start review, request info, approve or reject |
 | `set_business_status` | 3 | Admin | Suspend or reinstate a business |
@@ -117,3 +120,71 @@ Each function's full contract is added below when it is implemented.
 | **Output** | One `listing_card` row |
 | **Shows** | Students: any listing that isn't a draft, isn't hidden and whose seller is active. The owner: their own listings in any status. Admins: everything |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` (missing or not visible to the caller) · `42501` |
+
+## `request_reservation(listing_id uuid, qty integer default 1, pickup_note text default null)`
+
+| | |
+|---|---|
+| **Caller** | Verified student who doesn't own the listing |
+| **Input** | `qty`: 1–999 · `pickup_note`: up to 200 characters, optional |
+| **Output** | `{ reservation_id, status: 'requested', expires_at }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` (missing or draft) · `FORBIDDEN` (own listing) · `ITEM_UNAVAILABLE` (not available, hidden, seller suspended, or fewer units left than asked; the message says how many are left) · `ALREADY_EXISTS` (an active reservation on this listing already) · `RATE_LIMITED` (more than 10 in an hour) · `42501` |
+| **Side effects** | Locks the listing, expires its overdue reservations, takes `qty` out of `stock` (the listing becomes `reserved` at 0) and notifies the seller |
+| **Concurrency** | Requests for the same listing run one at a time behind the row lock, so they can never hold more units than exist. CI proves this with two real connections (`supabase/tests/concurrency/reservation_race.sh`) |
+
+## `resolve_reservation(reservation_id uuid, action text)`
+
+| | |
+|---|---|
+| **Caller** | The seller (`accept`, `decline`, `collect`) or either side (`cancel`) |
+| **Allowed** | `accept`, `decline`: from `requested` · `cancel`: from `requested` or `accepted` · `collect`: from `accepted` |
+| **Output** | `{ reservation_id, status, listing_status }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (unknown action) · `NOT_FOUND` · `FORBIDDEN` (not a party, or the buyer trying a seller action) · `INVALID_TRANSITION` (wrong status, or expired) · `42501` |
+| **Side effects** | `accept` gives 7 days to collect. `decline` and `cancel` return the units. `collect` sells the listing when no stock and no other active reservation remain. Notifies the other party |
+
+## `my_reservations(side text default 'buying')`
+
+| | |
+|---|---|
+| **Caller** | Verified student |
+| **Input** | `side`: `buying` or `selling` |
+| **Output** | Rows of `reservation_card`: `id, listing_id, listing_title, listing_photo, pickup_area, price_sen, qty, pickup_note, status, expires_at, created_at, updated_at, i_am_buyer, other_party_name, other_party_email`. Active ones first, then newest |
+| **Privacy** | `other_party_email` is filled only once the reservation is `accepted` or `collected`; until then each side sees only the other's name |
+| **Side effects** | Expires the caller's overdue reservations first |
+
+## `report_listing(listing_id uuid, reason text, details text default '')`
+
+| | |
+|---|---|
+| **Caller** | Verified student who doesn't own the listing |
+| **Input** | `reason`: `prohibited_item`, `scam`, `offensive`, `misleading` or `other` (needs details) · `details`: up to 500 characters |
+| **Output** | `{ report_id, status: 'open' }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` (missing or draft) · `FORBIDDEN` (own listing) · `ALREADY_EXISTS` (an open report on it already) · `RATE_LIMITED` (more than 10 a day) · `42501` |
+
+## `moderate_listing(listing_id uuid, hide boolean, note text default null)`
+
+| | |
+|---|---|
+| **Caller** | Admin |
+| **Output** | `{ listing_id, hidden, changed }` |
+| **Errors** | `FORBIDDEN` · `INVALID_INPUT` · `NOT_FOUND` · `42501` |
+| **Side effects** | When `changed`: sets `listings.hidden`, writes audit `listing.hidden` or `listing.restored` and notifies the owner. Hiding also closes the listing's open reports as `actioned` / `listing_hidden`. A hidden listing leaves the feed and can't be reserved; its owner and admins still see it |
+
+## `dismiss_report(report_id uuid, note text default null)`
+
+| | |
+|---|---|
+| **Caller** | Admin |
+| **Output** | `{ report_id, status: 'reviewed' }` |
+| **Errors** | `FORBIDDEN` · `INVALID_INPUT` · `NOT_FOUND` · `INVALID_TRANSITION` (already closed) · `42501` |
+| **Side effects** | The report becomes `reviewed` / `dismissed`; audit `report.dismissed` |
+
+## `set_account_status(user_id uuid, account_status text, note text default null)`
+
+| | |
+|---|---|
+| **Caller** | Admin, for someone else's account |
+| **Input** | `account_status`: `active` or `suspended` |
+| **Output** | `{ user_id, account_status, changed }` |
+| **Errors** | `FORBIDDEN` (not an admin, or their own account) · `INVALID_INPUT` · `NOT_FOUND` · `42501` |
+| **Side effects** | When `changed`: updates the profile and writes audit `account.suspended` or `account.reactivated`. Suspending closes open reports about the user as `actioned` / `account_suspended`. Takes effect on the user's next request: a suspended account fails the student check, can't trade, and its listings leave the feed |

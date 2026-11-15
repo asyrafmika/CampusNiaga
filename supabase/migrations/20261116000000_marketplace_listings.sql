@@ -244,7 +244,7 @@ begin
     ('closed', 'available')
   ) then
     perform public.raise_app_error('INVALID_TRANSITION',
-      format('A %s listing can''t be changed to %s.', listing.status, new_status));
+      format('This listing is %s, so it can''t be changed to %s.', listing.status, new_status));
   end if;
   if new_status = 'available' and cardinality(listing.photo_paths) = 0 then
     perform public.raise_app_error('INVALID_INPUT', 'Add at least one photo before publishing.');

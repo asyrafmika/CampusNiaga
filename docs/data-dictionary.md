@@ -109,18 +109,23 @@ A product, shared by personal sellers and approved businesses. Written only thro
 
 Indexes: full-text (`search_vector`), feed (`status, category, price_sen` where not hidden), owner (`owner_id, status, created_at`).
 
-### `reservations` (Phase 2)
+### `reservations` (Phase 2 ✅)
+
+Written only by `request_reservation()` and `resolve_reservation()`. The buyer and the seller read their own; admins read all.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | uuid | |
 | `listing_id`, `buyer_id`, `seller_id` | uuid | The buyer can't be the seller |
-| `qty` | integer | Units requested, 1 to the listing's stock at the time |
-| `pickup_note` | text? | Buyer's preferred time or place |
-| `status` | `requested` \| `accepted` \| `declined` \| `cancelled` \| `collected` \| `expired` | |
-| `expires_at` | timestamptz? | Expiry is evaluated when the reservation is read or acted on; no scheduled job |
+| `qty` | integer | Units reserved, 1–999 and no more than the listing's stock at the time |
+| `pickup_note` | text? | Buyer's preferred time or place, up to 200 characters |
+| `status` | `requested` \| `accepted` \| `declined` \| `cancelled` \| `collected` \| `expired` | `requested` → `accepted` (seller) → `collected` (seller). `requested` → `declined` (seller). `requested`/`accepted` → `cancelled` (either side) or `expired` |
+| `expires_at` | timestamptz? | Set while `requested` (48 hours to answer) or `accepted` (7 days to collect); cleared otherwise |
+| `created_at`, `updated_at` | timestamptz | |
 
-A listing can have several reservations while it has units. Accepting one takes its `qty` out of the listing's `stock` inside `resolve_reservation()`, with the listing row locked, so two acceptances can never hand out more units than exist (`ITEM_UNAVAILABLE`). Cancelling or expiring an accepted reservation returns its units. A buyer has at most one active reservation per listing (`ALREADY_EXISTS`).
+**Units are held from the moment of the request.** `request_reservation()` locks the listing row, checks `stock` and takes the units out in one transaction, so two buyers asking for the last unit at the same moment can't both get it: the second waits for the lock, then gets `ITEM_UNAVAILABLE`. Declining, cancelling or expiring returns the units; collecting keeps them gone, and the listing becomes `sold` when no stock and no active reservation remain. A buyer has at most one active (`requested` or `accepted`) reservation per listing (`ALREADY_EXISTS`, plus a partial unique index). A listing with active reservations can't be closed or marked sold.
+
+**Expiry is lazy:** overdue reservations become `expired` (and return their units) when a reservation on the same listing is requested or resolved, when the listing's status is changed, or when the buyer or seller opens My Reservations. There is no scheduled job.
 
 ### `business_applications` (Phase 3)
 
@@ -174,13 +179,38 @@ A pre-order campaign: `id`, `business_id`, `listing_id`, `title`, `price_sen`, `
 
 Derived M4 result per cluster, written only by the server: `cluster_key` (primary key), `category`, `keywords[]`, `request_ids[]`, `unique_interest_count`, `active_supply_count`, `distinct_seller_count`, `median_listed_price_sen?`, `median_preferred_price_sen?`, `price_gap`, `score`, `reasons[]`, `insufficient_data` (fewer than 2 students), `algo_version`, `calculated_at`.
 
-### `reports` (Phase 2)
+### `reports` (Phase 2 ✅)
 
-`id`, `reporter_id`, `listing_id?`, `reported_user_id?`, `reason`, `status` (`open` \| `reviewed` \| `actioned`, server), `action?` (server).
+Written only by `report_listing()` (students) and the admin functions. Reporters read their own; admins read all. Never deleted.
 
-### `notifications` (Phase 2)
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `reporter_id` | uuid | The student who reported |
+| `listing_id` | uuid? | The reported listing |
+| `reported_user_id` | uuid? | The listing's owner at the time |
+| `reason` | `prohibited_item` \| `scam` \| `offensive` \| `misleading` \| `other` | `other` needs details |
+| `details` | text | Up to 500 characters |
+| `status` | `open` \| `reviewed` \| `actioned` | `reviewed`: dismissed. `actioned`: the listing was hidden or the account suspended |
+| `action` | `dismissed` \| `listing_hidden` \| `account_suspended`? | Set exactly when the report is closed |
+| `reviewed_by`, `reviewed_at`, `review_note` | | The admin's decision |
+| `created_at`, `updated_at` | timestamptz | |
 
-In-app notices written by the server: `id`, `recipient_id`, `type`, `title`, `body`, `target?`, `read` (the recipient may set it), `created_at`.
+One open report per student per listing. Students may send 10 reports a day.
+
+### `notifications` (Phase 2 ✅)
+
+In-app notices written by database functions. The recipient reads their own and may set `read`; nothing else is writable.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint | |
+| `recipient_id` | uuid | |
+| `type` | text | `reservation_requested`, `reservation_accepted`, `reservation_declined`, `reservation_cancelled`, `reservation_collected`, `reservation_expired`, `listing_hidden`, `listing_restored`; later phases add more |
+| `title`, `body` | text | |
+| `target` | text? | What it's about, e.g. `reservation:{id}` or `listing:{id}` |
+| `read` | boolean | |
+| `created_at` | timestamptz | |
 
 ## File storage (Supabase Storage buckets)
 
