@@ -26,8 +26,11 @@ A refused call fails with SQL state `P0001`. Its `details` field holds one of th
 |---|---|---|---|
 | `get_my_access` | 1 ✅ | Signed-in user | What the user may do: student, reviewer, admin, account status |
 | `set_staff_role` | 1 ✅ | Admin | Grant or remove the reviewer / admin role |
-| `upsert_listing` | 2 | Student (business mode: approved business owner) | Create or edit a listing; validates, rate-limits, sets derived fields |
-| `set_listing_status` | 2 | Listing owner | Publish a draft, close a listing, or return it to available |
+| `listing_categories` | 2 ✅ | Signed-in user | The categories a listing may use |
+| `upsert_listing` | 2 ✅ | Student (business mode from Phase 4: approved business owner) | Create or edit a listing; validates, rate-limits, sets derived fields |
+| `set_listing_status` | 2 ✅ | Listing owner | Publish a draft, close or re-open a listing, or mark it sold |
+| `search_listings` | 2 ✅ | Student | The marketplace feed: search, filters, sort, pages |
+| `get_listing` | 2 ✅ | Student, owner, admin | One listing for the detail page |
 | `request_reservation` | 2 | Student | Reserve a personal listing |
 | `resolve_reservation` | 2 | Seller / buyer | Accept, decline, cancel or mark collected |
 | `moderate_listing` | 2 | Admin | Hide or restore a reported listing |
@@ -66,3 +69,51 @@ Each function's full contract is added below when it is implemented.
 | **Errors** | `FORBIDDEN` (not an admin, or an admin removing their own admin role) · `INVALID_INPUT` · `NOT_FOUND` · `42501` (signed out) |
 | **Side effects** | When `changed`: adds or removes the `staff_roles` row and writes audit entry `role.granted` or `role.revoked` with `metadata.role` |
 | **Timing** | Takes effect on the user's next request; there is no token to expire |
+
+## `listing_categories()`
+
+| | |
+|---|---|
+| **Caller** | Any signed-in user |
+| **Output** | `text[]`, from `app_config.categories` (which only admins can read directly, because it also holds the test allowlist) |
+
+## `upsert_listing(listing_id, title, description, category, price_sen, condition, quantity, photo_paths, pickup_area)`
+
+| | |
+|---|---|
+| **Caller** | Verified student. Editing: the listing's owner |
+| **Input** | `listing_id`: `null` to create, or the listing to edit · `title`: 3–80 characters after trimming · `description`: up to 1,000 characters · `category`: one of `listing_categories()` · `price_sen`: 0–10,000,000 · `condition`: `new`, `like_new`, `good` or `fair` · `quantity`: units for sale, 1–999 (stored as `stock`) · `photo_paths`: up to 5 paths `{owner_id}/{listing_id}/{file}` ending in `.jpg`, `.jpeg`, `.png` or `.webp` · `pickup_area`: 2–80 characters |
+| **Output** | `{ listing_id, status }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` · `FORBIDDEN` (not the owner) · `INVALID_TRANSITION` (reserved or sold listings can't be edited) · `RATE_LIMITED` (more than 20 new listings in an hour) · `42501` (signed out) |
+| **Derived on the server** | `owner_id` (the caller), `mode` (`personal`), `status` (`draft` on create, unchanged on edit), `normalized_title`, `search_vector` |
+| **Notes** | Photos are stored under the listing's id, so the app creates the draft first (no photos), uploads, then calls again with the paths. A published listing must keep at least one photo |
+
+## `set_listing_status(listing_id uuid, new_status text)`
+
+| | |
+|---|---|
+| **Caller** | Verified student who owns the listing |
+| **Allowed changes** | `draft` → `available` (needs a photo) or `closed` · `available` → `closed` or `sold` · `closed` → `available`. `reserved` changes through reservations |
+| **Output** | `{ listing_id, status }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (unknown status, or publishing without a photo) · `NOT_FOUND` · `FORBIDDEN` · `INVALID_TRANSITION` · `42501` |
+| **Side effects** | `sold` sets `stock` to 0 (every remaining unit went, for example sold outside the app) |
+
+## `search_listings(search, category, condition, min_price_sen, max_price_sen, sort, page_size, page_offset)`
+
+| | |
+|---|---|
+| **Caller** | Verified student |
+| **Input** (all optional) | `search`: web-search syntax (`calculator -broken`, `"desk lamp"`), matched with English word forms against title, description and category · `category`, `condition`: exact match · `min_price_sen`, `max_price_sen`: inclusive · `sort`: `newest` (default), `price_asc`, `price_desc` or `relevance` · `page_size`: 1–50 (default 20) · `page_offset`: 0 or more |
+| **Output** | Rows of `listing_card`: `id, owner_id, seller_name, mode, title, description, category, price_sen, condition, photo_paths, stock, pickup_area, status, created_at` |
+| **Shows** | `available` listings that aren't hidden, from sellers whose account is active. Ties sort newest first |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (sort or page) · `42501` |
+| **Why a function** | Profiles are private, so a plain table read can't show the seller's name. The function returns only the name, nothing else about the seller |
+
+## `get_listing(listing_id uuid)`
+
+| | |
+|---|---|
+| **Caller** | Verified student or admin |
+| **Output** | One `listing_card` row |
+| **Shows** | Students: any listing that isn't a draft, isn't hidden and whose seller is active. The owner: their own listings in any status. Admins: everything |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` (missing or not visible to the caller) · `42501` |
