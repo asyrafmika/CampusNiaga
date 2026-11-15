@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/auth/domain/auth_failure.dart';
 import 'package:mobile/features/auth/domain/auth_validators.dart';
+import 'package:mobile/features/auth/domain/password_strength.dart';
 
 void main() {
   group('AuthValidators.email', () {
@@ -66,6 +67,24 @@ void main() {
 
     test('a missing code is unknown', () {
       expect(AuthFailure.fromCode(null), AuthFailure.unknown);
+    });
+  });
+
+  group('passwordStrength', () {
+    const cases = {
+      '': PasswordStrength.weak,
+      'Ab1!': PasswordStrength.weak,
+      'abcdefgh': PasswordStrength.weak,
+      'abcdefg1': PasswordStrength.fair,
+      'Abcdefgh': PasswordStrength.fair,
+      'averylongpassphrase': PasswordStrength.fair,
+      'Abcdefg1': PasswordStrength.strong,
+      'campus#2026': PasswordStrength.strong,
+    };
+    cases.forEach((password, expected) {
+      test('"$password" is ${expected.label}', () {
+        expect(passwordStrength(password), expected);
+      });
     });
   });
 }
