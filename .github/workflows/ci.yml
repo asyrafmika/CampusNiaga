@@ -91,3 +91,8 @@ jobs:
 
       - name: Database tests (pgTAP)
         run: supabase test db
+
+      # Two connections reserve the last unit at the same moment; exactly one
+      # may win (Phase 2 pass condition).
+      - name: Reservation race
+        run: bash supabase/tests/concurrency/reservation_race.sh

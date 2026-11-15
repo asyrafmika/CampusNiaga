@@ -2,7 +2,7 @@
 
 This is the single definition of CampusNiaga's database (Supabase PostgreSQL) and file storage. It follows the Implementation Handoff v1.0, section 6, adapted to SQL by [ADR 0003](decisions/0003-move-backend-to-supabase.md).
 
-The tables themselves are defined in `supabase/migrations/`. A table marked **(Phase 1)** exists; the others are planned and are created by their phase's migration. Any change to a table updates this document and adds a migration in the same commit. The Flutter app mirrors status values in `mobile/lib/core/domain/`; the admin dashboard uses types generated from the database.
+The tables themselves are defined in `supabase/migrations/`. A table marked ✅ exists; the others are planned and are created by their phase's migration. Any change to a table updates this document and adds a migration in the same commit. The Flutter app mirrors status values in `mobile/lib/core/domain/`; the admin dashboard uses types generated from the database.
 
 ## Conventions
 
@@ -34,7 +34,7 @@ Roles are read from tables on every request, never from login tokens:
 
 Accounts, passwords, emails and email confirmation (`email_confirmed_at`). The apps never write it directly; Supabase Auth does.
 
-### `profiles` (Phase 1)
+### `profiles` (Phase 1 ✅)
 
 One per account, created by a trigger when someone signs up.
 
@@ -47,7 +47,7 @@ One per account, created by a trigger when someone signs up.
 
 Read: the owner, and admins.
 
-### `staff_roles` (Phase 1)
+### `staff_roles` (Phase 1 ✅)
 
 | Column | Type | Notes |
 |---|---|---|
@@ -58,7 +58,7 @@ Read: the owner, and admins.
 
 Written only by `set_staff_role()`. Read: the user's own rows, and admins. The first admin is added in the Supabase SQL editor (see the README).
 
-### `app_config` (Phase 1)
+### `app_config` (Phase 1 ✅)
 
 A single row of settings. Read by admins only, because it holds the test allowlist. Changed in the Supabase dashboard, never from the apps.
 
@@ -70,7 +70,7 @@ A single row of settings. Read by admins only, because it holds the test allowli
 | `max_application_documents` | integer | 5 |
 | `max_upload_bytes` | integer | 5,242,880 (5 MB) |
 
-### `audit_logs` (Phase 1)
+### `audit_logs` (Phase 1 ✅)
 
 Append-only record of important actions, written only by database functions. Read: admins (reviewers get application history in Phase 3).
 
@@ -83,9 +83,9 @@ Append-only record of important actions, written only by database functions. Rea
 | `metadata` | jsonb | Minimal context only; no sensitive data |
 | `created_at` | timestamptz | |
 
-### `listings` (Phase 2)
+### `listings` (Phase 2 ✅)
 
-A product, shared by personal sellers and approved businesses. Written only through `upsert_listing()` and `set_listing_status()`.
+A product, shared by personal sellers and approved businesses. Written only through `upsert_listing()` and `set_listing_status()`. Owners and admins read the table directly; other students see listings through `search_listings()` and `get_listing()`, which add the seller's name and leave out drafts, hidden listings and suspended sellers.
 
 | Column | Type | Source | Notes |
 |---|---|---|---|
@@ -95,28 +95,37 @@ A product, shared by personal sellers and approved businesses. Written only thro
 | `business_id` | uuid? | Server | Set for `business` mode |
 | `title` | text | Input | 3–80 characters |
 | `normalized_title` | text | Server | Lowercased, punctuation removed; used by M4 matching |
-| `search_vector` | tsvector | Server | Generated from title, description and category; PostgreSQL full-text search |
+| `search_vector` | tsvector | Server | Generated from title (weight A), description (B) and category (C) with the `english` configuration; GIN index |
 | `description` | text | Input | Up to 1,000 characters |
 | `category` | text | Input | One of `app_config.categories` |
 | `price_sen` | integer | Input | 0–10,000,000 |
 | `condition` | `new` \| `like_new` \| `good` \| `fair` | Input | |
-| `photo_paths` | text[] | Input | 1–5 paths in the `listing-photos` bucket (resized on the device before upload) |
-| `stock` | integer | Input (personal) / Server (orders) | 0 or more |
+| `photo_paths` | text[] | Input | Up to 5 paths `{owner_id}/{listing_id}/{file}` in the `listing-photos` bucket (resized on the device before upload). At least 1 once the listing leaves `draft` |
+| `stock` | integer | Input (`quantity`, 1–999) + Server | Units still for sale. Accepted reservations (and, in Phase 4, orders) take units out under a row lock; cancelled or expired ones put them back. Never negative; at least 1 while `available`, 0 when `sold` |
 | `pickup_area` | text | Input | Campus pickup location |
-| `status` | `draft` \| `available` \| `reserved` \| `sold` \| `closed` | Server | `draft` → `available` → `reserved` → `sold`; `closed` when withdrawn. A cancelled or expired reservation returns it to `available` |
+| `status` | `draft` \| `available` \| `reserved` \| `sold` \| `closed` | Server | `draft` → `available` → `reserved` (every remaining unit is held by accepted reservations) → `sold` (all collected); `closed` when withdrawn (it can re-open); `available` → `sold` directly when sold outside the app. A cancelled or expired reservation returns it to `available` |
 | `hidden` | boolean | Server | Admin moderation; hidden listings are left out of feeds and M4 supply |
+| `created_at`, `updated_at` | timestamptz | Server | |
 
-### `reservations` (Phase 2)
+Indexes: full-text (`search_vector`), feed (`status, category, price_sen` where not hidden), owner (`owner_id, status, created_at`).
+
+### `reservations` (Phase 2 ✅)
+
+Written only by `request_reservation()` and `resolve_reservation()`. The buyer and the seller read their own; admins read all.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | uuid | |
 | `listing_id`, `buyer_id`, `seller_id` | uuid | The buyer can't be the seller |
-| `pickup_note` | text? | Buyer's preferred time or place |
-| `status` | `requested` \| `accepted` \| `declined` \| `cancelled` \| `collected` \| `expired` | |
-| `expires_at` | timestamptz? | Expiry is evaluated when the reservation is read or acted on; no scheduled job |
+| `qty` | integer | Units reserved, 1–999 and no more than the listing's stock at the time |
+| `pickup_note` | text? | Buyer's preferred time or place, up to 200 characters |
+| `status` | `requested` \| `accepted` \| `declined` \| `cancelled` \| `collected` \| `expired` | `requested` → `accepted` (seller) → `collected` (seller). `requested` → `declined` (seller). `requested`/`accepted` → `cancelled` (either side) or `expired` |
+| `expires_at` | timestamptz? | Set while `requested` (48 hours to answer) or `accepted` (7 days to collect); cleared otherwise |
+| `created_at`, `updated_at` | timestamptz | |
 
-At most one accepted active reservation per personal listing, enforced with a row lock in `request_reservation()` / `resolve_reservation()`.
+**Units are held from the moment of the request.** `request_reservation()` locks the listing row, checks `stock` and takes the units out in one transaction, so two buyers asking for the last unit at the same moment can't both get it: the second waits for the lock, then gets `ITEM_UNAVAILABLE`. Declining, cancelling or expiring returns the units; collecting keeps them gone, and the listing becomes `sold` when no stock and no active reservation remain. A buyer has at most one active (`requested` or `accepted`) reservation per listing (`ALREADY_EXISTS`, plus a partial unique index). A listing with active reservations can't be closed or marked sold.
+
+**Expiry is lazy:** overdue reservations become `expired` (and return their units) when a reservation on the same listing is requested or resolved, when the listing's status is changed, or when the buyer or seller opens My Reservations. There is no scheduled job.
 
 ### `business_applications` (Phase 3)
 
@@ -170,18 +179,43 @@ A pre-order campaign: `id`, `business_id`, `listing_id`, `title`, `price_sen`, `
 
 Derived M4 result per cluster, written only by the server: `cluster_key` (primary key), `category`, `keywords[]`, `request_ids[]`, `unique_interest_count`, `active_supply_count`, `distinct_seller_count`, `median_listed_price_sen?`, `median_preferred_price_sen?`, `price_gap`, `score`, `reasons[]`, `insufficient_data` (fewer than 2 students), `algo_version`, `calculated_at`.
 
-### `reports` (Phase 2)
+### `reports` (Phase 2 ✅)
 
-`id`, `reporter_id`, `listing_id?`, `reported_user_id?`, `reason`, `status` (`open` \| `reviewed` \| `actioned`, server), `action?` (server).
+Written only by `report_listing()` (students) and the admin functions. Reporters read their own; admins read all. Never deleted.
 
-### `notifications` (Phase 2)
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `reporter_id` | uuid | The student who reported |
+| `listing_id` | uuid? | The reported listing |
+| `reported_user_id` | uuid? | The listing's owner at the time |
+| `reason` | `prohibited_item` \| `scam` \| `offensive` \| `misleading` \| `other` | `other` needs details |
+| `details` | text | Up to 500 characters |
+| `status` | `open` \| `reviewed` \| `actioned` | `reviewed`: dismissed. `actioned`: the listing was hidden or the account suspended |
+| `action` | `dismissed` \| `listing_hidden` \| `account_suspended`? | Set exactly when the report is closed |
+| `reviewed_by`, `reviewed_at`, `review_note` | | The admin's decision |
+| `created_at`, `updated_at` | timestamptz | |
 
-In-app notices written by the server: `id`, `recipient_id`, `type`, `title`, `body`, `target?`, `read` (the recipient may set it), `created_at`.
+One open report per student per listing. Students may send 10 reports a day.
+
+### `notifications` (Phase 2 ✅)
+
+In-app notices written by database functions. The recipient reads their own and may set `read`; nothing else is writable.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint | |
+| `recipient_id` | uuid | |
+| `type` | text | `reservation_requested`, `reservation_accepted`, `reservation_declined`, `reservation_cancelled`, `reservation_collected`, `reservation_expired`, `listing_hidden`, `listing_restored`; later phases add more |
+| `title`, `body` | text | |
+| `target` | text? | What it's about, e.g. `reservation:{id}` or `listing:{id}` |
+| `read` | boolean | |
+| `created_at` | timestamptz | |
 
 ## File storage (Supabase Storage buckets)
 
 | Bucket | Contents | Access |
 |---|---|---|
-| `listing-photos` | Product photos: JPEG, PNG or WebP, up to 5 MB, under `{owner_id}/{listing_id}/` | Owner writes; signed-in users read |
+| `listing-photos` (Phase 2) | Product photos: JPEG, PNG or WebP, up to 5 MB, under `{owner_id}/{listing_id}/` | Private bucket. A verified student uploads only into a folder of a listing they own (`can_upload_listing_photo`) and deletes only their own files; verified students and admins read, with their sign-in token |
 | `application-documents` | Business application documents: PDF, JPEG or PNG, up to 5 MB, under `{applicant_id}/{application_id}/` | Private. The applicant writes while the application is editable; the applicant and reviewers read through short-lived signed URLs |
 | `business-logos` | Business logos, under `{business_id}/` | Business owner writes; signed-in users read |

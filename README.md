@@ -49,7 +49,7 @@ CampusNiaga/
 | Phase | Scope | Status |
 |---|---|---|
 | 1 Foundation | Project setup, sign-in, USM student check, staff-only web access | Done |
-| 2 Marketplace | Listings, search, reservations, reports | Planned |
+| 2 Marketplace | Listings, search, reservations, reports | Done |
 | 3 Approval | Business application and reviewer workflow | Planned |
 | 4 Business | Storefront, stock, pre-orders, orders | Planned |
 | 5 Discovery | Product requests, interest, opportunity ranking | Planned |
@@ -66,6 +66,18 @@ The handoff's Phase 1 pass condition is that a USM student gets in, a non-USM em
 | Admin | `admin/src/features/auth/components/RequireStaff.test.tsx` | A student who signs in to the dashboard is signed out with a "staff only" message; a reviewer can't open admin pages |
 
 The rules are enforced by the database, so the database test is the one that matters most; the app tests check that each app shows the right screen for the answer it gets.
+
+### Phase 2 check
+
+The handoff's Phase 2 pass condition is that a student publishes an item, a second student finds and reserves it, a simultaneous reservation cannot double-book it, and the seller marks it sold.
+
+| Part | Test | What it proves |
+|---|---|---|
+| Database | `supabase/tests/database/08_phase2_pass_condition.test.sql` | The journey: Ali publishes a calculator with a photo; Siti finds it by searching and reserves it; Amin's request for the same item is refused (`ITEM_UNAVAILABLE`); Ali accepts, Siti then sees Ali's email, and Ali marks it collected, which sells it |
+| Database, two connections | `supabase/tests/concurrency/reservation_race.sh` | Two buyers reserve the last unit at the same moment on separate connections. The second waits for the first's row lock, then is refused; exactly one reservation exists |
+| Database | `05_listings`, `06_reservations`, `07_moderation` | Every rule on its own: who may list, reserve, resolve, report and moderate; stock never goes below zero; expiry returns units; contact details stay hidden until acceptance |
+| Mobile | `mobile/test/features/marketplace/` | The screens: browse, search and filter, reserve (with quantity), refused reservations show the reason, publish, the listing form, accept a request, report, profile |
+| Admin | `admin/src/features/moderation/pages/ModerationPage.test.tsx` | Hide a listing, suspend a seller, dismiss a report |
 
 ## Getting started
 
@@ -114,6 +126,8 @@ flutter run
 ```
 
 The first launch shows the onboarding slides, then **Sign in**. Use **Create an account** with your USM email and confirm it from your inbox. If you open the link on the phone, it signs you in straight away; otherwise, sign in after confirming.
+
+Once signed in, the bottom bar has **Home** (newest listings and categories), **Search** (words, filters, sorting), **Sell** (the listing form: up to 5 photos from the camera or gallery, resized on the phone), **Reservations** (buying and selling) and **Profile** (My Listings, sign out). Payment and pickup are arranged between the students; the app never takes payments.
 
 **Images:** put these in `mobile/assets/images/`; until then the app shows placeholders.
 

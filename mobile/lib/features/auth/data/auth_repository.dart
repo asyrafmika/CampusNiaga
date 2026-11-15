@@ -28,6 +28,18 @@ class AuthRepository {
     return userAccessFromJson(json);
   }
 
+  /// The signed-in user's display name, from their own profile row.
+  Future<String> fetchMyName() async {
+    final id = _client.auth.currentUser?.id;
+    if (id == null) return '';
+    final Map<String, dynamic> row = await _client
+        .from('profiles')
+        .select('name')
+        .eq('id', id)
+        .single();
+    return row['name'] as String? ?? '';
+  }
+
   Future<void> signIn({required String email, required String password}) =>
       _guard(
         () => _client.auth.signInWithPassword(
@@ -90,6 +102,13 @@ final userAccessProvider = FutureProvider<UserAccess?>((ref) async {
   final repository = ref.watch(authRepositoryProvider);
   if (!repository.isSignedIn) return null;
   return repository.fetchAccess();
+});
+
+/// The signed-in user's name, for greetings and the profile page.
+final myNameProvider = FutureProvider<String>((ref) async {
+  final access = await ref.watch(userAccessProvider.future);
+  if (access == null) return '';
+  return ref.watch(authRepositoryProvider).fetchMyName();
 });
 
 /// True after the user opens a password-reset link, until they set a new

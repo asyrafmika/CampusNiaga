@@ -77,6 +77,118 @@ export type Database = {
         }
         Relationships: []
       }
+      listings: {
+        Row: {
+          business_id: string | null
+          category: string
+          condition: string
+          created_at: string
+          description: string
+          hidden: boolean
+          id: string
+          mode: string
+          normalized_title: string
+          owner_id: string
+          photo_paths: string[]
+          pickup_area: string
+          price_sen: number
+          search_vector: unknown
+          status: string
+          stock: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          business_id?: string | null
+          category: string
+          condition: string
+          created_at?: string
+          description?: string
+          hidden?: boolean
+          id?: string
+          mode?: string
+          normalized_title: string
+          owner_id: string
+          photo_paths?: string[]
+          pickup_area: string
+          price_sen: number
+          search_vector?: unknown
+          status?: string
+          stock?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string | null
+          category?: string
+          condition?: string
+          created_at?: string
+          description?: string
+          hidden?: boolean
+          id?: string
+          mode?: string
+          normalized_title?: string
+          owner_id?: string
+          photo_paths?: string[]
+          pickup_area?: string
+          price_sen?: number
+          search_vector?: unknown
+          status?: string
+          stock?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listings_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string
+          created_at: string
+          id: number
+          read: boolean
+          recipient_id: string
+          target: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: never
+          read?: boolean
+          recipient_id: string
+          target?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: never
+          read?: boolean
+          recipient_id?: string
+          target?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           account_status: string
@@ -104,6 +216,144 @@ export type Database = {
         }
         Relationships: []
       }
+      reports: {
+        Row: {
+          action: string | null
+          created_at: string
+          details: string
+          id: string
+          listing_id: string | null
+          reason: string
+          reported_user_id: string | null
+          reporter_id: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          action?: string | null
+          created_at?: string
+          details?: string
+          id?: string
+          listing_id?: string | null
+          reason: string
+          reported_user_id?: string | null
+          reporter_id: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string | null
+          created_at?: string
+          details?: string
+          id?: string
+          listing_id?: string | null
+          reason?: string
+          reported_user_id?: string | null
+          reporter_id?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_reported_user_id_fkey"
+            columns: ["reported_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reservations: {
+        Row: {
+          buyer_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          listing_id: string
+          pickup_note: string | null
+          qty: number
+          seller_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          buyer_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          listing_id: string
+          pickup_note?: string | null
+          qty: number
+          seller_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          buyer_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          listing_id?: string
+          pickup_note?: string | null
+          qty?: number
+          seller_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservations_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_roles: {
         Row: {
           created_at: string
@@ -130,6 +380,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_upload_listing_photo: {
+        Args: { object_name: string }
+        Returns: boolean
+      }
+      dismiss_report: {
+        Args: { note?: string; report_id: string }
+        Returns: Json
+      }
+      expire_listing_reservations: {
+        Args: { target_listing: string }
+        Returns: number
+      }
+      get_listing: {
+        Args: { listing_id: string }
+        Returns: Database["public"]["CompositeTypes"]["listing_card"][]
+        SetofOptions: {
+          from: "*"
+          to: "listing_card"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_my_access: { Args: never; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       is_eligible_student_email: {
@@ -138,12 +410,91 @@ export type Database = {
       }
       is_reviewer: { Args: never; Returns: boolean }
       is_student: { Args: never; Returns: boolean }
+      listing_categories: { Args: never; Returns: string[] }
+      moderate_listing: {
+        Args: { hide: boolean; listing_id: string; note?: string }
+        Returns: Json
+      }
+      my_reservations: {
+        Args: { side?: string }
+        Returns: Database["public"]["CompositeTypes"]["reservation_card"][]
+        SetofOptions: {
+          from: "*"
+          to: "reservation_card"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      normalize_text: { Args: { value: string }; Returns: string }
+      notify: {
+        Args: {
+          body: string
+          kind: string
+          recipient: string
+          target: string
+          title: string
+        }
+        Returns: undefined
+      }
       raise_app_error: {
         Args: { message: string; reason: string }
         Returns: undefined
       }
+      report_listing: {
+        Args: { details?: string; listing_id: string; reason: string }
+        Returns: Json
+      }
+      request_reservation: {
+        Args: { listing_id: string; pickup_note?: string; qty?: number }
+        Returns: Json
+      }
+      resolve_reservation: {
+        Args: { action: string; reservation_id: string }
+        Returns: Json
+      }
+      search_listings: {
+        Args: {
+          category?: string
+          condition?: string
+          max_price_sen?: number
+          min_price_sen?: number
+          page_offset?: number
+          page_size?: number
+          search?: string
+          sort?: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["listing_card"][]
+        SetofOptions: {
+          from: "*"
+          to: "listing_card"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      set_account_status: {
+        Args: { account_status: string; note?: string; user_id: string }
+        Returns: Json
+      }
+      set_listing_status: {
+        Args: { listing_id: string; new_status: string }
+        Returns: Json
+      }
       set_staff_role: {
         Args: { enabled: boolean; role: string; target_user_id: string }
+        Returns: Json
+      }
+      upsert_listing: {
+        Args: {
+          category: string
+          condition: string
+          description: string
+          listing_id: string
+          photo_paths: string[]
+          pickup_area: string
+          price_sen: number
+          quantity: number
+          title: string
+        }
         Returns: Json
       }
     }
@@ -151,7 +502,39 @@ export type Database = {
       [_ in never]: never
     }
     CompositeTypes: {
-      [_ in never]: never
+      listing_card: {
+        id: string | null
+        owner_id: string | null
+        seller_name: string | null
+        mode: string | null
+        title: string | null
+        description: string | null
+        category: string | null
+        price_sen: number | null
+        condition: string | null
+        photo_paths: string[] | null
+        stock: number | null
+        pickup_area: string | null
+        status: string | null
+        created_at: string | null
+      }
+      reservation_card: {
+        id: string | null
+        listing_id: string | null
+        listing_title: string | null
+        listing_photo: string | null
+        pickup_area: string | null
+        price_sen: number | null
+        qty: number | null
+        pickup_note: string | null
+        status: string | null
+        expires_at: string | null
+        created_at: string | null
+        updated_at: string | null
+        i_am_buyer: boolean | null
+        other_party_name: string | null
+        other_party_email: string | null
+      }
     }
   }
 }

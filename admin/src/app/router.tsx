@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router';
 
 import { AuditLogPage } from '../features/audit/pages/AuditLogPage';
 import { LoginPage, RequireStaff } from '../features/auth';
+import { ModerationPage } from '../features/moderation';
 import { OverviewPage } from '../features/overview/pages/OverviewPage';
 import { UsersPage } from '../features/users/pages/UsersPage';
 import { AppShell } from './layout/AppShell';
@@ -18,6 +19,14 @@ export const routes = [
     ),
     children: [
       { index: true, element: <OverviewPage /> },
+      {
+        path: 'moderation',
+        element: (
+          <RequireStaff role="admin">
+            <ModerationPage />
+          </RequireStaff>
+        ),
+      },
       {
         path: 'users',
         element: (
