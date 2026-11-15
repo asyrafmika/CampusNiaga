@@ -47,6 +47,54 @@ export type Database = {
         }
         Relationships: []
       }
+      application_status_history: {
+        Row: {
+          actor_id: string | null
+          actor_role: string
+          application_id: string
+          created_at: string
+          from_status: string
+          id: number
+          note: string | null
+          to_status: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role: string
+          application_id: string
+          created_at?: string
+          from_status: string
+          id?: never
+          note?: string | null
+          to_status: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string
+          application_id?: string
+          created_at?: string
+          from_status?: string
+          id?: never
+          note?: string | null
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_status_history_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_status_history_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "business_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -76,6 +124,129 @@ export type Database = {
           target_type?: string
         }
         Relationships: []
+      }
+      business_applications: {
+        Row: {
+          applicant_id: string
+          business_name: string
+          category: string
+          collection_details: string
+          contact_details: string
+          created_at: string
+          decided_at: string | null
+          description: string
+          document_paths: string[]
+          id: string
+          remarks: string | null
+          reviewer_id: string | null
+          status: string
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          applicant_id?: string
+          business_name?: string
+          category?: string
+          collection_details?: string
+          contact_details?: string
+          created_at?: string
+          decided_at?: string | null
+          description?: string
+          document_paths?: string[]
+          id?: string
+          remarks?: string | null
+          reviewer_id?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          applicant_id?: string
+          business_name?: string
+          category?: string
+          collection_details?: string
+          contact_details?: string
+          created_at?: string
+          decided_at?: string | null
+          description?: string
+          document_paths?: string[]
+          id?: string
+          remarks?: string | null
+          reviewer_id?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_applications_applicant_id_fkey"
+            columns: ["applicant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_applications_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      businesses: {
+        Row: {
+          application_id: string
+          created_at: string
+          description: string
+          id: string
+          logo_path: string | null
+          name: string
+          owner_id: string
+          pickup_details: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          description?: string
+          id?: string
+          logo_path?: string | null
+          name: string
+          owner_id: string
+          pickup_details: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          logo_path?: string | null
+          name?: string
+          owner_id?: string
+          pickup_details?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "businesses_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "business_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "businesses_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       listings: {
         Row: {
@@ -139,6 +310,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "listings_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "listings_owner_id_fkey"
             columns: ["owner_id"]
@@ -380,6 +558,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      application_status_summary: {
+        Args: never
+        Returns: {
+          status: string
+          total: number
+        }[]
+      }
+      can_delete_application_document: {
+        Args: { object_name: string }
+        Returns: boolean
+      }
+      can_read_application_document: {
+        Args: { object_name: string }
+        Returns: boolean
+      }
+      can_upload_application_document: {
+        Args: { object_name: string }
+        Returns: boolean
+      }
       can_upload_listing_photo: {
         Args: { object_name: string }
         Returns: boolean
@@ -403,12 +600,14 @@ export type Database = {
         }
       }
       get_my_access: { Args: never; Returns: Json }
+      get_my_business: { Args: never; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       is_eligible_student_email: {
         Args: { allowlist: string[]; domains: string[]; email: string }
         Returns: boolean
       }
       is_reviewer: { Args: never; Returns: boolean }
+      is_staff: { Args: never; Returns: boolean }
       is_student: { Args: never; Returns: boolean }
       listing_categories: { Args: never; Returns: string[] }
       moderate_listing: {
@@ -436,6 +635,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      owns_business: { Args: { business_id: string }; Returns: boolean }
       raise_app_error: {
         Args: { message: string; reason: string }
         Returns: undefined
@@ -450,6 +650,10 @@ export type Database = {
       }
       resolve_reservation: {
         Args: { action: string; reservation_id: string }
+        Returns: Json
+      }
+      review_business_application: {
+        Args: { action: string; application_id: string; note?: string }
         Returns: Json
       }
       search_listings: {
@@ -475,12 +679,20 @@ export type Database = {
         Args: { account_status: string; note?: string; user_id: string }
         Returns: Json
       }
+      set_business_status: {
+        Args: { business_id: string; note?: string; status: string }
+        Returns: Json
+      }
       set_listing_status: {
         Args: { listing_id: string; new_status: string }
         Returns: Json
       }
       set_staff_role: {
         Args: { enabled: boolean; role: string; target_user_id: string }
+        Returns: Json
+      }
+      submit_business_application: {
+        Args: { application_id: string; response_note?: string }
         Returns: Json
       }
       upsert_listing: {

@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router';
 
+import { ApplicationDetailPage, ApplicationsPage } from '../features/applications';
 import { AuditLogPage } from '../features/audit/pages/AuditLogPage';
 import { LoginPage, RequireStaff } from '../features/auth';
 import { ModerationPage } from '../features/moderation';
@@ -19,6 +20,8 @@ export const routes = [
     ),
     children: [
       { index: true, element: <OverviewPage /> },
+      { path: 'applications', element: <ApplicationsPage /> },
+      { path: 'applications/:applicationId', element: <ApplicationDetailPage /> },
       {
         path: 'moderation',
         element: (

@@ -23,7 +23,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
     path: '/applications',
     icon: <AssignmentOutlinedIcon />,
     role: 'reviewer',
-    comingIn: 'Phase 3',
   },
   {
     label: 'Reports & Moderation',

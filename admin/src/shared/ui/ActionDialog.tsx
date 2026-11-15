@@ -1,5 +1,5 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, TextField } from '@mui/material';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 type ActionDialogProps = {
   open: boolean;
@@ -10,12 +10,17 @@ type ActionDialogProps = {
   danger?: boolean;
   /** Explains where the note goes. */
   noteHelp?: string;
+  /** The action can't be confirmed without a note (e.g. rejecting). */
+  noteRequired?: boolean;
+  noteMaxLength?: number;
+  /** Shown above the note, e.g. a disclaimer. */
+  notice?: ReactNode;
   busy: boolean;
   onCancel: () => void;
   onConfirm: (note: string) => void;
 };
 
-/** Confirms a moderation action and collects an optional note for the audit log. */
+/** Confirms a staff action and collects a note (optional unless [noteRequired]) for the audit log. */
 export function ActionDialog({
   open,
   title,
@@ -23,6 +28,9 @@ export function ActionDialog({
   confirmLabel,
   danger = false,
   noteHelp = 'Saved in the audit log.',
+  noteRequired = false,
+  noteMaxLength = 500,
+  notice,
   busy,
   onCancel,
   onConfirm,
@@ -46,8 +54,10 @@ export function ActionDialog({
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         <DialogContentText sx={{ mb: 2 }}>{message}</DialogContentText>
+        {notice}
         <TextField
-          label="Note (optional)"
+          label={noteRequired ? 'Note (required)' : 'Note (optional)'}
+          required={noteRequired}
           helperText={noteHelp}
           value={note}
           onChange={(e) => {
@@ -56,7 +66,7 @@ export function ActionDialog({
           fullWidth
           multiline
           minRows={2}
-          slotProps={{ htmlInput: { maxLength: 500 } }}
+          slotProps={{ htmlInput: { maxLength: noteMaxLength } }}
         />
       </DialogContent>
       <DialogActions>
@@ -66,7 +76,7 @@ export function ActionDialog({
         <Button
           variant="contained"
           color={danger ? 'error' : 'primary'}
-          disabled={busy}
+          disabled={busy || (noteRequired && note.trim().length === 0)}
           onClick={() => {
             onConfirm(note);
           }}

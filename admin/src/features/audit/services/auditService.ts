@@ -18,6 +18,13 @@ export type AuditPage = { rows: AuditRow[]; total: number };
 export const ACTION_LABELS: Record<string, string> = {
   'role.granted': 'Role granted',
   'role.revoked': 'Role removed',
+  'application.submitted': 'Application submitted',
+  'application.under_review': 'Application review started',
+  'application.info_requested': 'Application changes requested',
+  'application.approved': 'Application approved',
+  'application.rejected': 'Application rejected',
+  'business.suspended': 'Business suspended',
+  'business.reinstated': 'Business reinstated',
 };
 
 function describe(metadata: unknown): string {
