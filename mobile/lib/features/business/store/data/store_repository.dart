@@ -157,6 +157,15 @@ class StoreRepository {
         );
       });
 
+  /// Records (or, with `null`, clears) the business's cost for an order.
+  Future<void> setOrderCost(String orderId, int? costSen) =>
+      guardSupabase(() async {
+        await _client.rpc<Object?>(
+          'set_order_cost',
+          params: {'order_id': orderId, 'cost_sen': costSen},
+        );
+      });
+
   Future<List<OrderCard>> myOrders(OrderSide side) => guardSupabase(() async {
     final Object? result = await _client.rpc<Object?>(
       'my_orders',

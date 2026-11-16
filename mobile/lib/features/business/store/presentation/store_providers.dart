@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/domain/business_enums.dart';
+import '../../../dashboard/presentation/dashboard_providers.dart';
 import '../../../marketplace/domain/listing_input.dart';
 import '../../../marketplace/presentation/marketplace_providers.dart';
 import '../../application/presentation/application_providers.dart';
@@ -58,6 +59,13 @@ class StoreActions {
     _refreshProduct(order.listingId, order.businessId);
   }
 
+  Future<void> setOrderCost(OrderCard order, int? costSen) async {
+    await _store.setOrderCost(order.id, costSen);
+    _ref
+      ..invalidate(myOrdersProvider)
+      ..invalidate(dashboardProvider);
+  }
+
   Future<String> saveCampaign(CampaignInput input, {String? campaignId}) async {
     final id = await _store.saveCampaign(input, campaignId: campaignId);
     _refreshCampaigns();
@@ -94,6 +102,7 @@ class StoreActions {
   void _refreshProduct(String listingId, String businessId) {
     _ref
       ..invalidate(myOrdersProvider)
+      ..invalidate(dashboardProvider)
       ..invalidate(storefrontProvider(businessId))
       ..invalidate(listingDetailProvider(listingId))
       ..invalidate(myListingsProvider)

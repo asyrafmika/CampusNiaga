@@ -24,6 +24,7 @@ class ManageStoreScreen extends ConsumerWidget {
 
   static const Key addProductKey = Key('store-add-product');
   static const Key newCampaignKey = Key('store-new-campaign');
+  static const Key dashboardKey = Key('store-dashboard');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -134,6 +135,13 @@ class _Store extends ConsumerWidget {
                     icon: const Icon(Icons.receipt_long_rounded),
                     label: const Text('Orders'),
                   ),
+                  if (!suspended)
+                    FilledButton.icon(
+                      key: ManageStoreScreen.dashboardKey,
+                      onPressed: () => context.push(AppRoutes.dashboard),
+                      icon: const Icon(Icons.insights_rounded),
+                      label: const Text('Dashboard'),
+                    ),
                 ],
               ),
             ],

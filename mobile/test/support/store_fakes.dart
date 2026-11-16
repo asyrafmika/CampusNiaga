@@ -185,6 +185,12 @@ class FakeStoreRepository implements StoreRepository {
   }
 
   @override
+  Future<void> setOrderCost(String orderId, int? costSen) async {
+    calls.add('cost $orderId $costSen');
+    _check();
+  }
+
+  @override
   Future<List<OrderCard>> myOrders(OrderSide side) async {
     _check();
     return side == OrderSide.buying ? buying : selling;

@@ -10,12 +10,14 @@ import 'package:mobile/features/auth/domain/user_access.dart';
 import 'package:mobile/features/business/application/data/business_application_repository.dart';
 import 'package:mobile/features/business/application/data/document_picker.dart';
 import 'package:mobile/features/business/store/data/store_repository.dart';
+import 'package:mobile/features/dashboard/data/dashboard_repository.dart';
 import 'package:mobile/features/discovery/data/discovery_repository.dart';
 import 'package:mobile/features/marketplace/data/listing_repository.dart';
 import 'package:mobile/features/marketplace/data/reservation_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'business_fakes.dart';
+import 'dashboard_fakes.dart';
 import 'discovery_fakes.dart';
 import 'marketplace_fakes.dart';
 import 'store_fakes.dart';
@@ -70,6 +72,7 @@ Future<FakeAuthRepository> pumpApp(
   FakeDocumentPicker? documentPicker,
   FakeStoreRepository? store,
   FakeDiscoveryRepository? discovery,
+  FakeDashboardRepository? dashboard,
 }) async {
   // A Pixel 9-sized screen (the default test surface is 800x600).
   tester.view.physicalSize = const Size(1080, 2424);
@@ -104,6 +107,9 @@ Future<FakeAuthRepository> pumpApp(
         ),
         discoveryRepositoryProvider.overrideWithValue(
           discovery ?? FakeDiscoveryRepository(),
+        ),
+        dashboardRepositoryProvider.overrideWithValue(
+          dashboard ?? FakeDashboardRepository(),
         ),
       ],
       child: const CampusNiagaApp(),

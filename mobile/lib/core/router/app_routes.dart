@@ -39,6 +39,7 @@ abstract final class AppRoutes {
   static const String sellBusiness = '/sell?mode=business';
   static const String manageStore = '/business/store';
   static const String editStorefront = '/business/store/edit';
+  static const String dashboard = '/business/store/dashboard';
   static const String newCampaign = '/business/store/campaigns/new';
   static String editCampaign(String campaignId) =>
       '/business/store/campaigns/$campaignId';

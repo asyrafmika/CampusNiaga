@@ -77,4 +77,5 @@ OrderCard orderFromRow(Map<String, dynamic> row) => OrderCard(
   iAmBuyer: row['i_am_buyer'] as bool,
   otherPartyName: row['other_party_name'] as String,
   otherPartyEmail: row['other_party_email'] as String?,
+  costSen: _intOrNull(row['cost_sen']),
 );

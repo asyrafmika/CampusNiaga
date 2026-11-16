@@ -104,6 +104,34 @@ class OrderTile extends ConsumerStatefulWidget {
 class _OrderTileState extends ConsumerState<OrderTile> {
   bool _busy = false;
 
+  /// Records the seller's own cost, for the estimated profit on the
+  /// dashboard. Empty clears it.
+  Future<void> _recordCost() async {
+    final order = widget.order;
+    final String? entered = await showDialog<String>(
+      context: context,
+      builder: (context) => _CostDialog(initialSen: order.costSen),
+    );
+    if (entered == null || !mounted) return;
+    final text = entered.trim();
+    final sen = text.isEmpty ? null : parseRmToSen(text);
+    if (text.isNotEmpty && sen == null) {
+      showMessage(context, 'Enter an amount, e.g. 9 or 8.50.');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref.read(storeActionsProvider).setOrderCost(order, sen);
+      if (mounted) {
+        showMessage(context, sen == null ? 'Cost cleared.' : 'Cost saved.');
+      }
+    } on Object catch (e) {
+      if (mounted) showMessage(context, AppFailure.messageOf(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _run(OrderAction action) async {
     final order = widget.order;
     if (action == OrderAction.cancel || action == OrderAction.complete) {
@@ -224,6 +252,26 @@ class _OrderTileState extends ConsumerState<OrderTile> {
                 '${order.iAmBuyer ? 'Seller' : 'Buyer'}: '
                 '${order.otherPartyName} · $email',
               ),
+            if (!order.iAmBuyer && order.costSen != null)
+              _Line(
+                Icons.calculate_outlined,
+                'Your cost: ${formatRm(order.costSen!)}',
+              ),
+            if (order.canRecordCost)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: Key('order-cost-${order.id}'),
+                  style: ButtonStyle(
+                    minimumSize: WidgetStateProperty.all(const Size(0, 36)),
+                  ),
+                  onPressed: _busy ? null : _recordCost,
+                  icon: const Icon(Icons.edit_note_rounded, size: 18),
+                  label: Text(
+                    order.costSen == null ? 'Record cost' : 'Change cost',
+                  ),
+                ),
+              ),
             if (order.status == OrderStatus.cancelled)
               _Line(
                 Icons.block_rounded,
@@ -284,5 +332,66 @@ class _Line extends StatelessWidget {
         ),
       ],
     ),
+  );
+}
+
+/// Asks for the seller's cost. It owns its text controller, so the
+/// controller lives exactly as long as the dialog (including its closing
+/// animation).
+class _CostDialog extends StatefulWidget {
+  const _CostDialog({this.initialSen});
+
+  final int? initialSen;
+
+  @override
+  State<_CostDialog> createState() => _CostDialogState();
+}
+
+class _CostDialogState extends State<_CostDialog> {
+  late final _controller = TextEditingController(
+    text: widget.initialSen == null ? '' : senToInput(widget.initialSen!),
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Your cost for this order'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Ingredients, packaging and so on. Only you see it; it is used for '
+          'the estimated profit on your dashboard.',
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          key: const Key('order-cost-field'),
+          controller: _controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            prefixText: 'RM ',
+            hintText: 'Leave empty to clear',
+          ),
+        ),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      TextButton(
+        key: const Key('order-cost-save'),
+        onPressed: () => Navigator.pop(context, _controller.text),
+        child: const Text('Save'),
+      ),
+    ],
   );
 }

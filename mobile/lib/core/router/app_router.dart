@@ -20,6 +20,7 @@ import '../../features/business/store/presentation/my_orders_screen.dart';
 import '../../features/business/store/presentation/order_screen.dart';
 import '../../features/business/store/presentation/storefront_edit_screen.dart';
 import '../../features/business/store/presentation/storefront_screen.dart';
+import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/discovery/presentation/discover_screen.dart';
 import '../../features/discovery/presentation/opportunity_detail_screen.dart';
 import '../../features/discovery/presentation/request_form_screen.dart';
@@ -217,6 +218,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'edit',
                 builder: (context, state) => const StorefrontEditScreen(),
+              ),
+              GoRoute(
+                path: 'dashboard',
+                builder: (context, state) => const DashboardScreen(),
               ),
               GoRoute(
                 path: 'campaigns/new',
