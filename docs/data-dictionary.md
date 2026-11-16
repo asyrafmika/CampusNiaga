@@ -85,13 +85,15 @@ Append-only record of important actions, written only by database functions. Rea
 
 ### `listings` (Phase 2 ✅)
 
-A product, shared by personal sellers and approved businesses. Written only through `upsert_listing()` and `set_listing_status()`. Owners and admins read the table directly; other students see listings through `search_listings()` and `get_listing()`, which add the seller's name and leave out drafts, hidden listings and suspended sellers.
+A product, shared by personal sellers and approved businesses. Written only through `upsert_listing()` and `set_listing_status()`; orders (Phase 4) change `stock` and `status` of business listings. Owners and admins read the table directly; other students see listings through `search_listings()`, `get_listing()` and `get_storefront()`, which add the seller's name (and the business name for business products) and leave out drafts, hidden listings, suspended sellers and suspended businesses.
+
+**Personal items are reserved; business products are ordered.** A `personal` listing is bought through a reservation (M1); a `business` listing through an order (M3). Each function refuses the other kind.
 
 | Column | Type | Source | Notes |
 |---|---|---|---|
 | `id` | uuid | Server | |
 | `owner_id` | uuid | Server | The caller; can't change |
-| `mode` | `personal` \| `business` | Input (create only) | `business` requires an approved business owned by the caller |
+| `mode` | `personal` \| `business` | Input (create only) | `business` requires an approved business owned by the caller (`owns_business`); editing a business listing needs it too, so a suspended business can't change its catalogue |
 | `business_id` | uuid? | Server | Set for `business` mode |
 | `title` | text | Input | 3–80 characters |
 | `normalized_title` | text | Server | Lowercased, punctuation removed; used by M4 matching |
@@ -101,7 +103,7 @@ A product, shared by personal sellers and approved businesses. Written only thro
 | `price_sen` | integer | Input | 0–10,000,000 |
 | `condition` | `new` \| `like_new` \| `good` \| `fair` | Input | |
 | `photo_paths` | text[] | Input | Up to 5 paths `{owner_id}/{listing_id}/{file}` in the `listing-photos` bucket (resized on the device before upload). At least 1 once the listing leaves `draft` |
-| `stock` | integer | Input (`quantity`, 1–999) + Server | Units still for sale. Accepted reservations (and, in Phase 4, orders) take units out under a row lock; cancelled or expired ones put them back. Never negative; at least 1 while `available`, 0 when `sold` |
+| `stock` | integer | Input (`quantity`, 1–999) + Server | Units still for sale. Reservations (personal) and ready-stock orders (business) take units out under a row lock when they are made; cancelled, declined or expired ones put them back. Never negative; at least 1 while `available`, 0 when `sold`. A business owner restocks by editing the quantity, which also makes a sold-out (`sold`) business listing `available` again |
 | `pickup_area` | text | Input | Campus pickup location |
 | `status` | `draft` \| `available` \| `reserved` \| `sold` \| `closed` | Server | `draft` → `available` → `reserved` (every remaining unit is held by accepted reservations) → `sold` (all collected); `closed` when withdrawn (it can re-open); `available` → `sold` directly when sold outside the app. A cancelled or expired reservation returns it to `available` |
 | `hidden` | boolean | Server | Admin moderation; hidden listings are left out of feeds and M4 supply |
@@ -111,7 +113,7 @@ Indexes: full-text (`search_vector`), feed (`status, category, price_sen` where 
 
 ### `reservations` (Phase 2 ✅)
 
-Written only by `request_reservation()` and `resolve_reservation()`. The buyer and the seller read their own; admins read all.
+Written only by `request_reservation()` and `resolve_reservation()`. The buyer and the seller read their own; admins read all. Only `personal` listings can be reserved (a trigger refuses business listings).
 
 | Column | Type | Notes |
 |---|---|---|
@@ -179,39 +181,62 @@ Append-only, one row per status change, written in the same transaction as the c
 
 ### `businesses` (Phase 3 ✅)
 
-Created only by `review_business_application(…, 'approve')`, in the same transaction as the approval. Read: the owner, reviewers and admins (storefronts for other students arrive in Phase 4). No client writes.
+Created only by `review_business_application(…, 'approve')`, in the same transaction as the approval. Read: the owner, reviewers and admins directly; other students see an approved business's storefront through `get_storefront()`. The owner changes the storefront (description, pickup details, logo) through `update_storefront()`. No client writes.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | uuid | |
 | `owner_id` | uuid | The applicant; one business per student |
 | `application_id` | uuid | The approved application; unique |
-| `name`, `description` | text | From the application |
-| `logo_path` | text? | `business-logos` (Phase 4) |
-| `pickup_details` | text | From the application's `collection_details` |
+| `name`, `description` | text | From the application; the owner may edit the description |
+| `logo_path` | text? | `{business_id}/{file}` in `business-logos`, set by `update_storefront()` |
+| `pickup_details` | text | From the application's `collection_details`; the owner may edit it. Copied into each ready-stock order |
 | `status` | `approved` \| `suspended` | Changed only by `set_business_status()` (admins). A suspended business loses business access at once |
 | `created_at`, `updated_at` | timestamptz | |
 
 `listings.business_id` references this table.
 
-### `campaigns` (Phase 4)
+### `campaigns` (Phase 4 ✅)
 
-A pre-order campaign: `id`, `business_id`, `listing_id`, `title`, `price_sen`, `start_at`, `close_at` (after `start_at`), `capacity`, `per_order_limit?`, `allocated_qty` (never above `capacity`; changed only inside transactions), `pickup_details`, `status` (`draft` \| `open` \| `closed`).
-
-### `orders` (Phase 4)
+A pre-order campaign for one business product. Written only by `upsert_campaign()`, `set_campaign_status()` and, for `allocated_qty`, `place_order()` / `transition_order()`. Read: the business owner and admins directly; other students see open campaigns of approved businesses through `get_storefront()`.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | uuid | |
-| `buyer_id`, `business_id`, `listing_id` | uuid | |
+| `business_id` | uuid | Server: the listing's business |
+| `listing_id` | uuid | Input (create only): a published business listing of the caller's business |
+| `title` | text | 3–80 characters |
+| `price_sen` | integer | 0–10,000,000. The pre-order price; orders copy it |
+| `start_at`, `close_at` | timestamptz | `close_at` after `start_at`, and in the future when created or opened. Orders are taken only between them |
+| `capacity` | integer | 1–10,000: the most units the business can fulfil. Can't be lowered below `allocated_qty` |
+| `per_order_limit` | integer? | 1 to `capacity`; no limit when empty |
+| `allocated_qty` | integer | Server. Units held by orders that aren't cancelled. Never above `capacity` (check constraint); changed only under the campaign's row lock |
+| `pickup_details` | text | 5–200 characters. Copied into each pre-order |
+| `status` | `draft` \| `open` \| `closed` | `draft` → `open` → `closed`, or `draft` → `closed`. Only `open` campaigns inside their dates take orders; closing keeps existing orders |
+| `created_at`, `updated_at` | timestamptz | |
+
+### `orders` (Phase 4 ✅)
+
+An order for a business product: ready stock (no campaign) or a pre-order (with a campaign). Written only by `place_order()` and `transition_order()`. Read: the buyer, the business owner (also while the business is suspended) and admins; the apps use `my_orders()`, which adds names and, once confirmed, contact emails.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `buyer_id` | uuid | The caller; never the business owner |
+| `business_id`, `listing_id` | uuid | From the listing |
 | `campaign_id` | uuid? | Present for pre-orders |
-| `qty` | integer | 1 or more |
-| `unit_price_sen` | integer | Price snapshot at order time |
-| `total_sen` | integer | `unit_price_sen × qty` |
-| `status` | `pending_confirmation` \| `confirmed` \| `preparing` \| `ready_for_pickup` \| `completed` \| `cancelled` | Cancellation is allowed before `completed`; pending and confirmed orders hold campaign capacity |
-| `collection_details` | text | |
-| `cost_sen` | integer? | Seller-entered cost, for estimated profit |
-| `completed_at` | timestamptz? | M5 date filters and totals |
+| `qty` | integer | 1–999, and within the campaign's `per_order_limit` |
+| `unit_price_sen` | integer | Price snapshot at order time (the listing's, or the campaign's for a pre-order); later price changes don't touch it |
+| `total_sen` | bigint | `unit_price_sen × qty` (check constraint) |
+| `status` | `pending_confirmation` \| `confirmed` \| `preparing` \| `ready_for_pickup` \| `completed` \| `cancelled` | The seller moves it forward one step at a time; either side may cancel before `completed` |
+| `buyer_note` | text? | The buyer's collection preference, up to 200 characters |
+| `collection_details` | text | Snapshot of where and when to collect: the campaign's `pickup_details` for a pre-order, otherwise the business's |
+| `cancelled_by` | `buyer` \| `seller`? | Set exactly when `cancelled`. A seller cancelling a pending order is a rejection |
+| `cost_sen` | integer? | Seller-entered cost, for estimated profit (written from Phase 6) |
+| `completed_at` | timestamptz? | Set exactly when `completed`; M5 date filters and totals |
+| `created_at`, `updated_at` | timestamptz | |
+
+**Quantity is held from the moment of ordering.** `place_order()` locks the listing (ready stock) or the campaign (pre-order), checks what is left and takes it in one transaction, so two buyers can never get more than exists: the second waits for the lock, then gets `ITEM_UNAVAILABLE` or `CAPACITY_FULL`. A ready-stock order takes units out of `listings.stock` (the listing becomes `sold` at 0); a pre-order adds to `campaigns.allocated_qty` and doesn't touch the listing's stock. Cancelling returns them; progressing and completing keep them (capacity is a fulfilment limit, so a completed pre-order still counts). No payment happens in the app: buyer and seller arrange payment and collection themselves.
 
 ### `product_requests` (Phase 5)
 
@@ -252,8 +277,8 @@ In-app notices written by database functions. The recipient reads their own and 
 |---|---|---|
 | `id` | bigint | |
 | `recipient_id` | uuid | |
-| `type` | text | `reservation_requested`, `reservation_accepted`, `reservation_declined`, `reservation_cancelled`, `reservation_collected`, `reservation_expired`, `listing_hidden`, `listing_restored`, `application_under_review`, `application_info_requested`, `application_approved`, `application_rejected`, `business_suspended`, `business_reinstated`; later phases add more |
-| `target` | text? | What it's about, e.g. `reservation:{id}`, `listing:{id}`, `application:{id}` or `business:{id}` |
+| `type` | text | `order_placed`, `order_confirmed`, `order_preparing`, `order_ready_for_pickup`, `order_completed`, `order_cancelled`, `reservation_requested`, `reservation_accepted`, `reservation_declined`, `reservation_cancelled`, `reservation_collected`, `reservation_expired`, `listing_hidden`, `listing_restored`, `application_under_review`, `application_info_requested`, `application_approved`, `application_rejected`, `business_suspended`, `business_reinstated`; later phases add more |
+| `target` | text? | What it's about, e.g. `reservation:{id}`, `listing:{id}`, `application:{id}`, `business:{id}` or `order:{id}` |
 | `title`, `body` | text | |
 | `read` | boolean | |
 | `created_at` | timestamptz | |
@@ -264,4 +289,4 @@ In-app notices written by database functions. The recipient reads their own and 
 |---|---|---|
 | `listing-photos` (Phase 2) | Product photos: JPEG, PNG or WebP, up to 5 MB, under `{owner_id}/{listing_id}/` | Private bucket. A verified student uploads only into a folder of a listing they own (`can_upload_listing_photo`) and deletes only their own files; verified students and admins read, with their sign-in token |
 | `application-documents` (Phase 3) | Business application documents: PDF, JPEG or PNG, up to 5 MB, under `{applicant_id}/{application_id}/` | Private. The applicant uploads and deletes only while their application is `draft` or `info_requested`, up to `app_config.max_application_documents` files (`can_upload_application_document`); files are never overwritten. The applicant, and reviewers and admins once it is submitted, read through short-lived signed URLs (`can_read_application_document`) |
-| `business-logos` | Business logos, under `{business_id}/` | Business owner writes; signed-in users read |
+| `business-logos` (Phase 4) | Business logos: JPEG, PNG or WebP, up to 2 MB, under `{business_id}/` | Private bucket. The owner of an approved business uploads into its folder (`can_upload_business_logo`) and deletes its own files; verified students and staff read with their sign-in token |
