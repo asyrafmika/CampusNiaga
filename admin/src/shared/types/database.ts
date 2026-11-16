@@ -314,6 +314,21 @@ export type Database = {
           },
         ]
       }
+      discovery_synonyms: {
+        Row: {
+          canonical: string
+          term: string
+        }
+        Insert: {
+          canonical: string
+          term: string
+        }
+        Update: {
+          canonical?: string
+          term?: string
+        }
+        Relationships: []
+      }
       listings: {
         Row: {
           business_id: string | null
@@ -433,6 +448,69 @@ export type Database = {
           },
         ]
       }
+      opportunities: {
+        Row: {
+          active_supply_count: number
+          algo_version: string
+          calculated_at: string
+          category: string
+          cluster_key: string
+          distinct_seller_count: number
+          head_term: string
+          insufficient_data: boolean
+          keywords: string[]
+          last_interest_at: string
+          median_listed_price_sen: number | null
+          median_preferred_price_sen: number | null
+          params: Json
+          price_gap: boolean
+          reasons: string[]
+          request_ids: string[]
+          score: number
+          unique_interest_count: number
+        }
+        Insert: {
+          active_supply_count: number
+          algo_version: string
+          calculated_at?: string
+          category: string
+          cluster_key: string
+          distinct_seller_count: number
+          head_term: string
+          insufficient_data: boolean
+          keywords?: string[]
+          last_interest_at: string
+          median_listed_price_sen?: number | null
+          median_preferred_price_sen?: number | null
+          params: Json
+          price_gap: boolean
+          reasons: string[]
+          request_ids?: string[]
+          score: number
+          unique_interest_count: number
+        }
+        Update: {
+          active_supply_count?: number
+          algo_version?: string
+          calculated_at?: string
+          category?: string
+          cluster_key?: string
+          distinct_seller_count?: number
+          head_term?: string
+          insufficient_data?: boolean
+          keywords?: string[]
+          last_interest_at?: string
+          median_listed_price_sen?: number | null
+          median_preferred_price_sen?: number | null
+          params?: Json
+          price_gap?: boolean
+          reasons?: string[]
+          request_ids?: string[]
+          score?: number
+          unique_interest_count?: number
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           business_id: string
@@ -515,6 +593,59 @@ export type Database = {
             columns: ["listing_id"]
             isOneToOne: false
             referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_requests: {
+        Row: {
+          campus_area: string
+          category: string
+          cluster_key: string
+          created_at: string
+          creator_id: string
+          id: string
+          name: string
+          normalized_name: string
+          notes: string | null
+          preferred_price_sen: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campus_area: string
+          category: string
+          cluster_key: string
+          created_at?: string
+          creator_id: string
+          id?: string
+          name: string
+          normalized_name: string
+          notes?: string | null
+          preferred_price_sen?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campus_area?: string
+          category?: string
+          cluster_key?: string
+          created_at?: string
+          creator_id?: string
+          id?: string
+          name?: string
+          normalized_name?: string
+          notes?: string | null
+          preferred_price_sen?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_requests_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -617,6 +748,39 @@ export type Database = {
           {
             foreignKeyName: "reports_reviewed_by_fkey"
             columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_interests: {
+        Row: {
+          created_at: string
+          request_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          request_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          request_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_interests_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "product_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_interests_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -737,6 +901,26 @@ export type Database = {
         Args: { object_name: string }
         Returns: boolean
       }
+      close_product_request: { Args: { request_id: string }; Returns: Json }
+      create_product_request: {
+        Args: {
+          campus_area: string
+          category: string
+          name: string
+          notes?: string
+          preferred_price_sen?: number
+        }
+        Returns: Json
+      }
+      discovery_cluster_key: {
+        Args: { category: string; name: string }
+        Returns: string
+      }
+      discovery_params: { Args: never; Returns: Json }
+      discovery_rm: { Args: { sen: number }; Returns: string }
+      discovery_singular: { Args: { word: string }; Returns: string }
+      discovery_stop_words: { Args: never; Returns: string[] }
+      discovery_terms: { Args: { value: string }; Returns: string[] }
       dismiss_report: {
         Args: { note?: string; report_id: string }
         Returns: Json
@@ -766,6 +950,22 @@ export type Database = {
       is_reviewer: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       is_student: { Args: never; Returns: boolean }
+      list_product_requests: {
+        Args: {
+          category?: string
+          cluster_key?: string
+          mine?: boolean
+          page_offset?: number
+          page_size?: number
+        }
+        Returns: Database["public"]["CompositeTypes"]["request_card"][]
+        SetofOptions: {
+          from: "*"
+          to: "request_card"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       listing_categories: { Args: never; Returns: string[] }
       moderate_listing: {
         Args: { hide: boolean; listing_id: string; note?: string }
@@ -814,6 +1014,14 @@ export type Database = {
       }
       raise_app_error: {
         Args: { message: string; reason: string }
+        Returns: undefined
+      }
+      recompute_opportunities: {
+        Args: { target_cluster?: string }
+        Returns: number
+      }
+      recompute_opportunity: {
+        Args: { target_cluster: string }
         Returns: undefined
       }
       report_listing: {
@@ -875,6 +1083,7 @@ export type Database = {
         Args: { application_id: string; response_note?: string }
         Returns: Json
       }
+      toggle_request_interest: { Args: { request_id: string }; Returns: Json }
       transition_order: {
         Args: { action: string; order_id: string }
         Returns: Json
@@ -961,6 +1170,20 @@ export type Database = {
         i_am_buyer: boolean | null
         other_party_name: string | null
         other_party_email: string | null
+      }
+      request_card: {
+        id: string | null
+        name: string | null
+        category: string | null
+        preferred_price_sen: number | null
+        campus_area: string | null
+        notes: string | null
+        status: string | null
+        cluster_key: string | null
+        created_at: string | null
+        interest_count: number | null
+        i_am_interested: boolean | null
+        is_mine: boolean | null
       }
       reservation_card: {
         id: string | null
