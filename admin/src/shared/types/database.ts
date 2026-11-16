@@ -248,6 +248,72 @@ export type Database = {
           },
         ]
       }
+      campaigns: {
+        Row: {
+          allocated_qty: number
+          business_id: string
+          capacity: number
+          close_at: string
+          created_at: string
+          id: string
+          listing_id: string
+          per_order_limit: number | null
+          pickup_details: string
+          price_sen: number
+          start_at: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          allocated_qty?: number
+          business_id: string
+          capacity: number
+          close_at: string
+          created_at?: string
+          id?: string
+          listing_id: string
+          per_order_limit?: number | null
+          pickup_details: string
+          price_sen: number
+          start_at: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          allocated_qty?: number
+          business_id?: string
+          capacity?: number
+          close_at?: string
+          created_at?: string
+          id?: string
+          listing_id?: string
+          per_order_limit?: number | null
+          pickup_details?: string
+          price_sen?: number
+          start_at?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       listings: {
         Row: {
           business_id: string | null
@@ -363,6 +429,92 @@ export type Database = {
             columns: ["recipient_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          business_id: string
+          buyer_id: string
+          buyer_note: string | null
+          campaign_id: string | null
+          cancelled_by: string | null
+          collection_details: string
+          completed_at: string | null
+          cost_sen: number | null
+          created_at: string
+          id: string
+          listing_id: string
+          qty: number
+          status: string
+          total_sen: number
+          unit_price_sen: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          buyer_id: string
+          buyer_note?: string | null
+          campaign_id?: string | null
+          cancelled_by?: string | null
+          collection_details: string
+          completed_at?: string | null
+          cost_sen?: number | null
+          created_at?: string
+          id?: string
+          listing_id: string
+          qty: number
+          status?: string
+          total_sen: number
+          unit_price_sen: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          buyer_id?: string
+          buyer_note?: string | null
+          campaign_id?: string | null
+          cancelled_by?: string | null
+          collection_details?: string
+          completed_at?: string | null
+          cost_sen?: number | null
+          created_at?: string
+          id?: string
+          listing_id?: string
+          qty?: number
+          status?: string
+          total_sen?: number
+          unit_price_sen?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
             referencedColumns: ["id"]
           },
         ]
@@ -577,6 +729,10 @@ export type Database = {
         Args: { object_name: string }
         Returns: boolean
       }
+      can_upload_business_logo: {
+        Args: { object_name: string }
+        Returns: boolean
+      }
       can_upload_listing_photo: {
         Args: { object_name: string }
         Returns: boolean
@@ -601,6 +757,7 @@ export type Database = {
       }
       get_my_access: { Args: never; Returns: Json }
       get_my_business: { Args: never; Returns: Json }
+      get_storefront: { Args: { business_id: string }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       is_eligible_student_email: {
         Args: { allowlist: string[]; domains: string[]; email: string }
@@ -613,6 +770,16 @@ export type Database = {
       moderate_listing: {
         Args: { hide: boolean; listing_id: string; note?: string }
         Returns: Json
+      }
+      my_orders: {
+        Args: { page_offset?: number; page_size?: number; side?: string }
+        Returns: Database["public"]["CompositeTypes"]["order_card"][]
+        SetofOptions: {
+          from: "*"
+          to: "order_card"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       my_reservations: {
         Args: { side?: string }
@@ -636,6 +803,15 @@ export type Database = {
         Returns: undefined
       }
       owns_business: { Args: { business_id: string }; Returns: boolean }
+      place_order: {
+        Args: {
+          buyer_note?: string
+          campaign_id?: string
+          listing_id: string
+          qty?: number
+        }
+        Returns: Json
+      }
       raise_app_error: {
         Args: { message: string; reason: string }
         Returns: undefined
@@ -683,6 +859,10 @@ export type Database = {
         Args: { business_id: string; note?: string; status: string }
         Returns: Json
       }
+      set_campaign_status: {
+        Args: { campaign_id: string; new_status: string }
+        Returns: Json
+      }
       set_listing_status: {
         Args: { listing_id: string; new_status: string }
         Returns: Json
@@ -695,12 +875,39 @@ export type Database = {
         Args: { application_id: string; response_note?: string }
         Returns: Json
       }
+      transition_order: {
+        Args: { action: string; order_id: string }
+        Returns: Json
+      }
+      update_storefront: {
+        Args: {
+          description: string
+          logo_path?: string
+          pickup_details: string
+        }
+        Returns: Json
+      }
+      upsert_campaign: {
+        Args: {
+          campaign_id: string
+          capacity: number
+          close_at: string
+          listing_id: string
+          per_order_limit: number
+          pickup_details: string
+          price_sen: number
+          start_at: string
+          title: string
+        }
+        Returns: Json
+      }
       upsert_listing: {
         Args: {
           category: string
           condition: string
           description: string
           listing_id: string
+          mode?: string
           photo_paths: string[]
           pickup_area: string
           price_sen: number
@@ -729,6 +936,31 @@ export type Database = {
         pickup_area: string | null
         status: string | null
         created_at: string | null
+        business_id: string | null
+        business_name: string | null
+      }
+      order_card: {
+        id: string | null
+        listing_id: string | null
+        listing_title: string | null
+        listing_photo: string | null
+        business_id: string | null
+        business_name: string | null
+        campaign_id: string | null
+        campaign_title: string | null
+        qty: number | null
+        unit_price_sen: number | null
+        total_sen: number | null
+        status: string | null
+        buyer_note: string | null
+        collection_details: string | null
+        cancelled_by: string | null
+        created_at: string | null
+        updated_at: string | null
+        completed_at: string | null
+        i_am_buyer: boolean | null
+        other_party_name: string | null
+        other_party_email: string | null
       }
       reservation_card: {
         id: string | null
