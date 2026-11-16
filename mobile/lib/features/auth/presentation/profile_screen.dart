@@ -14,6 +14,7 @@ class ProfileScreen extends ConsumerWidget {
   static const Key signOutKey = Key('profile-sign-out');
   static const Key businessKey = Key('profile-business');
   static const Key ordersKey = Key('profile-orders');
+  static const Key discoverKey = Key('profile-discover');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -105,6 +106,13 @@ class ProfileScreen extends ConsumerWidget {
                 icon: Icons.receipt_long_outlined,
                 title: 'My reservations',
                 onTap: () => context.go(AppRoutes.reservations),
+              ),
+              _Item(
+                key: discoverKey,
+                icon: Icons.lightbulb_outline_rounded,
+                title: 'Discover',
+                subtitle: 'Request products and see possible opportunities',
+                onTap: () => context.push(AppRoutes.discover),
               ),
               _Item(
                 key: ordersKey,

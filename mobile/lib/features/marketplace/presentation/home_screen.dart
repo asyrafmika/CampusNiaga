@@ -41,6 +41,7 @@ class HomeScreen extends ConsumerWidget {
                 const SliverToBoxAdapter(child: _SearchBar()),
                 const SliverToBoxAdapter(child: _SellCard()),
                 const SliverToBoxAdapter(child: _Categories()),
+                const SliverToBoxAdapter(child: _DiscoverCard()),
                 SliverToBoxAdapter(
                   child: _SectionTitle(
                     title: 'Just listed',
@@ -273,6 +274,43 @@ class _SellCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Leads to M4: request what you can't find, see what students want.
+class _DiscoverCard extends StatelessWidget {
+  const _DiscoverCard();
+
+  static const Key cardKey = Key('home-discover');
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+    child: Material(
+      color: AppColors.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: AppColors.border),
+      ),
+      child: ListTile(
+        key: cardKey,
+        onTap: () => context.push(AppRoutes.discover),
+        leading: const Icon(
+          Icons.lightbulb_outline_rounded,
+          color: AppColors.accent,
+        ),
+        title: const Text(
+          'Can’t find it? Request it',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        subtitle: const Text('And see what other students want to buy'),
+        trailing: const Icon(
+          Icons.chevron_right_rounded,
+          color: AppColors.icon,
+        ),
+      ),
+    ),
+  );
 }
 
 class _Categories extends ConsumerWidget {

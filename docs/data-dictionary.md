@@ -238,17 +238,60 @@ An order for a business product: ready stock (no campaign) or a pre-order (with 
 
 **Quantity is held from the moment of ordering.** `place_order()` locks the listing (ready stock) or the campaign (pre-order), checks what is left and takes it in one transaction, so two buyers can never get more than exists: the second waits for the lock, then gets `ITEM_UNAVAILABLE` or `CAPACITY_FULL`. A ready-stock order takes units out of `listings.stock` (the listing becomes `sold` at 0); a pre-order adds to `campaigns.allocated_qty` and doesn't touch the listing's stock. Cancelling returns them; progressing and completing keep them (capacity is a fulfilment limit, so a completed pre-order still counts). No payment happens in the app: buyer and seller arrange payment and collection themselves.
 
-### `product_requests` (Phase 5)
+### `product_requests` (Phase 5 ✅)
 
-`id`, `creator_id`, `name`, `normalized_name`, `category`, `preferred_price_sen?`, `campus_area`, `notes?`, `cluster_key?` (server), `status` (`active` \| `closed`).
+A student asking for a product nobody sells yet (M4). Written only by `create_product_request()` and `close_product_request()`. Verified students read active requests and their own; admins read all. The apps use `list_product_requests()`, which adds interest counts without naming anyone.
 
-### `request_interests` (Phase 5)
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `creator_id` | uuid | The caller; can't change |
+| `name` | text | 3–80 characters, e.g. "chocolate brownie" |
+| `normalized_name` | text | Server: the name's discovery terms joined by spaces (see "Discovery terms" below) |
+| `category` | text | One of `app_config.categories` |
+| `preferred_price_sen` | integer? | 0–10,000,000: what the student would like to pay |
+| `campus_area` | text | 2–80 characters, e.g. "Desasiswa Tekun" |
+| `notes` | text? | Up to 300 characters |
+| `cluster_key` | text | Server: `{category}\|{head term}`, e.g. `Food & Beverage\|brownie` |
+| `status` | `active` \| `closed` | The creator closes it when no longer needed; closed requests leave M4 |
+| `created_at`, `updated_at` | timestamptz | |
 
-`request_id`, `user_id`, `created_at`. The primary key `(request_id, user_id)` allows one interest per student per request.
+A student has at most one active request per cluster (`ALREADY_EXISTS`) and may make 10 requests a day.
 
-### `opportunities` (Phase 5)
+### `request_interests` (Phase 5 ✅)
 
-Derived M4 result per cluster, written only by the server: `cluster_key` (primary key), `category`, `keywords[]`, `request_ids[]`, `unique_interest_count`, `active_supply_count`, `distinct_seller_count`, `median_listed_price_sen?`, `median_preferred_price_sen?`, `price_gap`, `score`, `reasons[]`, `insufficient_data` (fewer than 2 students), `algo_version`, `calculated_at`.
+`request_id`, `user_id`, `created_at`. The primary key `(request_id, user_id)` allows one interest per student per request. Written only by `toggle_request_interest()`; a student reads their own. The creator can't add interest to their own request (they are already counted).
+
+### `opportunities` (Phase 5 ✅)
+
+The M4 result per cluster, written only by `recompute_opportunities()` (from triggers). Verified students and staff read it. A cluster with no active request has no row. "Possible opportunity": demand signals are not confirmed purchases.
+
+| Column | Type | Notes |
+|---|---|---|
+| `cluster_key` | text | Primary key |
+| `category`, `head_term` | text | The cluster's category and main word |
+| `keywords` | text[] | Every discovery term in its requests, sorted |
+| `request_ids` | uuid[] | Its active requests, oldest first |
+| `unique_interest_count` | integer | **D**: distinct students among the requests' creators and interested students (each counted once) |
+| `active_supply_count` | integer | **S**: matching listings (same category, head term among the title's discovery terms) that are `available`, not hidden, from an active seller and, for business products, an approved business |
+| `distinct_seller_count` | integer | Distinct owners of those listings |
+| `median_listed_price_sen`, `median_preferred_price_sen` | integer? | Medians (rounded to the sen) of the matching listings' prices and the requests' preferred prices |
+| `price_gap` | boolean | Both medians exist and the listed one is higher |
+| `score` | integer | `max(0, 5 × min(D, 20) − 8 × min(S, 10) + (10 if price_gap else 0))` |
+| `reasons` | text[] | The explanation, built from the same numbers |
+| `insufficient_data` | boolean | `D < 2` |
+| `algo_version` | text | `m4-v1` |
+| `params` | jsonb | The weights and caps used, so results are reproducible |
+| `last_interest_at` | timestamptz | Newest request or interest; breaks score ties |
+| `calculated_at` | timestamptz | |
+
+Ranking: `score` descending, then `last_interest_at` descending, then `cluster_key`.
+
+**Discovery terms** (`discovery_terms(text)`): the text is lowercased and punctuation removed (`normalize_text`); words shorter than 2 letters and stop words (English and campus Malay, e.g. "the", "for", "cheap", "nak", "murah") are dropped; each word is mapped through `discovery_synonyms` (curated: plural forms like "brownies" → "brownie", and synonyms like "calc" → "calculator"), singularised by simple rules ("batteries" → "battery", "boxes" → "box", "chargers" → "charger"), then mapped through the synonyms again. The **head term** is the last term: "chocolate brownie" → `brownie`.
+
+### `discovery_synonyms` (Phase 5 ✅)
+
+The curated synonym and plural list: `term` (primary key) → `canonical`. Seeded by the migration; changed only in the Supabase dashboard. No client access.
 
 ### `reports` (Phase 2 ✅)
 

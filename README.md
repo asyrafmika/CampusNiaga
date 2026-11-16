@@ -52,7 +52,7 @@ CampusNiaga/
 | 2 Marketplace | Listings, search, reservations, reports | Done |
 | 3 Approval | Business application and reviewer workflow (simulated) | Done |
 | 4 Business | Storefront, stock, pre-orders, orders | Done |
-| 5 Discovery | Product requests, interest, opportunity ranking | Planned |
+| 5 Discovery | Product requests, interest, opportunity ranking | Done |
 | 6 Dashboard + QA | Seller analytics, final testing | Planned |
 
 ### Phase 1 check
@@ -100,6 +100,16 @@ The handoff's Phase 4 pass condition is: an approved seller creates a storefront
 | Database, two connections | `supabase/tests/concurrency/order_race.sh` | Two buyers order the last unit, then the last pre-order place, at the same moment on separate connections. Each time the second waits for the first's row lock and is refused; exactly one order each |
 | Database | `12_business_listings`, `13_campaigns_orders` | Every rule on its own: only approved businesses list business products, suspension removes them from the feed and the storefront at once, business products can't be reserved, every campaign and order limit (stock, capacity, per-order limit, dates), every (status, action) pair for orders, who may read campaigns and orders, contact emails only after confirmation |
 | Mobile | `mobile/test/features/business/store/` | Order from stock or a pre-order (capped by what is left and the per-order limit), the storefront, a sold-out product, refused orders, cancel from My orders; the business confirms orders, opens and creates pre-orders, edits its storefront and adds business products |
+
+### Phase 5 check
+
+The handoff's Phase 5 pass condition is: synonym requests cluster, one student counts once, existing supply lowers the score, a price gap affects the result, and the reasons match the data. The ranking is deterministic (no machine learning): fixed text rules, a curated synonym list and the handoff's score, `max(0, 5 × min(D, 20) − 8 × min(S, 10) + 10 if listings cost more than students want)`, stored with its version (`m4-v1`) and parameters.
+
+| Part | Test | What it proves |
+|---|---|---|
+| Database | `supabase/tests/database/17_phase5_pass_condition.test.sql` | The handoff fixture: "brownie", "brownies" and "chocolate brownie" from three students form one cluster (`Food & Beverage\|brownie`). Ali, who asked already, taps Interested on the other two and Mei taps all three, yet D = 4. A competing listing makes S = 1 and lowers the score by 8 (20 → 12); raising its price above what students want adds 10 (→ 22). The reasons state "4 students interested", "1 active matching listing from 1 seller" and the two median prices, exactly the stored numbers, and the stored score follows the formula |
+| Database | `15_product_requests`, `16_opportunities` | The text rules (stop words in English and campus Malay, plurals, synonyms, head term), one active request per cluster, interest toggling and rate limits, privacy (nobody sees who asked or who is interested), the caps and the floor of the score, what counts as supply (not hidden, closed, suspended sellers or suspended businesses), insufficient data, ranking and tie-breaks, and the triggers that keep results current |
+| Mobile | `mobile/test/features/discovery/` | The ranked list labelled "Possible opportunity" with its reasons and insufficient-data flag, the opportunity page with its numbers and formula, Interested, requesting a product, closing one's own request, refused taps |
 
 ## Getting started
 

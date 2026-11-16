@@ -43,6 +43,15 @@ abstract final class AppRoutes {
   static String editCampaign(String campaignId) =>
       '/business/store/campaigns/$campaignId';
 
+  // Opportunity discovery (M4). Cluster keys contain spaces, '&' and '|',
+  // so they travel as an encoded query parameter.
+  static const String discover = '/discover';
+  static const String discoverRequest = '/discover/request';
+  static String opportunity(String clusterKey) => Uri(
+    path: '/discover/opportunity',
+    queryParameters: {'key': clusterKey},
+  ).toString();
+
   /// The search tab, opened on one category.
   static String searchCategory(String category) =>
       Uri(path: search, queryParameters: {'category': category}).toString();

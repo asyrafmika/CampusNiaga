@@ -20,6 +20,9 @@ import '../../features/business/store/presentation/my_orders_screen.dart';
 import '../../features/business/store/presentation/order_screen.dart';
 import '../../features/business/store/presentation/storefront_edit_screen.dart';
 import '../../features/business/store/presentation/storefront_screen.dart';
+import '../../features/discovery/presentation/discover_screen.dart';
+import '../../features/discovery/presentation/opportunity_detail_screen.dart';
+import '../../features/discovery/presentation/request_form_screen.dart';
 import '../../features/marketplace/presentation/home_screen.dart';
 import '../../features/marketplace/presentation/listing_detail_screen.dart';
 import '../../features/marketplace/presentation/listing_form_screen.dart';
@@ -152,6 +155,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ? OrderSide.selling
               : OrderSide.buying,
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.discover,
+        builder: (context, state) => const DiscoverScreen(),
+        routes: [
+          GoRoute(
+            path: 'request',
+            builder: (context, state) => const RequestFormScreen(),
+          ),
+          GoRoute(
+            path: 'opportunity',
+            builder: (context, state) => OpportunityDetailScreen(
+              clusterKey: state.uri.queryParameters['key'] ?? '',
+            ),
+          ),
+        ],
       ),
       GoRoute(
         path: '/store/:id',
