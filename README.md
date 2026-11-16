@@ -51,7 +51,7 @@ CampusNiaga/
 | 1 Foundation | Project setup, sign-in, USM student check, staff-only web access | Done |
 | 2 Marketplace | Listings, search, reservations, reports | Done |
 | 3 Approval | Business application and reviewer workflow (simulated) | Done |
-| 4 Business | Storefront, stock, pre-orders, orders | Planned |
+| 4 Business | Storefront, stock, pre-orders, orders | Done |
 | 5 Discovery | Product requests, interest, opportunity ranking | Planned |
 | 6 Dashboard + QA | Seller analytics, final testing | Planned |
 
@@ -89,6 +89,17 @@ The handoff's Phase 3 pass condition is: submit → reviewer requests edits → 
 | Database | `09_business_applications`, `10_businesses` | Every (status, action) pair: allowed moves succeed, every other one fails with `INVALID_TRANSITION`. Applicants can't change status, reviewer or dates; drafts stay private from staff; other students see nothing; documents follow the same rules; reject and request-info need a note; no second business; suspension removes business access at once and reinstating restores it; the status summary counts by status |
 | Mobile | `mobile/test/features/business/application/` | Apply, save a draft, upload a document, submit; respond to a request for changes and resubmit with a reply; the timeline; approved and rejected states; refused submissions show the reason |
 | Admin | `admin/src/features/applications/` | The queue and status summary; only the decisions the state machine allows; a note is required to request changes or reject; approval is confirmed with the disclaimer; reviewers can't decide their own application; admins suspend a business |
+
+### Phase 4 check
+
+The handoff's Phase 4 pass condition is: an approved seller creates a storefront, a product and a campaign; two buyers cannot exceed the remaining stock or capacity; cancellations free the quantity.
+
+| Part | Test | What it proves |
+|---|---|---|
+| Database | `supabase/tests/database/14_phase4_pass_condition.test.sql` | The journey: before approval Ali can't list business products or set up a storefront; the reviewer approves; Ali sets up the storefront, lists a 2-unit brownie box and opens a capacity-3 pre-order. Siti takes both boxes and Amin is refused (`ITEM_UNAVAILABLE`); Siti pre-orders 2, Amin can't take 2 (`CAPACITY_FULL`) but takes the last place, and a fourth is refused. Siti cancels both: the boxes are back on sale and 2 places free up, and Amin gets them. Units ordered plus stock left always equal 2, and pre-ordered units always equal the allocation |
+| Database, two connections | `supabase/tests/concurrency/order_race.sh` | Two buyers order the last unit, then the last pre-order place, at the same moment on separate connections. Each time the second waits for the first's row lock and is refused; exactly one order each |
+| Database | `12_business_listings`, `13_campaigns_orders` | Every rule on its own: only approved businesses list business products, suspension removes them from the feed and the storefront at once, business products can't be reserved, every campaign and order limit (stock, capacity, per-order limit, dates), every (status, action) pair for orders, who may read campaigns and orders, contact emails only after confirmation |
+| Mobile | `mobile/test/features/business/store/` | Order from stock or a pre-order (capped by what is left and the per-order limit), the storefront, a sold-out product, refused orders, cancel from My orders; the business confirms orders, opens and creates pre-orders, edits its storefront and adds business products |
 
 ## Getting started
 

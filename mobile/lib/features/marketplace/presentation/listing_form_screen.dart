@@ -15,17 +15,24 @@ import 'marketplace_providers.dart';
 import 'widgets/listing_widgets.dart';
 
 /// Create a listing ([listingId] null) or edit one of the user's own.
+/// [business] creates a business product (approved businesses only; the
+/// database checks).
 class ListingFormScreen extends ConsumerWidget {
-  const ListingFormScreen({super.key, this.listingId});
+  const ListingFormScreen({super.key, this.listingId, this.business = false});
 
   final String? listingId;
+  final bool business;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final id = listingId;
     final categories = ref.watch(categoriesProvider);
     final existing = id == null ? null : ref.watch(listingDetailProvider(id));
-    final title = id == null ? 'Sell an item' : 'Edit listing';
+    final title = id != null
+        ? 'Edit listing'
+        : business
+        ? 'Add a product'
+        : 'Sell an item';
 
     Widget body;
     if (categories case AsyncError(:final error)) {
@@ -45,6 +52,7 @@ class ListingFormScreen extends ConsumerWidget {
       body = _ListingForm(
         categories: categories.value!,
         existing: existing?.value,
+        business: business,
       );
     }
     return Scaffold(
@@ -64,10 +72,15 @@ class _FormPhoto {
 }
 
 class _ListingForm extends ConsumerStatefulWidget {
-  const _ListingForm({required this.categories, this.existing});
+  const _ListingForm({
+    required this.categories,
+    this.existing,
+    this.business = false,
+  });
 
   final List<String> categories;
   final Listing? existing;
+  final bool business;
 
   @override
   ConsumerState<_ListingForm> createState() => _ListingFormState();
@@ -170,6 +183,7 @@ class _ListingFormState extends ConsumerState<_ListingForm> {
             keptPhotos: [for (final p in _photos) ?p.path],
             newPhotos: [for (final p in _photos) ?p.photo],
             publish: publish && _isDraftOrNew,
+            mode: widget.business ? ListingMode.business : ListingMode.personal,
           );
       if (!mounted) return;
       showMessage(

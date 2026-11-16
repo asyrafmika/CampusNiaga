@@ -27,7 +27,7 @@ A refused call fails with SQL state `P0001`. Its `details` field holds one of th
 | `get_my_access` | 1 ✅ | Signed-in user | What the user may do: student, reviewer, admin, account status |
 | `set_staff_role` | 1 ✅ | Admin | Grant or remove the reviewer / admin role |
 | `listing_categories` | 2 ✅ | Signed-in user | The categories a listing may use |
-| `upsert_listing` | 2 ✅ | Student (business mode from Phase 4: approved business owner) | Create or edit a listing; validates, rate-limits, sets derived fields |
+| `upsert_listing` | 2 ✅, 4 ✅ | Student (business mode: approved business owner) | Create or edit a listing; validates, rate-limits, sets derived fields |
 | `set_listing_status` | 2 ✅ | Listing owner | Publish a draft, close or re-open a listing, or mark it sold |
 | `search_listings` | 2 ✅ | Student | The marketplace feed: search, filters, sort, pages |
 | `get_listing` | 2 ✅ | Student, owner, admin | One listing for the detail page |
@@ -43,8 +43,13 @@ A refused call fails with SQL state `P0001`. Its `details` field holds one of th
 | `application_status_summary` | 3 ✅ | Reviewer, admin | Number of applications in each status |
 | `set_business_status` | 3 ✅ | Admin | Suspend or reinstate a business |
 | `get_my_business` | 3 ✅ | Business owner | The caller's business; refused before approval |
-| `place_order` | 4 | Student | Order ready stock or join a pre-order campaign |
-| `transition_order` | 4 | Business owner / buyer | Move an order through its statuses, or cancel it |
+| `get_storefront` | 4 ✅ | Student | A business's storefront: details, products, open pre-orders |
+| `update_storefront` | 4 ✅ | Business owner | Edit the storefront's description, pickup details and logo |
+| `upsert_campaign` | 4 ✅ | Business owner | Create or edit a pre-order campaign |
+| `set_campaign_status` | 4 ✅ | Business owner | Open or close a campaign |
+| `place_order` | 4 ✅ | Student | Order ready stock or join a pre-order campaign |
+| `transition_order` | 4 ✅ | Business owner / buyer | Move an order through its statuses, or cancel it |
+| `my_orders` | 4 ✅ | Student | My Orders, buying side or the business's selling side |
 | `toggle_request_interest` | 5 | Student | Add or remove interest in a product request |
 | `recompute_opportunities` | 5 | Server (triggers) | Recalculate the M4 opportunity ranking |
 
@@ -82,15 +87,15 @@ Each function's full contract is added below when it is implemented.
 | **Caller** | Any signed-in user |
 | **Output** | `text[]`, from `app_config.categories` (which only admins can read directly, because it also holds the test allowlist) |
 
-## `upsert_listing(listing_id, title, description, category, price_sen, condition, quantity, photo_paths, pickup_area)`
+## `upsert_listing(listing_id, title, description, category, price_sen, condition, quantity, photo_paths, pickup_area, mode default 'personal')`
 
 | | |
 |---|---|
-| **Caller** | Verified student. Editing: the listing's owner |
-| **Input** | `listing_id`: `null` to create, or the listing to edit · `title`: 3–80 characters after trimming · `description`: up to 1,000 characters · `category`: one of `listing_categories()` · `price_sen`: 0–10,000,000 · `condition`: `new`, `like_new`, `good` or `fair` · `quantity`: units for sale, 1–999 (stored as `stock`) · `photo_paths`: up to 5 paths `{owner_id}/{listing_id}/{file}` ending in `.jpg`, `.jpeg`, `.png` or `.webp` · `pickup_area`: 2–80 characters |
+| **Caller** | Verified student. Editing: the listing's owner. Business listings (creating or editing): the owner of an approved business (`owns_business`) |
+| **Input** | `listing_id`: `null` to create, or the listing to edit · `title`: 3–80 characters after trimming · `description`: up to 1,000 characters · `category`: one of `listing_categories()` · `price_sen`: 0–10,000,000 · `condition`: `new`, `like_new`, `good` or `fair` · `quantity`: units for sale, 1–999 (stored as `stock`) · `photo_paths`: up to 5 paths `{owner_id}/{listing_id}/{file}` ending in `.jpg`, `.jpeg`, `.png` or `.webp` · `pickup_area`: 2–80 characters · `mode` (Phase 4): `personal` or `business`, used only when creating; an edit keeps the listing's mode |
 | **Output** | `{ listing_id, status }` |
-| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` · `FORBIDDEN` (not the owner) · `INVALID_TRANSITION` (reserved or sold listings can't be edited) · `RATE_LIMITED` (more than 20 new listings in an hour) · `42501` (signed out) |
-| **Derived on the server** | `owner_id` (the caller), `mode` (`personal`), `status` (`draft` on create, unchanged on edit), `normalized_title`, `search_vector` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` · `FORBIDDEN` (not the owner; or business mode without an approved business) · `INVALID_TRANSITION` (reserved or sold personal listings can't be edited) · `RATE_LIMITED` (more than 20 new listings in an hour) · `42501` (signed out) |
+| **Derived on the server** | `owner_id` (the caller), `business_id` (the caller's business, for business mode), `status` (`draft` on create, unchanged on edit, except that restocking a sold-out business listing makes it `available`), `normalized_title`, `search_vector` |
 | **Notes** | Photos are stored under the listing's id, so the app creates the draft first (no photos), uploads, then calls again with the paths. A published listing must keep at least one photo |
 
 ## `set_listing_status(listing_id uuid, new_status text)`
@@ -109,8 +114,8 @@ Each function's full contract is added below when it is implemented.
 |---|---|
 | **Caller** | Verified student |
 | **Input** (all optional) | `search`: web-search syntax (`calculator -broken`, `"desk lamp"`), matched with English word forms against title, description and category · `category`, `condition`: exact match · `min_price_sen`, `max_price_sen`: inclusive · `sort`: `newest` (default), `price_asc`, `price_desc` or `relevance` · `page_size`: 1–50 (default 20) · `page_offset`: 0 or more |
-| **Output** | Rows of `listing_card`: `id, owner_id, seller_name, mode, title, description, category, price_sen, condition, photo_paths, stock, pickup_area, status, created_at` |
-| **Shows** | `available` listings that aren't hidden, from sellers whose account is active. Ties sort newest first |
+| **Output** | Rows of `listing_card`: `id, owner_id, seller_name, mode, title, description, category, price_sen, condition, photo_paths, stock, pickup_area, status, created_at, business_id, business_name` (the last two set for business products, Phase 4) |
+| **Shows** | `available` listings that aren't hidden, from sellers whose account is active and, for business products, whose business is approved. Ties sort newest first |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (sort or page) · `42501` |
 | **Why a function** | Profiles are private, so a plain table read can't show the seller's name. The function returns only the name, nothing else about the seller |
 
@@ -120,14 +125,14 @@ Each function's full contract is added below when it is implemented.
 |---|---|
 | **Caller** | Verified student or admin |
 | **Output** | One `listing_card` row |
-| **Shows** | Students: any listing that isn't a draft, isn't hidden and whose seller is active. The owner: their own listings in any status. Admins: everything |
+| **Shows** | Students: any listing that isn't a draft, isn't hidden, whose seller is active and, for business products, whose business is approved. The owner: their own listings in any status. Admins: everything |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` (missing or not visible to the caller) · `42501` |
 
 ## `request_reservation(listing_id uuid, qty integer default 1, pickup_note text default null)`
 
 | | |
 |---|---|
-| **Caller** | Verified student who doesn't own the listing |
+| **Caller** | Verified student who doesn't own the listing. Personal listings only: business products are ordered (`place_order`) |
 | **Input** | `qty`: 1–999 · `pickup_note`: up to 200 characters, optional |
 | **Output** | `{ reservation_id, status: 'requested', expires_at }` |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` (missing or draft) · `FORBIDDEN` (own listing) · `ITEM_UNAVAILABLE` (not available, hidden, seller suspended, or fewer units left than asked; the message says how many are left) · `ALREADY_EXISTS` (an active reservation on this listing already) · `RATE_LIMITED` (more than 10 in an hour) · `42501` |
@@ -241,9 +246,86 @@ The approval is a **simulated** reviewer workflow for the FYP, not an official U
 | | |
 |---|---|
 | **Caller** | Verified student with a business |
-| **Output** | `{ business_id, application_id, name, description, pickup_details, status, created_at }`. A suspended business is returned too, so the app can explain it |
+| **Output** | `{ business_id, application_id, name, description, pickup_details, logo_path, status, created_at }` (`logo_path` from Phase 4). A suspended business is returned too, so the app can explain it |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `FORBIDDEN` (no business: not applied, or not approved yet) · `42501` |
 
 ## Helpers
 
 `owns_business(business_id uuid) → boolean`: the caller is a verified student, owns that business, and it is `approved`. Phase 4 functions call it first. `is_staff() → boolean`: the caller has any `staff_roles` row (reviewer or admin); used by the review-queue policies. Storage policies use `can_upload_application_document(name)` and `can_read_application_document(name)`.
+
+## Storefront, pre-orders and orders (M3)
+
+Approved businesses sell from a storefront. Their products are ordinary `listings` with `mode = 'business'` (there is no separate product module). A buyer orders ready stock, or pre-orders through an open campaign. Nothing is paid in the app: buyer and seller arrange payment and collection themselves, and the seller records progress. Every business-only function calls `owns_business()` first, so it refuses a student without an approved business, and a suspended one, with `FORBIDDEN`.
+
+## `get_storefront(business_id uuid)`
+
+| | |
+|---|---|
+| **Caller** | Verified student (the owner and admins too) |
+| **Output** | `{ business: { business_id, name, description, logo_path, pickup_details, status, owner_name }, is_owner, categories, listings, campaigns }`. `categories`: the distinct categories of its listed products. `listings`: its `available`, visible products as `listing_card`s, newest first (up to 50). `campaigns`: `open` campaigns that haven't closed, with `{ campaign_id, listing_id, listing_title, listing_photo, title, price_sen, start_at, close_at, capacity, allocated_qty, remaining, per_order_limit, pickup_details, status }`, closing soonest first |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` (missing, or suspended for anyone but its owner and admins) · `42501` |
+
+## `update_storefront(description text, pickup_details text, logo_path text default null)`
+
+| | |
+|---|---|
+| **Caller** | Owner of an approved business |
+| **Input** | `description`: up to 1,000 characters · `pickup_details`: 5–200 · `logo_path`: `null` (no logo) or an uploaded `{business_id}/{file}.jpg\|jpeg\|png\|webp` in `business-logos` |
+| **Output** | `{ business_id }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `FORBIDDEN` (no approved business) · `INVALID_INPUT` · `42501` |
+| **Notes** | The name stays the approved one |
+
+## `upsert_campaign(campaign_id, listing_id, title, price_sen, start_at, close_at, capacity, per_order_limit, pickup_details)`
+
+| | |
+|---|---|
+| **Caller** | Owner of the approved business the listing belongs to |
+| **Input** | `campaign_id`: `null` to create, or the campaign to edit · `listing_id`: a published (not draft, not hidden) business listing of the caller's business; can't change on edit · `title`: 3–80 characters · `price_sen`: 0–10,000,000 · `start_at`, `close_at`: `close_at` after `start_at` and in the future · `capacity`: 1–10,000, and not below the units already ordered · `per_order_limit`: `null` or 1 to `capacity` · `pickup_details`: 5–200 characters |
+| **Output** | `{ campaign_id, status }` (new campaigns are `draft`) |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `FORBIDDEN` · `INVALID_INPUT` · `NOT_FOUND` · `INVALID_TRANSITION` (a closed campaign can't be edited) · `RATE_LIMITED` (more than 20 new campaigns in an hour) · `42501` |
+| **Notes** | Editing an open campaign changes it for new orders only; placed orders keep their price and collection details |
+
+## `set_campaign_status(campaign_id uuid, new_status text)`
+
+| | |
+|---|---|
+| **Caller** | Owner of the campaign's approved business |
+| **Allowed** | `draft` → `open` (its `close_at` must be in the future) · `open` → `closed` · `draft` → `closed` |
+| **Output** | `{ campaign_id, status }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `FORBIDDEN` · `INVALID_INPUT` · `NOT_FOUND` · `INVALID_TRANSITION` · `42501` |
+| **Notes** | Closing stops new orders; existing orders carry on |
+
+## `place_order(listing_id uuid, qty integer default 1, campaign_id uuid default null, buyer_note text default null)`
+
+| | |
+|---|---|
+| **Caller** | Verified student who doesn't own the business |
+| **Input** | `listing_id`: a business product · `qty`: 1–999 · `campaign_id`: `null` for ready stock, or an open campaign for this listing · `buyer_note`: up to 200 characters |
+| **Ready stock** | Locks the listing; it must be `available`, visible, from an approved business with an active owner, with `stock >= qty`. Takes `qty` out of `stock` (the listing becomes `sold` at 0). Price and the business's pickup details are copied into the order |
+| **Pre-order** | Locks the campaign; it must be `open`, started and not closed, with `qty` within `per_order_limit` and `allocated_qty + qty <= capacity`. Adds `qty` to `allocated_qty`. The campaign's price and pickup details are copied into the order |
+| **Output** | `{ order_id, status: 'pending_confirmation', total_sen }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (quantity, note, per-order limit, or a campaign for another listing) · `NOT_FOUND` · `FORBIDDEN` (own business) · `ITEM_UNAVAILABLE` (personal listing, not available, hidden, suspended, or not enough stock; the message says how many are left) · `INVALID_TRANSITION` (the pre-order isn't open: draft, closed, not started or past its close date) · `CAPACITY_FULL` (the message says how many places are left) · `RATE_LIMITED` (more than 20 orders in an hour) · `42501` |
+| **Side effects** | Notifies the business owner (`order_placed`) |
+| **Concurrency** | Orders for the same listing or campaign run one at a time behind its row lock, so they can never take more than exists. CI proves it with two real connections (`supabase/tests/concurrency/order_race.sh`) |
+
+## `transition_order(order_id uuid, action text)`
+
+| | |
+|---|---|
+| **Caller** | The business owner (`confirm`, `prepare`, `ready`, `complete`: needs `owns_business`); the buyer or the business owner (`cancel`) |
+| **Allowed** | `confirm`: `pending_confirmation` → `confirmed` · `prepare`: `confirmed` → `preparing` · `ready`: `preparing` → `ready_for_pickup` · `complete`: `ready_for_pickup` → `completed` (sets `completed_at`) · `cancel`: any status before `completed` → `cancelled` (sets `cancelled_by`) |
+| **Output** | `{ order_id, status }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (unknown action) · `NOT_FOUND` · `FORBIDDEN` (not a party, the buyer trying a seller action, or a suspended business progressing an order) · `INVALID_TRANSITION` · `42501` |
+| **Side effects** | Cancelling locks the campaign or listing first, then returns the quantity: `allocated_qty` goes down, or `stock` goes up (a sold-out listing becomes `available` again). Notifies the other party (`order_<status>`) |
+
+## `my_orders(side text default 'buying', page_size integer default 50, page_offset integer default 0)`
+
+| | |
+|---|---|
+| **Caller** | Verified student. `selling`: the orders of the business they own (also while it is suspended) |
+| **Input** | `side`: `buying` or `selling` · `page_size`: 1–100 · `page_offset`: 0 or more |
+| **Output** | Rows of `order_card`: `id, listing_id, listing_title, listing_photo, business_id, business_name, campaign_id, campaign_title, qty, unit_price_sen, total_sen, status, buyer_note, collection_details, cancelled_by, created_at, updated_at, completed_at, i_am_buyer, other_party_name, other_party_email`. Orders in progress first, then newest |
+| **Privacy** | `other_party_email` (the buyer's, or the business owner's) is filled only from `confirmed` to `completed`; a pending or cancelled order shows only the name |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `42501` |
+
+`can_upload_business_logo(name)` is the Storage helper for `business-logos`.

@@ -65,6 +65,7 @@ MyBusiness businessFromJson(Object? json) {
       description: description,
       pickupDetails: pickupDetails,
       status: BusinessStatus.fromWire(status),
+      logoPath: json['logo_path'] as String?,
     );
   }
   throw FormatException('Unexpected get_my_business response: $json');

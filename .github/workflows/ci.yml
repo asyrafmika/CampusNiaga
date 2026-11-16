@@ -96,3 +96,8 @@ jobs:
       # may win (Phase 2 pass condition).
       - name: Reservation race
         run: bash supabase/tests/concurrency/reservation_race.sh
+
+      # Two connections order the last unit, and the last pre-order place, at
+      # the same moment; exactly one may win each (Phase 4 pass condition).
+      - name: Order race
+        run: bash supabase/tests/concurrency/order_race.sh

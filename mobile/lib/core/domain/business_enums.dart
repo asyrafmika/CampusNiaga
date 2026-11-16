@@ -55,3 +55,40 @@ enum BusinessStatus {
   static BusinessStatus fromWire(Object? value) =>
       _fromWire(values, (s) => s.wireName, value, 'business status');
 }
+
+/// Orders (M3). The seller moves an order forward one step at a time;
+/// either side may cancel before it is completed.
+enum OrderStatus {
+  pendingConfirmation('pending_confirmation', 'Awaiting confirmation'),
+  confirmed('confirmed', 'Confirmed'),
+  preparing('preparing', 'Preparing'),
+  readyForPickup('ready_for_pickup', 'Ready for pickup'),
+  completed('completed', 'Completed'),
+  cancelled('cancelled', 'Cancelled');
+
+  const OrderStatus(this.wireName, this.label);
+
+  final String wireName;
+  final String label;
+
+  /// Still in progress: not completed or cancelled.
+  bool get isActive => this != completed && this != cancelled;
+
+  static OrderStatus fromWire(Object? value) =>
+      _fromWire(values, (s) => s.wireName, value, 'order status');
+}
+
+/// Pre-order campaigns (M3): draft -> open -> closed, or draft -> closed.
+enum CampaignStatus {
+  draft('draft', 'Draft'),
+  open('open', 'Open'),
+  closed('closed', 'Closed');
+
+  const CampaignStatus(this.wireName, this.label);
+
+  final String wireName;
+  final String label;
+
+  static CampaignStatus fromWire(Object? value) =>
+      _fromWire(values, (s) => s.wireName, value, 'campaign status');
+}

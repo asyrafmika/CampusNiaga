@@ -27,6 +27,19 @@ enum ListingStatus {
       _fromWire(values, (s) => s.wireName, value, 'listing status');
 }
 
+/// Personal items are reserved; business products are ordered (Phase 4).
+enum ListingMode {
+  personal('personal'),
+  business('business');
+
+  const ListingMode(this.wireName);
+
+  final String wireName;
+
+  static ListingMode fromWire(Object? value) =>
+      _fromWire(values, (m) => m.wireName, value, 'listing mode');
+}
+
 enum ListingCondition {
   brandNew('new', 'New'),
   likeNew('like_new', 'Like new'),

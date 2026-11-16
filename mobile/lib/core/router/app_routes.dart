@@ -28,6 +28,21 @@ abstract final class AppRoutes {
   static const String businessApply = '/business/apply';
   static const String businessDocuments = '/business/apply/documents';
 
+  // Storefronts and orders (M3).
+  static String storefront(String businessId) => '/store/$businessId';
+  static String orderListing(String listingId, {String? campaignId}) => Uri(
+    path: '/listing/$listingId/order',
+    queryParameters: campaignId == null ? null : {'campaign': campaignId},
+  ).toString();
+  static const String orders = '/orders';
+  static const String ordersSelling = '/orders?side=selling';
+  static const String sellBusiness = '/sell?mode=business';
+  static const String manageStore = '/business/store';
+  static const String editStorefront = '/business/store/edit';
+  static const String newCampaign = '/business/store/campaigns/new';
+  static String editCampaign(String campaignId) =>
+      '/business/store/campaigns/$campaignId';
+
   /// The search tab, opened on one category.
   static String searchCategory(String category) =>
       Uri(path: search, queryParameters: {'category': category}).toString();
