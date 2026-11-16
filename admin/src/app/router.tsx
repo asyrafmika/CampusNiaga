@@ -51,6 +51,14 @@ export const routes = [
   { path: '*', element: <Navigate to="/" replace /> },
 ];
 
+/**
+ * Vite's base path (`/` locally, `/CampusNiaga/` on GitHub Pages), without
+ * the trailing slash React Router doesn't want.
+ */
+export function routerBasename(base: string): string {
+  return base.replace(/\/+$/, '') || '/';
+}
+
 export function createAppRouter() {
-  return createBrowserRouter(routes);
+  return createBrowserRouter(routes, { basename: routerBasename(import.meta.env.BASE_URL) });
 }

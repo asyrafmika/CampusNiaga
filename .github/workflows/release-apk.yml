@@ -1,0 +1,113 @@
+name: Release Android app
+
+# Builds the Android APK and attaches it to a GitHub Release.
+# - Push a tag such as v1.0.0 to publish a release for that version.
+# - Or run it by hand (Actions → Release Android app → Run workflow) to get
+#   the APK as a downloadable workflow artifact without making a release.
+# Signing: uses the release key from the ANDROID_* secrets when they exist
+# (docs/deployment.md); otherwise a debug key, which installs fine but means
+# each new build must replace the old one by uninstalling first.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-apk-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    name: Build and publish the APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.2
+          cache: true
+
+      - name: Version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            name="${GITHUB_REF_NAME#v}"
+          else
+            name="$(grep '^version:' pubspec.yaml | sed -E 's/version: *([^+]*).*/\1/')"
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "Building $name (build $GITHUB_RUN_NUMBER)"
+
+      - name: Release signing key
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          {
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyPassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "storeFile=upload-keystore.jks"
+          } > android/key.properties
+
+      - name: Debug signing notice
+        if: env.ANDROID_KEYSTORE_BASE64 == ''
+        run: echo "::warning::No ANDROID_KEYSTORE_BASE64 secret; the APK is signed with a debug key (see docs/deployment.md)."
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Tests
+        run: flutter test
+
+      - name: Build APK
+        run: |
+          flutter build apk --release \
+            --build-name "${{ steps.version.outputs.name }}" \
+            --build-number "$GITHUB_RUN_NUMBER"
+          mkdir -p ../dist
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            "../dist/CampusNiaga-${{ steps.version.outputs.name }}.apk"
+
+      - name: Remove signing files
+        if: always()
+        run: rm -f android/app/upload-keystore.jks android/key.properties
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CampusNiaga-${{ steps.version.outputs.name }}-apk
+          path: dist/*.apk
+
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.apk \
+            --title "CampusNiaga $GITHUB_REF_NAME" \
+            --notes-file - <<'NOTES'
+          Android build of the CampusNiaga student app (FYP prototype).
+
+          **Install:** download the `.apk` below on an Android phone, open it and allow installing from this source. Sign in with a confirmed `@student.usm.my` account.
+
+          The app connects to the CampusNiaga Supabase project. Business approval in the app is a simulated reviewer workflow for the prototype, not an official USM decision, and the app takes no payments.
+          NOTES

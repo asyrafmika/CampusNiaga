@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title desc">
+  <title id="title">CampusNiaga</title>
+  <desc id="desc">The student marketplace and digital entrepreneurship platform for Universiti Sains Malaysia.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22418F"/>
+      <stop offset="0.6" stop-color="#3B66C4"/>
+      <stop offset="1" stop-color="#4F7BD8"/>
+    </linearGradient>
+    <radialGradient id="glowAmber" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#F5A623" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#F5A623" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowSky" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#9DB8FF" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#9DB8FF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1280" height="360" rx="28" fill="url(#bg)"/>
+  <circle cx="1120" cy="300" r="260" fill="url(#glowAmber)"/>
+  <circle cx="150" cy="40" r="240" fill="url(#glowSky)"/>
+
+  <!-- Storefront mark -->
+  <g transform="translate(96 92)">
+    <rect width="88" height="88" rx="22" fill="#FFFFFF" fill-opacity="0.14" stroke="#FFFFFF" stroke-opacity="0.35"/>
+    <path d="M20 34 L26 20 H62 L68 34 Z" fill="#F5A623"/>
+    <path d="M20 34 a8 8 0 0 0 16 0 a8 8 0 0 0 16 0 a8 8 0 0 0 16 0" fill="#F5A623"/>
+    <rect x="24" y="44" width="40" height="26" rx="4" fill="#F5A623"/>
+    <rect x="38" y="54" width="12" height="16" rx="2" fill="#22418F"/>
+  </g>
+
+  <g font-family="'Montserrat', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+    <text x="208" y="150" font-size="64" font-weight="800" fill="#FFFFFF">Campus<tspan fill="#F5A623">Niaga</tspan></text>
+    <text x="98" y="232" font-size="28" font-weight="600" fill="#FFFFFF">Buy, sell and grow a student business, all on campus.</text>
+    <text x="98" y="274" font-size="20" fill="#DCE6FF">Marketplace · Business approval · Storefronts &amp; pre-orders · Opportunity discovery · Seller dashboard</text>
+    <text x="98" y="318" font-size="16" fill="#B8C9F2">Universiti Sains Malaysia · Final Year Project (CAT404) prototype</text>
+  </g>
+
+  <!-- Floating tags -->
+  <g font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="600">
+    <g transform="translate(1000 70)">
+      <rect width="176" height="40" rx="20" fill="#FFFFFF"/>
+      <text x="88" y="26" text-anchor="middle" fill="#22418F">RM 25 · Calculator</text>
+    </g>
+    <g transform="translate(940 130)">
+      <rect width="196" height="40" rx="20" fill="#F5A623"/>
+      <text x="98" y="26" text-anchor="middle" fill="#22418F">Pre-order · 4 of 10 left</text>
+    </g>
+    <g transform="translate(1030 190)">
+      <rect width="150" height="40" rx="20" fill="#FFFFFF" fill-opacity="0.18" stroke="#FFFFFF" stroke-opacity="0.5"/>
+      <text x="75" y="26" text-anchor="middle" fill="#FFFFFF">Score 22 · #1</text>
+    </g>
+  </g>
+</svg>
