@@ -1,61 +1,224 @@
-# CampusNiaga
+<p align="center">
+  <img src="docs/images/banner.svg" alt="CampusNiaga: buy, sell and grow a student business, all on campus" width="100%">
+</p>
 
-An integrated student marketplace and digital entrepreneurship platform for Universiti Sains Malaysia (USM) students. Final Year Project prototype (CAT404).
+<p align="center">
+  <a href="https://github.com/asyrafmika/CampusNiaga/releases/latest"><img alt="Download the Android app" src="https://img.shields.io/badge/📱_Android_app-Download_APK-3B66C4?style=for-the-badge"></a>
+  <a href="docs/deployment.md#️-publishing-the-admin-dashboard"><img alt="Admin dashboard" src="https://img.shields.io/badge/🖥️_Admin_dashboard-GitHub_Pages-5D5FEF?style=for-the-badge"></a>
+  <a href="docs/qa/test-plan-and-results.md"><img alt="Test results" src="https://img.shields.io/badge/✅_Tests-1%2C100%2B_passing-2E7D32?style=for-the-badge"></a>
+</p>
 
-Today, students sell in WhatsApp and Telegram groups, where older listings are hard to find. CampusNiaga brings together one-off personal-item sales and approved student microbusinesses in one place. It also includes an explainable **Smart Business Opportunity Discovery** feature, which compares what students ask for against what is already on sale.
+<p align="center">
+  <img alt="Flutter" src="https://img.shields.io/badge/Flutter-3.47-02569B?logo=flutter&logoColor=white">
+  <img alt="Dart" src="https://img.shields.io/badge/Dart-3-0175C2?logo=dart&logoColor=white">
+  <img alt="React" src="https://img.shields.io/badge/React-19-20232A?logo=react&logoColor=61DAFB">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white">
+  <img alt="MUI" src="https://img.shields.io/badge/MUI-9-007FFF?logo=mui&logoColor=white">
+  <img alt="Supabase" src="https://img.shields.io/badge/Supabase-Postgres_%2B_RLS-3FCF8E?logo=supabase&logoColor=white">
+  <img alt="pgTAP" src="https://img.shields.io/badge/pgTAP-870_tests-336791?logo=postgresql&logoColor=white">
+</p>
 
-> The business approval workflow is a **simulated** university reviewer process for this prototype. It is not an official USM or HDC approval and is not integrated with any university system.
+**CampusNiaga** is an integrated marketplace and digital-entrepreneurship platform for students of **Universiti Sains Malaysia (USM)**, built as a Final Year Project prototype (CAT404).
 
-## Modules
+Today, students sell in WhatsApp and Telegram groups, where older posts get buried. CampusNiaga puts one-off personal sales and approved student micro-businesses in one place. Its **Smart Business Opportunity Discovery** compares what students ask for with what is already on sale, and explains every ranking it makes.
 
-| # | Module | Client |
-|---|---|---|
-| M1 | Student Marketplace Management | Mobile |
-| M2 | Digital Business Registration & Approval | Mobile + Web |
-| M3 | Digital Storefront & Business Order Management | Mobile |
-| M4 | Smart Business Opportunity Discovery | Mobile + database |
-| M5 | Business Dashboard & Performance Monitoring | Mobile |
+> [!IMPORTANT]
+> Business approval is a **simulated** university reviewer workflow for this prototype. It is not an official USM or HDC decision and is not connected to any university system. CampusNiaga takes **no payments** and arranges **no delivery**: buyers and sellers pay and meet on campus themselves.
 
-Payments, delivery, chat and machine-learning recommendations are intentionally out of scope. Buyers and sellers arrange payment and campus pickup themselves.
+## 📑 Contents
 
-## Architecture
+[Features](#-features) · [Screenshots](#-screenshots) · [Architecture](#️-architecture) · [How it works](#-how-it-works) · [Quality](#-quality-and-testing) · [Try it](#-try-it) · [Getting started](#-getting-started) · [Documentation](#-documentation)
+
+## ✨ Features
+
+| | Module | What students and staff can do | Client |
+|---|---|---|---|
+| 🛍️ | **M1 Student Marketplace** | List items with photos, search with filters, reserve for campus pickup, report listings. A row lock stops double booking | Mobile |
+| 📝 | **M2 Business Registration & Approval** | Apply to run a business, upload documents, answer a reviewer's questions; reviewers approve, request changes or reject | Mobile + Web |
+| 🏪 | **M3 Storefront & Orders** | A storefront for each approved business, ready-stock products and capped pre-orders, orders from *pending* to *completed* | Mobile |
+| 💡 | **M4 Opportunity Discovery** | Request products you can't find, tap *Interested*, and see a ranked, explained list of possible business opportunities | Mobile + DB |
+| 📊 | **M5 Business Dashboard** | Orders by status, estimated revenue and profit (self-reported), top products, stock and pre-order capacity | Mobile |
+| 🛡️ | **Admin dashboard** | Reviewer queue and decisions, report moderation, staff roles, account suspension, audit log | Web |
+
+**Deliberately out of scope:** in-app payments, wallets, delivery, chat, machine-learning recommendations and USM single sign-on.
+
+## 📸 Screenshots
+
+### 📱 Student app
+
+<table>
+  <tr>
+    <td align="center" width="25%"><img src="docs/images/mobile/sign_in.png" alt="Sign in screen" width="200"><br><sub><b>Sign in</b><br>USM student email only</sub></td>
+    <td align="center" width="25%"><img src="docs/images/mobile/home.png" alt="Home feed" width="200"><br><sub><b>Home</b><br>Categories and new listings</sub></td>
+    <td align="center" width="25%"><img src="docs/images/mobile/listing.png" alt="Listing detail" width="200"><br><sub><b>Listing</b><br>Reserve for campus pickup</sub></td>
+    <td align="center" width="25%"><img src="docs/images/mobile/storefront.png" alt="Business storefront" width="200"><br><sub><b>Storefront</b><br>Products and pre-orders</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/mobile/application.png" alt="Business application status" width="200"><br><sub><b>Business application</b><br>Reviewer feedback and timeline</sub></td>
+    <td align="center"><img src="docs/images/mobile/discover.png" alt="Discover opportunities" width="200"><br><sub><b>Discover</b><br>Ranked possible opportunities</sub></td>
+    <td align="center"><img src="docs/images/mobile/opportunity.png" alt="Opportunity detail" width="200"><br><sub><b>Opportunity</b><br>The numbers behind the score</sub></td>
+    <td align="center"><img src="docs/images/mobile/dashboard.png" alt="Business dashboard" width="200"><br><sub><b>Dashboard</b><br>Estimated, self-reported figures</sub></td>
+  </tr>
+</table>
+
+### 🖥️ Reviewer and admin dashboard
+
+<table>
+  <tr>
+    <td align="center" width="50%"><img src="docs/images/admin/overview.png" alt="Admin overview"><br><sub><b>Overview</b>: applications by status, platform summary, recent activity</sub></td>
+    <td align="center" width="50%"><img src="docs/images/admin/applications.png" alt="Application queue"><br><sub><b>Applications</b>: the reviewer queue, oldest first</sub></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><img src="docs/images/admin/application_detail.png" alt="Application detail with decision panel" width="75%"><br><sub><b>Application detail</b>: business details, private documents, history and the decision panel</sub></td>
+  </tr>
+</table>
+
+<sub>The screenshots show demo data. See <a href="docs/deployment.md#-refreshing-the-readme-screenshots">how to refresh them</a>.</sub>
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart LR
+  subgraph Clients
+    M["📱 Flutter app<br/>students & student businesses"]
+    W["🖥️ React dashboard<br/>reviewers & admins"]
+  end
+  subgraph Supabase["☁️ Supabase (Singapore)"]
+    A["🔐 Auth<br/>email + password, confirmed email"]
+    R["⚙️ Database functions (RPC)<br/>security definer, one transaction each"]
+    P[("🐘 PostgreSQL<br/>Row Level Security on every table")]
+    S["🗂️ Storage<br/>private buckets"]
+  end
+  M --> A
+  W --> A
+  M -- "reads (RLS) + RPC writes" --> R
+  W -- "reads (RLS) + RPC writes" --> R
+  R --> P
+  M --> S
+  W --> S
+```
 
 | Part | Technology | Users |
 |---|---|---|
-| `mobile/` | Flutter (Dart) | USM students and approved student businesses |
-| `admin/` | React + TypeScript (Vite, MUI) | University reviewers and system administrators |
-| `supabase/` | Supabase: PostgreSQL, Row Level Security, database functions, Auth, Storage | Trusted backend |
+| [`mobile/`](mobile/) | Flutter, Dart 3, Riverpod, go_router, supabase_flutter | USM students and approved student businesses |
+| [`admin/`](admin/) | React 19, TypeScript (strict), Vite, MUI, TanStack Query | University reviewers and system administrators |
+| [`supabase/`](supabase/) | PostgreSQL, Row Level Security, database functions, Auth, Storage | Trusted backend |
 
-Both apps use one Supabase project. Permissions are enforced in the database by Row Level Security and database functions, never only by hiding buttons in the UI. Roles are checked live on every request. See [ADR 0003](docs/decisions/0003-move-backend-to-supabase.md) for why the backend is Supabase.
+**Design principles**
 
-## Repository layout
+- 🔒 **The server is the authority.** Roles, approvals, stock, pre-order capacity, order status, rankings and the audit log change only inside database functions. Hiding a button is never the security.
+- 🎫 **Privileges are read live** from server-controlled tables (`staff_roles`, `businesses`, the confirmed email) on every request, never from a client-writable column or a login token.
+- 🔁 **Conflicts are settled in one transaction** with row locks (`select … for update`), so two buyers can never take the last unit.
+- 💰 **Money is an integer in sen.** RM appears only on screen.
+- 🧮 **Discovery is deterministic.** Fixed, versioned rules with no machine learning, and every result stores its version and parameters.
+
+The backend is Supabase instead of the handoff's Firebase; [ADR 0003](docs/decisions/0003-move-backend-to-supabase.md) explains why.
+
+## 🔄 How it works
+
+<details>
+<summary><b>📝 Business application lifecycle (M2)</b></summary>
+
+```mermaid
+stateDiagram-v2
+  [*] --> draft: student starts
+  draft --> submitted: submit
+  submitted --> under_review: reviewer starts review
+  under_review --> info_requested: request changes (note required)
+  info_requested --> submitted: student edits and resubmits
+  under_review --> approved: approve (creates the business)
+  under_review --> rejected: reject (note required)
+  approved --> [*]
+  rejected --> [*]
+```
+
+Every move is checked by `review_business_application` / `submit_business_application`, stored in the status history and written to the audit log. Staff can't review their own application.
+
+</details>
+
+<details>
+<summary><b>🧾 Order lifecycle (M3)</b></summary>
+
+```mermaid
+stateDiagram-v2
+  [*] --> pending_confirmation: buyer orders (stock or capacity held)
+  pending_confirmation --> confirmed: seller confirms
+  confirmed --> preparing
+  preparing --> ready_for_pickup
+  ready_for_pickup --> completed: collected on campus
+  pending_confirmation --> cancelled
+  confirmed --> cancelled
+  preparing --> cancelled
+  ready_for_pickup --> cancelled
+  cancelled --> [*]: quantity returned
+  completed --> [*]: counts in the dashboard
+```
+
+</details>
+
+<details>
+<summary><b>💡 How opportunities are ranked (M4)</b></summary>
+
+1. Each product request is normalised: lower case, English and campus-Malay stop words removed, simple plurals made singular, and a curated synonym list applied.
+2. Requests with the same category and head term form one cluster, for example `Food & Beverage | brownie` for "brownie", "brownies" and "chocolate brownie".
+3. For each cluster: **D** = distinct students who asked or tapped *Interested* (each counted once), **S** = visible matching listings.
+4. The score is
+
+   ```
+   score = max(0, 5 × min(D, 20) − 8 × min(S, 10) + 10 if listings cost more than students want)
+   ```
+
+5. Each result is stored with its reasons ("4 students interested", "1 active matching listing from 1 seller", the two median prices), `algo_version = m4-v1` and its parameters. Fewer than 2 students is flagged as *insufficient data*. Triggers recompute the results whenever requests, interest or listings change.
+
+</details>
+
+## 🧪 Quality and testing
+
+| Suite | What runs | Result |
+|---|---|---|
+| 🐘 Database (pgTAP) | 20 files against a fresh local Supabase in CI: every policy, privilege, function, transition and limit | **870 / 870** |
+| ⚡ Concurrency | Two real connections racing for the last unit and the last pre-order place | **2 / 2** |
+| 📱 Flutter | Unit and widget tests through the real router, with in-memory repositories | **194 / 194** |
+| 🖥️ React | Vitest + Testing Library | **67 / 67** |
+| 🧬 Mutation testing | Bugs planted on purpose to check that the tests catch them (Phases 3–6) | **120 of 121 caught** |
+
+CI ([`ci.yml`](.github/workflows/ci.yml)) runs format checks, analysis, lint, type checks, all tests and `supabase db lint` on every pull request. Every handoff phase has its pass condition as an automated test. The full record is in the [test plan and results](docs/qa/test-plan-and-results.md); usability sessions use the [usability test kit](docs/qa/usability-test-kit.md).
+
+## 🚀 Try it
+
+| | How |
+|---|---|
+| 📱 **Android app** | Download the APK from the [latest release](https://github.com/asyrafmika/CampusNiaga/releases/latest) and open it on an Android phone. Sign in with a confirmed `@student.usm.my` account |
+| 🖥️ **Admin dashboard** | Hosted on GitHub Pages once it is switched on ([deployment guide](docs/deployment.md)); until then, run it locally (below) |
+
+Releases and Pages are built by GitHub Actions: [`release-apk.yml`](.github/workflows/release-apk.yml) on each version tag and [`admin-pages.yml`](.github/workflows/admin-pages.yml) on each change to `admin/`.
+
+## 📂 Repository layout
 
 ```
 CampusNiaga/
-├─ mobile/      Flutter student app
-├─ admin/       React reviewer/admin dashboard
-├─ supabase/    migrations, database tests, CLI config
-└─ docs/        data dictionary, API contracts, architecture decisions
+├─ mobile/                 📱 Flutter student app (feature-first: core/, features/*)
+├─ admin/                  🖥️ React reviewer/admin dashboard
+├─ supabase/
+│  ├─ migrations/          versioned SQL: tables, RLS, database functions, storage
+│  └─ tests/               pgTAP tests and two-connection race tests
+├─ docs/                   data dictionary, API contracts, ADRs, QA, deployment
+└─ .github/workflows/      CI, Android release, admin deployment
 ```
 
-## Documentation
-
-- [Data dictionary](docs/data-dictionary.md): tables, columns, status values and storage buckets
-- [API contracts](docs/api-contracts.md): the database functions the apps call
-- [Architecture decisions](docs/decisions/): why the main technical choices were made
-- [Test plan and results](docs/qa/test-plan-and-results.md): every requirement mapped to its tests, the results, and a manual checklist
-- [Usability test kit](docs/qa/usability-test-kit.md): tasks, observation sheet and SUS questionnaire for sessions with students
-
-## Development status
+## ✅ Development status
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 Foundation | Project setup, sign-in, USM student check, staff-only web access | Done |
-| 2 Marketplace | Listings, search, reservations, reports | Done |
-| 3 Approval | Business application and reviewer workflow (simulated) | Done |
-| 4 Business | Storefront, stock, pre-orders, orders | Done |
-| 5 Discovery | Product requests, interest, opportunity ranking | Done |
-| 6 Dashboard + QA | Seller analytics, final testing | Done (usability sessions to run: [kit](docs/qa/usability-test-kit.md)) |
+| 1 Foundation | Project setup, sign-in, USM student check, staff-only web access | ✅ Done |
+| 2 Marketplace | Listings, search, reservations, reports | ✅ Done |
+| 3 Approval | Business application and reviewer workflow (simulated) | ✅ Done |
+| 4 Business | Storefront, stock, pre-orders, orders | ✅ Done |
+| 5 Discovery | Product requests, interest, opportunity ranking | ✅ Done |
+| 6 Dashboard + QA | Seller analytics, final testing | ✅ Done (usability sessions to run: [kit](docs/qa/usability-test-kit.md)) |
+
+<details>
+<summary><b>🔍 How each phase's pass condition is proven</b></summary>
 
 ### Phase 1 check
 
@@ -125,18 +288,20 @@ The handoff's Phase 6 pass condition is: completed orders update the estimated a
 | Mobile | `mobile/test/features/dashboard/` | The period filter, the estimated labels, the figures and record cost |
 | QA | [docs/qa/test-plan-and-results.md](docs/qa/test-plan-and-results.md) | Functional and scenario testing: requirements mapped to tests, results, mutation testing; [usability-test-kit.md](docs/qa/usability-test-kit.md) for the sessions with students |
 
-## Getting started
+</details>
+
+## 🚀 Getting started
 
 Prerequisites: Flutter (stable) with an Android emulator, and Node.js 22+ (only for running the Supabase CLI with `npx`).
 
-### 1. Create the Supabase project (once)
+### 1️⃣ Create the Supabase project (once)
 
 1. Sign in at [supabase.com](https://supabase.com) and create a project named **CampusNiaga**, region **Southeast Asia (Singapore)**. Save the database password in a password manager; it is never stored in this repository.
 2. **Authentication → Sign In / Providers → Email:** keep it enabled, with **Confirm email** on. CampusNiaga only treats confirmed `@student.usm.my` addresses as students.
 3. **Authentication → URL Configuration → Redirect URLs:** add `campusniaga://auth-callback`. Links in confirmation and password-reset emails then open the app.
 4. **Authentication → Emails → SMTP Settings:** turn on custom SMTP. Supabase's built-in sender allows about 2 emails an hour and only to your project team, so students can't receive confirmation emails without it. A Gmail account with an app password works for a prototype (host `smtp.gmail.com`, port `465`).
 
-### 2. Apply the database migrations
+### 2️⃣ Apply the database migrations
 
 From the repository root:
 
@@ -148,18 +313,18 @@ npx supabase@2.122.0 db push
 
 The project ref is the part of the project URL before `.supabase.co`. `db push` applies every migration in `supabase/migrations/` that the project doesn't have yet.
 
-### 3. Make yourself an admin
+### 3️⃣ Make yourself an admin
 
-Sign up in the app first (step 4), then in the dashboard's **SQL Editor** run:
+Sign up in the app first (step 4️⃣), then in the dashboard's **SQL Editor** run:
 
 ```sql
 insert into public.staff_roles (user_id, role)
 select id, 'admin' from auth.users where email = 'your.email@student.usm.my';
 ```
 
-After that, grant reviewer and admin roles from the admin dashboard's **Users & Roles** page (step 5). Each change is written to the audit log.
+After that, grant reviewer and admin roles from the admin dashboard's **Users & Roles** page (step 5️⃣). Each change is written to the audit log.
 
-### 4. Run the mobile app
+### 4️⃣ Run the mobile app
 
 1. In the dashboard, open **Project Settings → API** (Project URL) and **API Keys** (the **publishable** key). Paste both into `mobile/lib/core/config/supabase_config.dart`. The publishable key is designed to be public. Never paste the secret / `service_role` key.
 2. Start an Android emulator and run the app:
@@ -190,7 +355,7 @@ dart format --output=none --set-exit-if-changed lib test
 flutter test
 ```
 
-### 5. Run the admin dashboard
+### 5️⃣ Run the admin dashboard
 
 The web dashboard is for reviewers and admins. It uses the same Supabase project; its URL and publishable key are in `admin/src/shared/supabase/client.ts`.
 
@@ -200,15 +365,35 @@ npm install        # first time only
 npm run dev        # open http://localhost:5173
 ```
 
-Sign in with a staff account (step 3). A student account is signed out with a "staff only" message. Checks: `npm run typecheck`, `npm run lint`, `npm test`. See [admin/README.md](admin/README.md) for its pages and structure.
+Sign in with a staff account (step 3️⃣). A student account is signed out with a "staff only" message. Checks: `npm run typecheck`, `npm run lint`, `npm test`. See [admin/README.md](admin/README.md) for its pages and structure.
 
 You don't need to run the dashboard to use the mobile app, or the other way round: both talk to the hosted Supabase project directly.
 
-### Database tests
+### 🐘 Database tests
 
 The pgTAP tests in `supabase/tests/database/` run in GitHub Actions on every pull request, against a throwaway local Supabase database. Running them locally needs Docker (`npx supabase@2.122.0 start`, then `npx supabase@2.122.0 test db`).
 
-### Free-plan notes
+### ⚠️ Free-plan notes
 
 - A free project **pauses after a week without activity**. Open the dashboard and restore it before a demo.
 - The free plan has no automatic backups.
+
+## 📚 Documentation
+
+| Document | What it covers |
+|---|---|
+| 📖 [Data dictionary](docs/data-dictionary.md) | Every table, column, status value and storage bucket |
+| 🔌 [API contracts](docs/api-contracts.md) | The database functions the apps call, their inputs, outputs and errors |
+| 🧭 [Architecture decisions](docs/decisions/) | Why the main technical choices were made (ADRs) |
+| 🧪 [Test plan and results](docs/qa/test-plan-and-results.md) | Every requirement mapped to its tests, the results and a manual checklist |
+| 👥 [Usability test kit](docs/qa/usability-test-kit.md) | Tasks, observation sheet and SUS questionnaire for sessions with students |
+| 🚢 [Deployment](docs/deployment.md) | Android releases, the signing key, GitHub Pages for the dashboard |
+| 🖥️ [Admin dashboard](admin/README.md) | Its pages, checks and structure |
+
+## 🙏 Credits
+
+- Final Year Project (CAT404), Universiti Sains Malaysia.
+- [Montserrat](https://fonts.google.com/specimen/Montserrat) and [Poppins](https://fonts.google.com/specimen/Poppins) fonts under the SIL Open Font License.
+- UI inspired by the Nestora and Pixel Market mobile kits and the Dabang dashboard.
+
+<p align="center"><sub>Made with 💙 for USM students · CampusNiaga is a prototype, not an official USM service</sub></p>
