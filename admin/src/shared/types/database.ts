@@ -881,6 +881,10 @@ export type Database = {
           total: number
         }[]
       }
+      business_dashboard: {
+        Args: { from_at?: string; to_at?: string }
+        Returns: Json
+      }
       can_delete_application_document: {
         Args: { object_name: string }
         Returns: boolean
@@ -1075,6 +1079,10 @@ export type Database = {
         Args: { listing_id: string; new_status: string }
         Returns: Json
       }
+      set_order_cost: {
+        Args: { cost_sen: number; order_id: string }
+        Returns: Json
+      }
       set_staff_role: {
         Args: { enabled: boolean; role: string; target_user_id: string }
         Returns: Json
@@ -1170,6 +1178,7 @@ export type Database = {
         i_am_buyer: boolean | null
         other_party_name: string | null
         other_party_email: string | null
+        cost_sen: number | null
       }
       request_card: {
         id: string | null

@@ -50,6 +50,8 @@ A refused call fails with SQL state `P0001`. Its `details` field holds one of th
 | `place_order` | 4 ✅ | Student | Order ready stock or join a pre-order campaign |
 | `transition_order` | 4 ✅ | Business owner / buyer | Move an order through its statuses, or cancel it |
 | `my_orders` | 4 ✅ | Student | My Orders, buying side or the business's selling side |
+| `set_order_cost` | 6 ✅ | Business owner | Record the business's cost for an order (for estimated profit) |
+| `business_dashboard` | 6 ✅ | Business owner | The business's own performance figures for a date range |
 | `create_product_request` | 5 ✅ | Student | Ask for a product nobody sells yet |
 | `close_product_request` | 5 ✅ | Request creator | Close a request that is no longer needed |
 | `list_product_requests` | 5 ✅ | Student | Active requests (or my own) with interest counts |
@@ -327,7 +329,7 @@ Approved businesses sell from a storefront. Their products are ordinary `listing
 |---|---|
 | **Caller** | Verified student. `selling`: the orders of the business they own (also while it is suspended) |
 | **Input** | `side`: `buying` or `selling` · `page_size`: 1–100 · `page_offset`: 0 or more |
-| **Output** | Rows of `order_card`: `id, listing_id, listing_title, listing_photo, business_id, business_name, campaign_id, campaign_title, qty, unit_price_sen, total_sen, status, buyer_note, collection_details, cancelled_by, created_at, updated_at, completed_at, i_am_buyer, other_party_name, other_party_email`. Orders in progress first, then newest |
+| **Output** | Rows of `order_card`: `id, listing_id, listing_title, listing_photo, business_id, business_name, campaign_id, campaign_title, qty, unit_price_sen, total_sen, status, buyer_note, collection_details, cancelled_by, created_at, updated_at, completed_at, i_am_buyer, other_party_name, other_party_email, cost_sen`. `cost_sen` (Phase 6) is shown only on the selling side; buyers never see a seller's cost. Orders in progress first, then newest |
 | **Privacy** | `other_party_email` (the buyer's, or the business owner's) is filled only from `confirmed` to `completed`; a pending or cancelled order shows only the name |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `42501` |
 
@@ -382,3 +384,27 @@ The apps read `opportunities` directly (Row Level Security: verified students an
 ## `recompute_opportunities(target_cluster text default null)`
 
 Internal (no client may call it). Recomputes one cluster, or every cluster when `null`, and returns how many it refreshed. Triggers call it when a request is created or closed, an interest is added or removed, a listing's status, visibility, title, category or price changes, a listing is added or deleted, a seller's account status changes, or a business is suspended or reinstated. Each row stores `algo_version` (`m4-v1`) and `params`.
+
+## Business Dashboard & Performance Monitoring (M5)
+
+For approved businesses only, and only their own data: the functions take no business id, they use the caller's business. Revenue and profit are **estimated / self-reported**: CampusNiaga doesn't take or verify payments, so revenue is the sum of the totals of orders the seller marked completed, and costs are what the seller typed in. Application counts are M2 (`application_status_summary`), not M5.
+
+## `set_order_cost(order_id uuid, cost_sen integer)`
+
+| | |
+|---|---|
+| **Caller** | Owner of the order's approved business (`owns_business`) |
+| **Input** | `cost_sen`: 0–100,000,000, or `null` to clear |
+| **Allowed** | Any order of the business that isn't cancelled |
+| **Output** | `{ order_id, cost_sen }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` · `FORBIDDEN` (not the seller, or the business isn't approved) · `INVALID_INPUT` · `INVALID_TRANSITION` (cancelled) · `42501` |
+
+## `business_dashboard(from_at timestamptz default null, to_at timestamptz default null)`
+
+| | |
+|---|---|
+| **Caller** | Owner of an approved business |
+| **Input** | An optional range: `from_at` inclusive, `to_at` exclusive; `null` means unbounded. `from_at` must be before `to_at` |
+| **Output** | `{ business_id, business_name, from_at, to_at, orders_by_status, total_orders, completed_count, estimated_revenue_sen, recorded_cost_sen, costed_completed_count, estimated_profit_sen, top_products, stock, campaigns }` |
+| **Counting** | `orders_by_status` (every status, zeros included) and `total_orders`: orders *placed* in the range. Completed figures: orders *completed* in the range (`completed_at`). `estimated_revenue_sen` = sum of their `total_sen`; `recorded_cost_sen` = sum of their entered `cost_sen` (`costed_completed_count` says how many have one); `estimated_profit_sen` = revenue − recorded costs. `top_products`: up to 5 products by revenue from those completed orders, then units, with `{ listing_id, title, units, revenue_sen }`. `stock`: every published business product with `{ listing_id, title, status, stock, hidden }`, lowest stock first. `campaigns`: draft and open pre-orders with `{ campaign_id, title, status, capacity, allocated_qty, remaining, close_at }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `FORBIDDEN` (no approved business) · `INVALID_INPUT` (range) · `42501` |

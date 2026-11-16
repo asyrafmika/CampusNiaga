@@ -232,7 +232,7 @@ An order for a business product: ready stock (no campaign) or a pre-order (with 
 | `buyer_note` | text? | The buyer's collection preference, up to 200 characters |
 | `collection_details` | text | Snapshot of where and when to collect: the campaign's `pickup_details` for a pre-order, otherwise the business's |
 | `cancelled_by` | `buyer` \| `seller`? | Set exactly when `cancelled`. A seller cancelling a pending order is a rejection |
-| `cost_sen` | integer? | Seller-entered cost, for estimated profit (written from Phase 6) |
+| `cost_sen` | integer? | The seller's own cost for this order (0–100,000,000), for estimated profit. Written only by `set_order_cost()` (Phase 6); self-reported, never verified |
 | `completed_at` | timestamptz? | Set exactly when `completed`; M5 date filters and totals |
 | `created_at`, `updated_at` | timestamptz | |
 

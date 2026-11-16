@@ -144,6 +144,7 @@ class OrderCard {
     this.cancelledBy,
     this.completedAt,
     this.otherPartyEmail,
+    this.costSen,
   });
 
   final String id;
@@ -170,6 +171,12 @@ class OrderCard {
 
   /// Shared only from confirmation until completion.
   final String? otherPartyEmail;
+
+  /// The seller's recorded cost (selling side only; never shown to buyers).
+  final int? costSen;
+
+  /// The seller may record a cost on any order that isn't cancelled.
+  bool get canRecordCost => !iAmBuyer && status != OrderStatus.cancelled;
 
   bool get isPreOrder => campaignId != null;
 }
