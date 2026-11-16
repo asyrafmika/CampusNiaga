@@ -18,6 +18,9 @@ class Listing {
     required this.createdAt,
     this.sellerName,
     this.hidden = false,
+    this.mode = ListingMode.personal,
+    this.businessId,
+    this.businessName,
   });
 
   final String id;
@@ -39,6 +42,16 @@ class Listing {
   /// Hidden by an administrator (only the owner and admins see it).
   final bool hidden;
 
+  /// A business product is ordered from its storefront; a personal item is
+  /// reserved.
+  final ListingMode mode;
+  final String? businessId;
+
+  /// The business selling it, for storefront attribution.
+  final String? businessName;
+
+  bool get isBusiness => mode == ListingMode.business;
+
   String? get coverPhoto => photoPaths.isEmpty ? null : photoPaths.first;
 }
 
@@ -54,6 +67,8 @@ List<OwnerAction> ownerActionsFor(Listing listing) => switch (listing.status) {
     OwnerAction.close,
   ],
   ListingStatus.closed => const [OwnerAction.edit, OwnerAction.reopen],
+  // A business product that sold out is restocked by editing its quantity.
+  ListingStatus.sold when listing.isBusiness => const [OwnerAction.edit],
   // A reserved listing changes through its reservations; a sold one is done.
   ListingStatus.reserved || ListingStatus.sold => const [],
 };

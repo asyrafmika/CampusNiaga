@@ -20,6 +20,8 @@ class ListingDetailScreen extends ConsumerWidget {
   final String listingId;
 
   static const Key reserveKey = Key('detail-reserve');
+  static const Key orderKey = Key('detail-order');
+  static const Key storefrontKey = Key('detail-storefront');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -144,7 +146,18 @@ class _Details extends StatelessWidget {
                 title: 'Pickup on campus',
                 text: listing.pickupArea,
               ),
-              if (listing.sellerName case final seller?)
+              if (listing.businessName case final business?)
+                InkWell(
+                  key: ListingDetailScreen.storefrontKey,
+                  onTap: () =>
+                      context.push(AppRoutes.storefront(listing.businessId!)),
+                  child: _InfoRow(
+                    icon: Icons.storefront_outlined,
+                    title: 'Sold by (tap for the storefront)',
+                    text: isOwner ? '$business (your business)' : business,
+                  ),
+                )
+              else if (listing.sellerName case final seller?)
                 _InfoRow(
                   icon: Icons.person_outline_rounded,
                   title: 'Seller',
@@ -328,6 +341,20 @@ class _BuyerBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Business products are ordered (ready stock or a pre-order), on their
+    // own screen; it says when nothing is left.
+    if (listing.isBusiness) {
+      return FilledButton.icon(
+        key: ListingDetailScreen.orderKey,
+        onPressed: () => context.push(AppRoutes.orderListing(listing.id)),
+        icon: const Icon(Icons.shopping_bag_outlined),
+        label: Text(
+          listing.status == ListingStatus.available
+              ? 'Order'
+              : 'Sold out · see pre-orders',
+        ),
+      );
+    }
     final canReserve =
         listing.status == ListingStatus.available && listing.stock > 0;
     return FilledButton(
@@ -562,6 +589,13 @@ class _OwnerBarState extends ConsumerState<_OwnerBar> {
   @override
   Widget build(BuildContext context) {
     final actions = ownerActionsFor(widget.listing);
+    if (actions.isEmpty && widget.listing.isBusiness) {
+      return OutlinedButton.icon(
+        onPressed: () => context.push(AppRoutes.ordersSelling),
+        icon: const Icon(Icons.receipt_long_rounded),
+        label: const Text('See its orders'),
+      );
+    }
     if (actions.isEmpty) {
       return OutlinedButton.icon(
         onPressed: () => context.go(AppRoutes.reservations),

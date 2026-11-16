@@ -113,6 +113,7 @@ class MarketplaceActions {
     required bool publish,
     String? listingId,
     List<String> previousPhotos = const [],
+    ListingMode mode = ListingMode.personal,
   }) async {
     final id = await _listings.save(
       input: input,
@@ -120,6 +121,7 @@ class MarketplaceActions {
       newPhotos: newPhotos,
       listingId: listingId,
       previousPhotos: previousPhotos,
+      mode: mode,
     );
     if (publish) await _listings.setStatus(id, ListingStatus.available);
     _refreshListing(id);

@@ -19,6 +19,7 @@ class BusinessApplicationScreen extends ConsumerWidget {
 
   static const Key startKey = Key('application-start');
   static const Key continueKey = Key('application-continue');
+  static const Key storeKey = Key('application-open-store');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -361,6 +362,17 @@ class _MyBusinessCard extends ConsumerWidget {
                         'unavailable until it is reinstated.'
                   : 'Pickup: ${b.pickupDetails}',
               style: const TextStyle(color: Color(0xD9FFFFFF)),
+            ),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              key: BusinessApplicationScreen.storeKey,
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.primaryDark,
+              ),
+              onPressed: () => context.push(AppRoutes.manageStore),
+              icon: const Icon(Icons.storefront_rounded),
+              label: const Text('Open my store'),
             ),
           ],
         ),

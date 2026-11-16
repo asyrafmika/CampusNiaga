@@ -91,6 +91,7 @@ class MyBusiness {
     required this.description,
     required this.pickupDetails,
     required this.status,
+    this.logoPath,
   });
 
   final String id;
@@ -98,6 +99,9 @@ class MyBusiness {
   final String description;
   final String pickupDetails;
   final BusinessStatus status;
+
+  /// In `business-logos` (Phase 4).
+  final String? logoPath;
 }
 
 /// A document picked on the phone, waiting to be uploaded.

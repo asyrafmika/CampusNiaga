@@ -83,8 +83,9 @@ class ListingRepository {
     final List<Map<String, dynamic>> rows = await _client
         .from('listings')
         .select(
-          'id, owner_id, title, description, category, price_sen, condition, '
-          'photo_paths, stock, pickup_area, status, hidden, created_at',
+          'id, owner_id, mode, business_id, title, description, category, '
+          'price_sen, condition, photo_paths, stock, pickup_area, status, '
+          'hidden, created_at',
         )
         .eq('owner_id', _uid)
         .order('updated_at', ascending: false);
@@ -101,11 +102,12 @@ class ListingRepository {
     required List<NewPhoto> newPhotos,
     String? listingId,
     List<String> previousPhotos = const [],
+    ListingMode mode = ListingMode.personal,
   }) => guardSupabase(() async {
     final uid = _uid;
     var id = listingId;
     if (id == null) {
-      id = await _upsert(null, input, const []);
+      id = await _upsert(null, input, const [], mode: mode);
       if (newPhotos.isEmpty) return id;
     }
 
@@ -142,8 +144,9 @@ class ListingRepository {
   Future<String> _upsert(
     String? id,
     ListingInput input,
-    List<String> photos,
-  ) async {
+    List<String> photos, {
+    ListingMode mode = ListingMode.personal,
+  }) async {
     final Object? result = await _client.rpc<Object?>(
       'upsert_listing',
       params: {
@@ -156,6 +159,9 @@ class ListingRepository {
         'quantity': input.quantity,
         'photo_paths': photos,
         'pickup_area': input.pickupArea.trim(),
+        // Only sent for business products (the mode matters only when
+        // creating), so personal listings work with any database version.
+        if (mode == ListingMode.business) 'mode': mode.wireName,
       },
     );
     return (result! as Map)['listing_id'] as String;

@@ -29,6 +29,11 @@ Listing listingFromRow(Map<String, dynamic> row) => Listing(
   status: ListingStatus.fromWire(row['status']),
   createdAt: _time(row['created_at']),
   hidden: row['hidden'] as bool? ?? false,
+  mode: row['mode'] == null
+      ? ListingMode.personal
+      : ListingMode.fromWire(row['mode']),
+  businessId: row['business_id'] as String?,
+  businessName: row['business_name'] as String?,
 );
 
 ReservationCard reservationFromRow(Map<String, dynamic> row) => ReservationCard(

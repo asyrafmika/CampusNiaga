@@ -19,9 +19,14 @@ Listing aListing({
   ListingStatus status = ListingStatus.available,
   String category = 'Stationery',
   List<String> photos = const [],
+  String? businessId,
+  String? businessName,
 }) => Listing(
   id: id,
   ownerId: ownerId,
+  mode: businessId == null ? ListingMode.personal : ListingMode.business,
+  businessId: businessId,
+  businessName: businessName,
   sellerName: ownerId == meId ? 'Me' : 'Siti',
   title: title,
   description: 'Used for one semester.',
@@ -106,10 +111,12 @@ class FakeListingRepository implements ListingRepository {
     required List<NewPhoto> newPhotos,
     String? listingId,
     List<String> previousPhotos = const [],
+    ListingMode mode = ListingMode.personal,
   }) async {
     calls.add(
       'save ${listingId ?? 'new'} ${input.title} ${input.priceSen} '
-      'x${input.quantity} photos:${keptPhotos.length + newPhotos.length}',
+      'x${input.quantity} photos:${keptPhotos.length + newPhotos.length}'
+      '${mode == ListingMode.business ? ' business' : ''}',
     );
     if (failWith case final f?) throw f;
     final id = listingId ?? 'new1';

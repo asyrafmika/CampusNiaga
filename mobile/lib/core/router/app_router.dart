@@ -13,6 +13,13 @@ import '../../features/auth/presentation/profile_screen.dart';
 import '../../features/business/application/presentation/application_documents_screen.dart';
 import '../../features/business/application/presentation/application_form_screen.dart';
 import '../../features/business/application/presentation/business_application_screen.dart';
+import '../../features/business/store/domain/store_models.dart';
+import '../../features/business/store/presentation/campaign_form_screen.dart';
+import '../../features/business/store/presentation/manage_store_screen.dart';
+import '../../features/business/store/presentation/my_orders_screen.dart';
+import '../../features/business/store/presentation/order_screen.dart';
+import '../../features/business/store/presentation/storefront_edit_screen.dart';
+import '../../features/business/store/presentation/storefront_screen.dart';
 import '../../features/marketplace/presentation/home_screen.dart';
 import '../../features/marketplace/presentation/listing_detail_screen.dart';
 import '../../features/marketplace/presentation/listing_form_screen.dart';
@@ -134,7 +141,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Full-screen pages, above the tabs.
       GoRoute(
         path: AppRoutes.sell,
-        builder: (context, state) => const ListingFormScreen(),
+        builder: (context, state) => ListingFormScreen(
+          business: state.uri.queryParameters['mode'] == 'business',
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.orders,
+        builder: (context, state) => MyOrdersScreen(
+          initialSide: state.uri.queryParameters['side'] == 'selling'
+              ? OrderSide.selling
+              : OrderSide.buying,
+        ),
+      ),
+      GoRoute(
+        path: '/store/:id',
+        builder: (context, state) =>
+            StorefrontScreen(businessId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: AppRoutes.myListings,
@@ -155,6 +177,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) =>
                 ReportListingScreen(listingId: state.pathParameters['id']!),
           ),
+          GoRoute(
+            path: 'order',
+            builder: (context, state) => OrderScreen(
+              listingId: state.pathParameters['id']!,
+              campaignId: state.uri.queryParameters['campaign'],
+            ),
+          ),
         ],
       ),
       // Business application (M2): track status > apply > documents.
@@ -162,6 +191,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.business,
         builder: (context, state) => const BusinessApplicationScreen(),
         routes: [
+          GoRoute(
+            path: 'store',
+            builder: (context, state) => const ManageStoreScreen(),
+            routes: [
+              GoRoute(
+                path: 'edit',
+                builder: (context, state) => const StorefrontEditScreen(),
+              ),
+              GoRoute(
+                path: 'campaigns/new',
+                builder: (context, state) => const CampaignFormScreen(),
+              ),
+              GoRoute(
+                path: 'campaigns/:campaignId',
+                builder: (context, state) => CampaignFormScreen(
+                  campaignId: state.pathParameters['campaignId'],
+                ),
+              ),
+            ],
+          ),
           GoRoute(
             path: 'apply',
             builder: (context, state) => const ApplicationFormScreen(),
