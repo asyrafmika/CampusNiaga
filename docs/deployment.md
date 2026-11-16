@@ -5,7 +5,7 @@ How the two CampusNiaga apps are published from GitHub. Both talk to the hosted 
 | App | Where it goes | Workflow | How it starts |
 |---|---|---|---|
 | 📱 Mobile (Android) | An `.apk` attached to a [GitHub Release](https://github.com/asyrafmika/CampusNiaga/releases) | [`release-apk.yml`](../.github/workflows/release-apk.yml) | Pushing a version tag (`v1.0.0`), or by hand |
-| 🖥️ Admin dashboard | GitHub Pages, `https://asyrafmika.github.io/CampusNiaga/` | [`admin-pages.yml`](../.github/workflows/admin-pages.yml) | Every change to `admin/` on `main`, or by hand |
+| 🖥️ Admin dashboard | GitHub Pages, https://asyrafmika.github.io/CampusNiaga/ | [`admin-pages.yml`](../.github/workflows/admin-pages.yml) | Every change to `admin/` on `main`, or by hand |
 
 ## 📱 Releasing the Android app
 
@@ -60,15 +60,15 @@ Keep a backup of `upload-keystore.jks` and its password, for example in your pas
 
 The dashboard is a static site (Vite build), so GitHub Pages can host it. The workflow builds it with the base path `/CampusNiaga/` and copies `index.html` to `404.html`, so links such as `/CampusNiaga/applications/<id>` open directly.
 
-**Requirement:** GitHub Pages for a **private** repository needs GitHub Pro (free for students through the [GitHub Student Developer Pack](https://education.github.com/pack)). A public repository can use Pages on the free plan.
+**Status:** live at https://asyrafmika.github.io/CampusNiaga/ since 17 Nov 2026 (the repository is public; a private one would need GitHub Pro for Pages).
 
-Once Pages is available, switch it on once:
+How it was switched on, for reference:
 
 1. **Settings → Pages → Build and deployment → Source:** choose **GitHub Actions**.
 2. **Settings → Secrets and variables → Actions → Variables → New repository variable:** name `ADMIN_PAGES_ENABLED`, value `true`.
 3. **Actions → Deploy admin dashboard → Run workflow** (or push any change to `admin/`).
 
-The dashboard is then at `https://asyrafmika.github.io/CampusNiaga/`. Until step 2 is done, the workflow only builds and tests the dashboard and skips the deploy job, so it stays green.
+Without the variable, the workflow only builds and tests the dashboard and skips the deploy job. Deleting the variable is the way to pause deployments.
 
 **Supabase settings:** none needed. The dashboard signs in with email and password and sends no email links, and the publishable key in `admin/src/shared/supabase/client.ts` is designed to be public: Row Level Security and the staff role checks in the database decide what each person can see. Anyone can open the page, but only accounts with a reviewer or admin role get past the login.
 

@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/asyrafmika/CampusNiaga/releases/latest"><img alt="Download the Android app" src="https://img.shields.io/badge/📱_Android_app-Download_APK-3B66C4?style=for-the-badge"></a>
-  <a href="docs/deployment.md#️-publishing-the-admin-dashboard"><img alt="Admin dashboard" src="https://img.shields.io/badge/🖥️_Admin_dashboard-GitHub_Pages-5D5FEF?style=for-the-badge"></a>
+  <a href="https://asyrafmika.github.io/CampusNiaga/"><img alt="Open the admin dashboard" src="https://img.shields.io/badge/🖥️_Admin_dashboard-Open_live-5D5FEF?style=for-the-badge"></a>
   <a href="docs/qa/test-plan-and-results.md"><img alt="Test results" src="https://img.shields.io/badge/✅_Tests-1%2C100%2B_passing-2E7D32?style=for-the-badge"></a>
 </p>
 
@@ -189,7 +189,7 @@ CI ([`ci.yml`](.github/workflows/ci.yml)) runs format checks, analysis, lint, ty
 | | How |
 |---|---|
 | 📱 **Android app** | Download the APK from the [latest release](https://github.com/asyrafmika/CampusNiaga/releases/latest) and open it on an Android phone. Sign in with a confirmed `@student.usm.my` account |
-| 🖥️ **Admin dashboard** | Hosted on GitHub Pages once it is switched on ([deployment guide](docs/deployment.md)); until then, run it locally (below) |
+| 🖥️ **Admin dashboard** | Open **[asyrafmika.github.io/CampusNiaga](https://asyrafmika.github.io/CampusNiaga/)** and sign in with a reviewer or admin account. Student accounts are signed out with a "staff only" message |
 
 Releases and Pages are built by GitHub Actions: [`release-apk.yml`](.github/workflows/release-apk.yml) on each version tag and [`admin-pages.yml`](.github/workflows/admin-pages.yml) on each change to `admin/`.
 
