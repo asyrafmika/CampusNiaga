@@ -43,6 +43,8 @@ CampusNiaga/
 - [Data dictionary](docs/data-dictionary.md): tables, columns, status values and storage buckets
 - [API contracts](docs/api-contracts.md): the database functions the apps call
 - [Architecture decisions](docs/decisions/): why the main technical choices were made
+- [Test plan and results](docs/qa/test-plan-and-results.md): every requirement mapped to its tests, the results, and a manual checklist
+- [Usability test kit](docs/qa/usability-test-kit.md): tasks, observation sheet and SUS questionnaire for sessions with students
 
 ## Development status
 
@@ -53,7 +55,7 @@ CampusNiaga/
 | 3 Approval | Business application and reviewer workflow (simulated) | Done |
 | 4 Business | Storefront, stock, pre-orders, orders | Done |
 | 5 Discovery | Product requests, interest, opportunity ranking | Done |
-| 6 Dashboard + QA | Seller analytics, final testing | Planned |
+| 6 Dashboard + QA | Seller analytics, final testing | Done (usability sessions to run: [kit](docs/qa/usability-test-kit.md)) |
 
 ### Phase 1 check
 
@@ -110,6 +112,18 @@ The handoff's Phase 5 pass condition is: synonym requests cluster, one student c
 | Database | `supabase/tests/database/17_phase5_pass_condition.test.sql` | The handoff fixture: "brownie", "brownies" and "chocolate brownie" from three students form one cluster (`Food & Beverage\|brownie`). Ali, who asked already, taps Interested on the other two and Mei taps all three, yet D = 4. A competing listing makes S = 1 and lowers the score by 8 (20 → 12); raising its price above what students want adds 10 (→ 22). The reasons state "4 students interested", "1 active matching listing from 1 seller" and the two median prices, exactly the stored numbers, and the stored score follows the formula |
 | Database | `15_product_requests`, `16_opportunities` | The text rules (stop words in English and campus Malay, plurals, synonyms, head term), one active request per cluster, interest toggling and rate limits, privacy (nobody sees who asked or who is interested), the caps and the floor of the score, what counts as supply (not hidden, closed, suspended sellers or suspended businesses), insufficient data, ranking and tie-breaks, and the triggers that keep results current |
 | Mobile | `mobile/test/features/discovery/` | The ranked list labelled "Possible opportunity" with its reasons and insufficient-data flag, the opportunity page with its numbers and formula, Interested, requesting a product, closing one's own request, refused taps |
+
+### Phase 6 check
+
+The handoff's Phase 6 pass condition is: completed orders update the estimated analytics; seller A cannot read seller B's data; functional, scenario and usability tests are conducted. Revenue and profit are labelled estimated / self-reported, because CampusNiaga doesn't take or verify payments.
+
+| Part | Test | What it proves |
+|---|---|---|
+| Database | `supabase/tests/database/19_phase6_pass_condition.test.sql` | Pending orders aren't sales; completing an order through every status adds it to Ali's dashboard (RM 24), recording a RM 9 cost gives RM 15 estimated profit, a second sale updates every figure and the top product. Ali can't read, progress or cost Nina's order, Nina's dashboard shows none of Ali's sales, and the dashboard function takes no business id at all |
+| Database | `18_business_dashboard` | Every figure, date ranges (start inclusive, end exclusive), costs never shown to buyers, suspended businesses refused |
+| Scenario | `20_end_to_end_scenario` | The handoff's minimal fixture through all five modules in one run |
+| Mobile | `mobile/test/features/dashboard/` | The period filter, the estimated labels, the figures and record cost |
+| QA | [docs/qa/test-plan-and-results.md](docs/qa/test-plan-and-results.md) | Functional and scenario testing: requirements mapped to tests, results, mutation testing; [usability-test-kit.md](docs/qa/usability-test-kit.md) for the sessions with students |
 
 ## Getting started
 
