@@ -50,8 +50,11 @@ A refused call fails with SQL state `P0001`. Its `details` field holds one of th
 | `place_order` | 4 ✅ | Student | Order ready stock or join a pre-order campaign |
 | `transition_order` | 4 ✅ | Business owner / buyer | Move an order through its statuses, or cancel it |
 | `my_orders` | 4 ✅ | Student | My Orders, buying side or the business's selling side |
-| `toggle_request_interest` | 5 | Student | Add or remove interest in a product request |
-| `recompute_opportunities` | 5 | Server (triggers) | Recalculate the M4 opportunity ranking |
+| `create_product_request` | 5 ✅ | Student | Ask for a product nobody sells yet |
+| `close_product_request` | 5 ✅ | Request creator | Close a request that is no longer needed |
+| `list_product_requests` | 5 ✅ | Student | Active requests (or my own) with interest counts |
+| `toggle_request_interest` | 5 ✅ | Student | Add or remove interest in a product request |
+| `recompute_opportunities` | 5 ✅ | Server (triggers) | Recalculate the M4 opportunity ranking |
 
 Each function's full contract is added below when it is implemented.
 
@@ -329,3 +332,53 @@ Approved businesses sell from a storefront. Their products are ordinary `listing
 | **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `42501` |
 
 `can_upload_business_logo(name)` is the Storage helper for `business-logos`.
+
+## Smart Business Opportunity Discovery (M4)
+
+Deterministic and explainable: no machine learning. Students ask for products and show interest; the database groups similar requests into clusters, compares the demand with matching listings and ranks the clusters as "possible opportunities". The rules and the score formula are in the data dictionary (`opportunities`, "Discovery terms"). Results are visible to every verified student, not only businesses.
+
+## `create_product_request(name text, category text, campus_area text, preferred_price_sen integer default null, notes text default null)`
+
+| | |
+|---|---|
+| **Caller** | Verified student |
+| **Input** | `name`: 3–80 characters with at least one meaningful word · `category`: one of `listing_categories()` · `campus_area`: 2–80 characters · `preferred_price_sen`: 0–10,000,000, optional · `notes`: up to 300 characters, optional |
+| **Output** | `{ request_id, cluster_key }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `ALREADY_EXISTS` (the caller already has an active request in this cluster) · `RATE_LIMITED` (more than 10 in a day) · `42501` |
+| **Side effects** | Recomputes the cluster's opportunity |
+
+## `close_product_request(request_id uuid)`
+
+| | |
+|---|---|
+| **Caller** | The request's creator |
+| **Allowed** | `active` → `closed` |
+| **Output** | `{ request_id, status: 'closed' }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` · `FORBIDDEN` · `INVALID_TRANSITION` · `42501` |
+| **Side effects** | The request and its interests leave the cluster, which is recomputed (and removed if it has no active request left) |
+
+## `toggle_request_interest(request_id uuid)`
+
+| | |
+|---|---|
+| **Caller** | Verified student who didn't make the request |
+| **Output** | `{ request_id, interested, interest_count }`: whether the caller is now interested, and the request's number of interested students |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` · `FORBIDDEN` (own request) · `INVALID_TRANSITION` (closed) · `RATE_LIMITED` (more than 30 new interests in an hour) · `42501` |
+| **Side effects** | Recomputes the request's cluster. Repeated taps never add up: one row per student per request, and the cluster counts distinct students |
+
+## `list_product_requests(category text default null, cluster_key text default null, mine boolean default false, page_size integer default 20, page_offset integer default 0)`
+
+| | |
+|---|---|
+| **Caller** | Verified student |
+| **Shows** | Active requests, newest first, optionally of one category or one cluster; with `mine`, the caller's own requests in any status |
+| **Output** | Rows of `request_card`: `id, name, category, preferred_price_sen, campus_area, notes, status, cluster_key, created_at, interest_count, i_am_interested, is_mine`. Nobody's identity is shown |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (page) · `42501` |
+
+## Reading opportunities
+
+The apps read `opportunities` directly (Row Level Security: verified students and staff), ordered by `score` desc, `last_interest_at` desc, `cluster_key`, 20 per page. Each row carries its own explanation (`reasons`) and `insufficient_data` flag.
+
+## `recompute_opportunities(target_cluster text default null)`
+
+Internal (no client may call it). Recomputes one cluster, or every cluster when `null`, and returns how many it refreshed. Triggers call it when a request is created or closed, an interest is added or removed, a listing's status, visibility, title, category or price changes, a listing is added or deleted, a seller's account status changes, or a business is suspended or reinstated. Each row stores `algo_version` (`m4-v1`) and `params`.
