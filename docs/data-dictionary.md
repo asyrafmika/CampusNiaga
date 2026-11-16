@@ -26,7 +26,7 @@ Roles are read from tables on every request, never from login tokens:
 | Verified student | `is_student()`: email confirmed, address matches `app_config.student_email_domains` exactly or is in `app_config.test_allowlist`, and the profile is `active` |
 | Reviewer | `is_reviewer()`: a `staff_roles` row with `role = 'reviewer'` |
 | Admin | `is_admin()`: a `staff_roles` row with `role = 'admin'` |
-| Approved business owner | Owns a `businesses` row with `status = 'approved'` (Phase 3) |
+| Approved business owner | `owns_business(business_id)`: a verified student who owns that `businesses` row and its `status` is `approved` (Phase 3 ✅) |
 
 ## Tables
 
@@ -72,7 +72,7 @@ A single row of settings. Read by admins only, because it holds the test allowli
 
 ### `audit_logs` (Phase 1 ✅)
 
-Append-only record of important actions, written only by database functions. Read: admins (reviewers get application history in Phase 3).
+Append-only record of important actions, written only by database functions. Read: admins. Reviewers see an application's changes through `application_status_history` instead.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -127,26 +127,72 @@ Written only by `request_reservation()` and `resolve_reservation()`. The buyer a
 
 **Expiry is lazy:** overdue reservations become `expired` (and return their units) when a reservation on the same listing is requested or resolved, when the listing's status is changed, or when the buyer or seller opens My Reservations. There is no scheduled job.
 
-### `business_applications` (Phase 3)
+### `business_applications` (Phase 3 ✅)
+
+A student's request to run a business on CampusNiaga (M2). The approval is a **simulated** reviewer workflow for the FYP, not an official USM decision. The applicant inserts a draft and edits its content directly; every status change goes through `submit_business_application()` or `review_business_application()`.
 
 | Column | Type | Written by | Notes |
 |---|---|---|---|
 | `id` | uuid | Server | |
-| `applicant_id` | uuid | Client (create) | Can't change |
-| `business_name`, `category`, `description`, `contact_details`, `collection_details` | text | Client | Editable only while `draft` or `info_requested` |
-| `document_paths` | text[] | Client | Private paths in `application-documents`; same rule |
-| `status` | `draft` \| `submitted` \| `under_review` \| `info_requested` \| `approved` \| `rejected` | Client (`draft` only) / Server | |
-| `reviewer_id` | uuid? | Server | |
-| `remarks` | text? | Server | Latest reviewer note |
-| `submitted_at`, `decided_at` | timestamptz? | Server | |
+| `applicant_id` | uuid | Server | The caller (column default `auth.uid()`); can't change |
+| `business_name` | text | Client | Up to 80 characters; 3–80 to submit |
+| `category` | text | Client | One of `app_config.categories` to submit |
+| `description` | text | Client | Up to 1,000 characters; at least 20 to submit |
+| `contact_details` | text | Client | How buyers reach the business (phone, Instagram); up to 200, at least 5 to submit |
+| `collection_details` | text | Client | Where and when buyers collect; up to 200, at least 5 to submit. Becomes the business's `pickup_details` |
+| `document_paths` | text[] | Client | Uploaded files `{applicant_id}/{application_id}/{file}` in `application-documents` (PDF, JPEG or PNG). Optional; up to `app_config.max_application_documents`, each one must exist to submit |
+| `status` | `draft` \| `submitted` \| `under_review` \| `info_requested` \| `approved` \| `rejected` | Client (`draft` on insert) / Server | See the state machine below |
+| `reviewer_id` | uuid? | Server | The staff member who last acted on it |
+| `remarks` | text? | Server | The latest reviewer note |
+| `submitted_at` | timestamptz? | Server | Last (re)submission; the review queue is ordered by it, oldest first |
+| `decided_at` | timestamptz? | Server | Set on approval or rejection |
+| `created_at`, `updated_at` | timestamptz | Server | |
 
-### `application_status_history` (Phase 3)
+**State machine** (enforced in the functions; any other change fails with `INVALID_TRANSITION`):
 
-Append-only, one row per status change: `application_id`, `from_status`, `to_status`, `actor_id`, `actor_role`, `note`, `created_at`.
+| From | To | Who | How |
+|---|---|---|---|
+| (new) | `draft` | Applicant (verified student) | Direct insert |
+| `draft` / `info_requested` | `submitted` | Applicant | `submit_business_application` |
+| `submitted` | `under_review` | Reviewer or admin | `review_business_application(…, 'start_review')` |
+| `under_review` | `info_requested` | Reviewer or admin | `… 'request_info'`, with a note |
+| `under_review` | `approved` | Reviewer or admin | `… 'approve'`; creates the business |
+| `under_review` | `rejected` | Reviewer or admin | `… 'reject'`, with a note |
 
-### `businesses` (Phase 3)
+`approved` and `rejected` are final. The content columns can be changed only while `draft` or `info_requested`; `status`, `reviewer_id`, `remarks` and the dates never by the client (column privileges). A student has **at most one unfinished application** (any status except `approved` and `rejected`, drafts included) and at most one business, so a rejected applicant may apply again but an approved one doesn't need to. Staff can't review their own application.
 
-Created only when a reviewer approves an application: `id`, `owner_id`, `application_id`, `name`, `description`, `logo_path?`, `pickup_details`, `status` (`approved` \| `suspended`).
+Read: the applicant; reviewers and admins once it has left `draft` (drafts stay private). Reviewers may also read the name and email of a student whose application they can see.
+
+### `application_status_history` (Phase 3 ✅)
+
+Append-only, one row per status change, written in the same transaction as the change. Nobody can edit or delete it. Read by whoever can read the application.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint | Identity |
+| `application_id` | uuid | |
+| `from_status`, `to_status` | text | Application statuses |
+| `actor_id` | uuid? | Who made the change |
+| `actor_role` | `applicant` \| `reviewer` \| `admin` | |
+| `note` | text? | The reviewer's note, or the applicant's reply when resubmitting |
+| `created_at` | timestamptz | |
+
+### `businesses` (Phase 3 ✅)
+
+Created only by `review_business_application(…, 'approve')`, in the same transaction as the approval. Read: the owner, reviewers and admins (storefronts for other students arrive in Phase 4). No client writes.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `owner_id` | uuid | The applicant; one business per student |
+| `application_id` | uuid | The approved application; unique |
+| `name`, `description` | text | From the application |
+| `logo_path` | text? | `business-logos` (Phase 4) |
+| `pickup_details` | text | From the application's `collection_details` |
+| `status` | `approved` \| `suspended` | Changed only by `set_business_status()` (admins). A suspended business loses business access at once |
+| `created_at`, `updated_at` | timestamptz | |
+
+`listings.business_id` references this table.
 
 ### `campaigns` (Phase 4)
 
@@ -206,9 +252,9 @@ In-app notices written by database functions. The recipient reads their own and 
 |---|---|---|
 | `id` | bigint | |
 | `recipient_id` | uuid | |
-| `type` | text | `reservation_requested`, `reservation_accepted`, `reservation_declined`, `reservation_cancelled`, `reservation_collected`, `reservation_expired`, `listing_hidden`, `listing_restored`; later phases add more |
+| `type` | text | `reservation_requested`, `reservation_accepted`, `reservation_declined`, `reservation_cancelled`, `reservation_collected`, `reservation_expired`, `listing_hidden`, `listing_restored`, `application_under_review`, `application_info_requested`, `application_approved`, `application_rejected`, `business_suspended`, `business_reinstated`; later phases add more |
+| `target` | text? | What it's about, e.g. `reservation:{id}`, `listing:{id}`, `application:{id}` or `business:{id}` |
 | `title`, `body` | text | |
-| `target` | text? | What it's about, e.g. `reservation:{id}` or `listing:{id}` |
 | `read` | boolean | |
 | `created_at` | timestamptz | |
 
@@ -217,5 +263,5 @@ In-app notices written by database functions. The recipient reads their own and 
 | Bucket | Contents | Access |
 |---|---|---|
 | `listing-photos` (Phase 2) | Product photos: JPEG, PNG or WebP, up to 5 MB, under `{owner_id}/{listing_id}/` | Private bucket. A verified student uploads only into a folder of a listing they own (`can_upload_listing_photo`) and deletes only their own files; verified students and admins read, with their sign-in token |
-| `application-documents` | Business application documents: PDF, JPEG or PNG, up to 5 MB, under `{applicant_id}/{application_id}/` | Private. The applicant writes while the application is editable; the applicant and reviewers read through short-lived signed URLs |
+| `application-documents` (Phase 3) | Business application documents: PDF, JPEG or PNG, up to 5 MB, under `{applicant_id}/{application_id}/` | Private. The applicant uploads and deletes only while their application is `draft` or `info_requested`, up to `app_config.max_application_documents` files (`can_upload_application_document`); files are never overwritten. The applicant, and reviewers and admins once it is submitted, read through short-lived signed URLs (`can_read_application_document`) |
 | `business-logos` | Business logos, under `{business_id}/` | Business owner writes; signed-in users read |

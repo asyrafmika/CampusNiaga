@@ -39,6 +39,7 @@ dependencies:
   go_router: 18.1.2
   shared_preferences: 2.5.6
   image_picker: ^1.2.4
+  file_picker: ^13.3.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

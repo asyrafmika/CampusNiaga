@@ -3,9 +3,11 @@ import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import RateReviewOutlinedIcon from '@mui/icons-material/RateReviewOutlined';
-import { Alert, Box, Chip, Grid, List, ListItem, ListItemText, Paper, Skeleton, Typography } from '@mui/material';
+import { Alert, Box, Button, Grid, List, ListItem, ListItemText, Paper, Skeleton, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { Link as RouterLink } from 'react-router';
 
+import { StatusSummary } from '../../applications';
 import { useAccess } from '../../auth';
 import { messageOf } from '../../../shared/lib/errors';
 import { formatDateTime } from '../../../shared/lib/format';
@@ -76,17 +78,22 @@ function AdminOverview() {
   );
 }
 
-function ReviewerOverview() {
+/** Business applications at a glance, for every staff member. */
+function ApplicationsOverview() {
   return (
-    <Paper sx={{ p: 4, textAlign: 'center' }}>
-      <AssignmentOutlinedIcon sx={{ fontSize: 48, color: 'primary.main' }} />
-      <Typography variant="h2" sx={{ mt: 2 }}>
-        Business applications arrive in Phase 3
-      </Typography>
-      <Typography sx={{ color: 'text.secondary', mt: 1 }}>
-        The application queue, decisions and status summary will appear here.
-      </Typography>
-      <Chip label="Coming in Phase 3" sx={{ mt: 2 }} />
+    <Paper sx={{ p: 3, mb: 3 }}>
+      <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 3, gap: 2, flexWrap: 'wrap' }}>
+        <Box>
+          <Typography variant="h2" sx={{ mb: 0.5 }}>
+            Business applications
+          </Typography>
+          <Typography sx={{ color: 'text.secondary' }}>Applications in each status (prototype reviewer workflow).</Typography>
+        </Box>
+        <Button component={RouterLink} to="/applications" variant="contained" startIcon={<AssignmentOutlinedIcon />}>
+          Open queue
+        </Button>
+      </Stack>
+      <StatusSummary />
     </Paper>
   );
 }
@@ -100,7 +107,8 @@ export function OverviewPage() {
       <Typography sx={{ color: 'text.secondary', mt: 0.5, mb: 3 }}>
         Welcome back, {state.access.email}.
       </Typography>
-      {state.access.isAdmin ? <AdminOverview /> : <ReviewerOverview />}
+      <ApplicationsOverview />
+      {state.access.isAdmin && <AdminOverview />}
     </Box>
   );
 }

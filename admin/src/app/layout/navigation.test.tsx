@@ -15,8 +15,8 @@ describe('visibleNavItems', () => {
     expect(labels).toEqual(['Overview', 'Applications', 'Reports & Moderation', 'Users & Roles', 'Audit Log']);
   });
 
-  it('marks pages from later phases', () => {
+  it('has no pages waiting for a later phase', () => {
     const later = visibleNavItems({ ...access, isAdmin: true }).filter((i) => i.comingIn !== undefined);
-    expect(later.map((i) => [i.label, i.comingIn])).toEqual([['Applications', 'Phase 3']]);
+    expect(later).toEqual([]);
   });
 });

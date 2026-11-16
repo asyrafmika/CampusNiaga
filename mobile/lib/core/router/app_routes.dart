@@ -23,6 +23,11 @@ abstract final class AppRoutes {
   static String editListing(String id) => '/listing/$id/edit';
   static String reportListing(String id) => '/listing/$id/report';
 
+  // Business application (M2): track status, the form, its documents.
+  static const String business = '/business';
+  static const String businessApply = '/business/apply';
+  static const String businessDocuments = '/business/apply/documents';
+
   /// The search tab, opened on one category.
   static String searchCategory(String category) =>
       Uri(path: search, queryParameters: {'category': category}).toString();

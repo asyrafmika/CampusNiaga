@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/domain/account_status.dart';
+import 'package:mobile/core/domain/business_enums.dart';
 import 'package:mobile/features/auth/data/user_access_mapper.dart';
 
 Map<String, Object?> response({Object? accountStatus = 'active'}) => {
@@ -49,5 +50,40 @@ void main() {
       throwsFormatException,
     );
     expect(() => userAccessFromJson(null), throwsFormatException);
+  });
+
+  test('reads the business fields (Phase 3)', () {
+    final owner = userAccessFromJson({
+      ...response(),
+      'is_business_owner': true,
+      'business_status': 'approved',
+    });
+    expect(owner.isBusinessOwner, isTrue);
+    expect(owner.businessStatus, BusinessStatus.approved);
+
+    final suspended = userAccessFromJson({
+      ...response(),
+      'is_business_owner': false,
+      'business_status': 'suspended',
+    });
+    expect(suspended.isBusinessOwner, isFalse);
+    expect(suspended.businessStatus, BusinessStatus.suspended);
+  });
+
+  test('a response without business fields means no business', () {
+    final access = userAccessFromJson(response());
+    expect(access.isBusinessOwner, isFalse);
+    expect(access.businessStatus, isNull);
+  });
+
+  test('rejects mistyped business fields', () {
+    expect(
+      () => userAccessFromJson({...response(), 'is_business_owner': 'yes'}),
+      throwsFormatException,
+    );
+    expect(
+      () => userAccessFromJson({...response(), 'business_status': 'closed'}),
+      throwsFormatException,
+    );
   });
 }

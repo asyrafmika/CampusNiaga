@@ -12,6 +12,7 @@ class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   static const Key signOutKey = Key('profile-sign-out');
+  static const Key businessKey = Key('profile-business');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -112,6 +113,18 @@ class ProfileScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 16),
+          _Section(
+            children: [
+              _Item(
+                key: businessKey,
+                icon: Icons.storefront_outlined,
+                title: 'My business',
+                subtitle: 'Apply, track your application or see your business',
+                onTap: () => context.push(AppRoutes.business),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           const _Section(
             children: [
               _Item(
@@ -155,6 +168,7 @@ class _Section extends StatelessWidget {
 
 class _Item extends StatelessWidget {
   const _Item({
+    super.key,
     required this.icon,
     required this.title,
     this.subtitle,

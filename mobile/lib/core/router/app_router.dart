@@ -10,6 +10,9 @@ import '../../features/auth/presentation/sign_in_screen.dart';
 import '../../features/auth/presentation/sign_up_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/auth/presentation/profile_screen.dart';
+import '../../features/business/application/presentation/application_documents_screen.dart';
+import '../../features/business/application/presentation/application_form_screen.dart';
+import '../../features/business/application/presentation/business_application_screen.dart';
 import '../../features/marketplace/presentation/home_screen.dart';
 import '../../features/marketplace/presentation/listing_detail_screen.dart';
 import '../../features/marketplace/presentation/listing_form_screen.dart';
@@ -151,6 +154,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'report',
             builder: (context, state) =>
                 ReportListingScreen(listingId: state.pathParameters['id']!),
+          ),
+        ],
+      ),
+      // Business application (M2): track status > apply > documents.
+      GoRoute(
+        path: AppRoutes.business,
+        builder: (context, state) => const BusinessApplicationScreen(),
+        routes: [
+          GoRoute(
+            path: 'apply',
+            builder: (context, state) => const ApplicationFormScreen(),
+            routes: [
+              GoRoute(
+                path: 'documents',
+                builder: (context, state) => const ApplicationDocumentsScreen(),
+              ),
+            ],
           ),
         ],
       ),
