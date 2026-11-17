@@ -6,6 +6,7 @@
 // The PNGs are written to docs/images/mobile/. This folder is outside test/,
 // so `flutter test` (and CI) never runs it.
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -19,6 +20,7 @@ import 'package:mobile/core/domain/business_enums.dart';
 import 'package:mobile/core/domain/listing_enums.dart';
 import 'package:mobile/core/router/app_router.dart';
 import 'package:mobile/core/router/app_routes.dart';
+import 'package:mobile/core/widgets/app_logo.dart';
 import 'package:mobile/features/auth/domain/user_access.dart';
 import 'package:mobile/features/business/application/domain/business_application.dart';
 import 'package:mobile/features/discovery/domain/discovery_models.dart';
@@ -181,7 +183,10 @@ Future<void> loadFonts() async {
 Future<void> shoot(WidgetTester tester, String name) async {
   await tester.pumpAndSettle();
   final element = find.byType(CampusNiagaApp).evaluate().single;
-  final ui.Image image = await captureImage(element);
+  await save(tester, await captureImage(element), name);
+}
+
+Future<void> save(WidgetTester tester, ui.Image image, String name) async {
   await tester.runAsync(() async {
     // Half size (540 px wide) keeps the README light; still sharp at the
     // width GitHub shows it.
@@ -229,6 +234,17 @@ void screenshot(String description, Future<void> Function(WidgetTester) body) {
 
 void main() {
   setUpAll(loadFonts);
+
+  screenshot('splash', (tester) async {
+    await pumpApp(tester, () => Completer<UserAccess?>().future);
+    final element = find.byType(CampusNiagaApp).evaluate().single;
+    // The spinner never settles, so load the logo before capturing.
+    await tester.runAsync(
+      () => precacheImage(const AssetImage(AppLogoMark.asset), element),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await save(tester, await captureImage(element), 'splash');
+  });
 
   screenshot('sign in', (tester) async {
     await pumpApp(tester, () async => null);

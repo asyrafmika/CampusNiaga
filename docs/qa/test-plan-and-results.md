@@ -10,7 +10,7 @@ Results are as of 16 Nov 2026, branch `phase6/dashboard-qa`, from the CI run on 
 |---|---|---|---|
 | Database (pgTAP) | `supabase/tests/database/` (20 files) | A fresh local Supabase stack started by CI (Supabase CLI 2.122.0), with every migration applied | **870 / 870 passed** |
 | Concurrency | `supabase/tests/concurrency/` (2 scripts) | Two real database connections at the same moment | **2 / 2 passed** |
-| Mobile (Flutter) | `mobile/test/` | `flutter test`: unit tests and widget tests through the real router, with in-memory repositories | **194 / 194 passed** |
+| Mobile (Flutter) | `mobile/test/` | `flutter test`: unit tests and widget tests through the real router, with in-memory repositories | **195 / 195 passed** |
 | Admin dashboard (React) | `admin/src/**/*.test.ts(x)` | Vitest with React Testing Library | **67 / 67 passed** |
 | Static checks | CI | `flutter analyze` and `dart format`; TypeScript `tsc --noEmit`, ESLint, production build; `supabase db lint` | **All clean** |
 
