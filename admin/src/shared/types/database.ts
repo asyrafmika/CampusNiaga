@@ -204,6 +204,8 @@ export type Database = {
           name: string
           owner_id: string
           pickup_details: string
+          pickup_lat: number | null
+          pickup_lng: number | null
           status: string
           updated_at: string
         }
@@ -216,6 +218,8 @@ export type Database = {
           name: string
           owner_id: string
           pickup_details: string
+          pickup_lat?: number | null
+          pickup_lng?: number | null
           status?: string
           updated_at?: string
         }
@@ -228,6 +232,8 @@ export type Database = {
           name?: string
           owner_id?: string
           pickup_details?: string
+          pickup_lat?: number | null
+          pickup_lng?: number | null
           status?: string
           updated_at?: string
         }
@@ -434,6 +440,8 @@ export type Database = {
           owner_id: string
           photo_paths: string[]
           pickup_area: string
+          pickup_lat: number | null
+          pickup_lng: number | null
           price_sen: number
           search_vector: unknown
           status: string
@@ -454,6 +462,8 @@ export type Database = {
           owner_id: string
           photo_paths?: string[]
           pickup_area: string
+          pickup_lat?: number | null
+          pickup_lng?: number | null
           price_sen: number
           search_vector?: unknown
           status?: string
@@ -474,6 +484,8 @@ export type Database = {
           owner_id?: string
           photo_paths?: string[]
           pickup_area?: string
+          pickup_lat?: number | null
+          pickup_lng?: number | null
           price_sen?: number
           search_vector?: unknown
           status?: string
@@ -1215,6 +1227,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      pickup_pin_problem: {
+        Args: { lat: number; lng: number }
+        Returns: string
+      }
       place_order: {
         Args: {
           buyer_note?: string
@@ -1317,6 +1333,8 @@ export type Database = {
           description: string
           logo_path?: string
           pickup_details: string
+          pickup_lat?: number
+          pickup_lng?: number
         }
         Returns: Json
       }
@@ -1343,6 +1361,8 @@ export type Database = {
           mode?: string
           photo_paths: string[]
           pickup_area: string
+          pickup_lat?: number
+          pickup_lng?: number
           price_sen: number
           quantity: number
           title: string
@@ -1389,6 +1409,8 @@ export type Database = {
         created_at: string | null
         business_id: string | null
         business_name: string | null
+        pickup_lat: number | null
+        pickup_lng: number | null
       }
       order_card: {
         id: string | null

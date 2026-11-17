@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/domain/business_enums.dart';
+import '../../../../core/domain/geo_point.dart';
 import '../../../dashboard/presentation/dashboard_providers.dart';
 import '../../../marketplace/domain/listing_input.dart';
 import '../../../marketplace/presentation/marketplace_providers.dart';
@@ -86,6 +87,7 @@ class StoreActions {
     required String pickupDetails,
     String? logoPath,
     NewPhoto? newLogo,
+    GeoPoint? pickupPin,
   }) async {
     await _store.updateStorefront(
       businessId: businessId,
@@ -93,6 +95,7 @@ class StoreActions {
       pickupDetails: pickupDetails,
       logoPath: logoPath,
       newLogo: newLogo,
+      pickupPin: pickupPin,
     );
     _ref
       ..invalidate(myBusinessProvider)

@@ -1,4 +1,5 @@
 import '../../../../core/domain/business_enums.dart';
+import '../../../../core/domain/geo_point.dart';
 import '../domain/business_application.dart';
 
 /// Maps rows from `business_applications`, `application_status_history` and
@@ -66,6 +67,7 @@ MyBusiness businessFromJson(Object? json) {
       pickupDetails: pickupDetails,
       status: BusinessStatus.fromWire(status),
       logoPath: json['logo_path'] as String?,
+      pickupPin: GeoPoint.fromWire(json['pickup_lat'], json['pickup_lng']),
     );
   }
   throw FormatException('Unexpected get_my_business response: $json');

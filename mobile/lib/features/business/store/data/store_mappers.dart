@@ -1,4 +1,5 @@
 import '../../../../core/domain/business_enums.dart';
+import '../../../../core/domain/geo_point.dart';
 import '../../../marketplace/data/marketplace_mappers.dart';
 import '../domain/store_models.dart';
 
@@ -29,6 +30,10 @@ Storefront storefrontFromJson(Object? json) {
       status: BusinessStatus.fromWire(business['status']),
       logoPath: business['logo_path'] as String?,
       ownerName: business['owner_name'] as String?,
+      pickupPin: GeoPoint.fromWire(
+        business['pickup_lat'],
+        business['pickup_lng'],
+      ),
     ),
     isOwner: root['is_owner'] as bool? ?? false,
     categories: (root['categories'] as List<dynamic>? ?? const [])

@@ -7,6 +7,7 @@ import '../../../core/domain/listing_enums.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/money.dart';
+import '../../../core/widgets/pickup_map.dart';
 import '../../../core/widgets/state_views.dart';
 import '../domain/listing.dart';
 import 'marketplace_providers.dart';
@@ -22,6 +23,7 @@ class ListingDetailScreen extends ConsumerWidget {
   static const Key reserveKey = Key('detail-reserve');
   static const Key orderKey = Key('detail-order');
   static const Key storefrontKey = Key('detail-storefront');
+  static const Key pickupMapKey = Key('detail-pickup-map');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -146,6 +148,24 @@ class _Details extends StatelessWidget {
                 title: 'Pickup on campus',
                 text: listing.pickupArea,
               ),
+              if (listing.pickupPin case final pin?) ...[
+                PickupMapPreview(
+                  key: ListingDetailScreen.pickupMapKey,
+                  point: pin,
+                  onTap: () => showPickupMap(
+                    context,
+                    point: pin,
+                    place: listing.pickupArea,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, bottom: 12),
+                  child: Text(
+                    'Tap the map to see it larger or get directions.',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+              ],
               if (listing.businessName case final business?)
                 InkWell(
                   key: ListingDetailScreen.storefrontKey,

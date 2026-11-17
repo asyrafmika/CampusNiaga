@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/domain/business_enums.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/pickup_map.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../marketplace/presentation/widgets/listing_widgets.dart';
 import '../domain/store_models.dart';
@@ -12,13 +13,14 @@ import 'store_providers.dart';
 import 'widgets/store_widgets.dart';
 
 /// Storefront: a business's name, logo, description, categories, pickup
-/// details, open pre-orders and products.
+/// details and map pin, open pre-orders and products.
 class StorefrontScreen extends ConsumerWidget {
   const StorefrontScreen({super.key, required this.businessId});
 
   final String businessId;
 
   static const Key manageKey = Key('storefront-manage');
+  static const Key pickupMapKey = Key('storefront-pickup-map');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -138,6 +140,19 @@ class _StorefrontBody extends StatelessWidget {
                   ],
                 ),
               ),
+              if (business.pickupPin case final pin?) ...[
+                const SizedBox(height: 12),
+                PickupMapPreview(
+                  key: StorefrontScreen.pickupMapKey,
+                  point: pin,
+                  height: 140,
+                  onTap: () => showPickupMap(
+                    context,
+                    point: pin,
+                    place: business.pickupDetails,
+                  ),
+                ),
+              ],
               if (business.status == BusinessStatus.suspended) ...[
                 const SizedBox(height: 12),
                 const _Note(

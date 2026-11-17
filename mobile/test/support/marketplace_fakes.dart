@@ -1,4 +1,5 @@
 import 'package:mobile/core/domain/app_failure.dart';
+import 'package:mobile/core/domain/geo_point.dart';
 import 'package:mobile/core/domain/listing_enums.dart';
 import 'package:mobile/features/marketplace/data/listing_repository.dart';
 import 'package:mobile/features/marketplace/data/reservation_repository.dart';
@@ -21,6 +22,7 @@ Listing aListing({
   List<String> photos = const [],
   String? businessId,
   String? businessName,
+  GeoPoint? pickupPin,
 }) => Listing(
   id: id,
   ownerId: ownerId,
@@ -36,6 +38,7 @@ Listing aListing({
   photoPaths: photos,
   stock: stock,
   pickupArea: 'Desasiswa Tekun',
+  pickupPin: pickupPin,
   status: status,
   createdAt: DateTime.utc(2026, 11, 16),
 );
@@ -104,6 +107,9 @@ class FakeListingRepository implements ListingRepository {
   @override
   Future<List<Listing>> mine() async => mineList;
 
+  /// The pin the last save sent.
+  GeoPoint? savedPin;
+
   @override
   Future<String> save({
     required ListingInput input,
@@ -118,6 +124,7 @@ class FakeListingRepository implements ListingRepository {
       'x${input.quantity} photos:${keptPhotos.length + newPhotos.length}'
       '${mode == ListingMode.business ? ' business' : ''}',
     );
+    savedPin = input.pickupPin;
     if (failWith case final f?) throw f;
     final id = listingId ?? 'new1';
     mineList = [
@@ -128,6 +135,7 @@ class FakeListingRepository implements ListingRepository {
         priceSen: input.priceSen,
         stock: input.quantity,
         status: ListingStatus.draft,
+        pickupPin: input.pickupPin,
       ),
       ...mineList.where((l) => l.id != id),
     ];

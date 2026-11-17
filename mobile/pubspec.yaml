@@ -40,6 +40,11 @@ dependencies:
   shared_preferences: 2.5.6
   image_picker: ^1.2.4
   file_picker: ^13.3.3
+  # OpenStreetMap maps for pickup pins (no API key).
+  flutter_map: 8.3.2
+  latlong2: 0.10.1
+  # Already in the app through supabase_flutter; used for "Directions".
+  url_launcher: 6.3.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

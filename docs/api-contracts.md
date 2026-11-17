@@ -27,7 +27,7 @@ A refused call fails with SQL state `P0001`. Its `details` field holds one of th
 | `get_my_access` | 1 ✅ | Signed-in user | What the user may do: student, reviewer, admin, account status |
 | `set_staff_role` | 1 ✅ | Admin | Grant or remove the reviewer / admin role |
 | `listing_categories` | 2 ✅ | Signed-in user | The categories a listing may use |
-| `upsert_listing` | 2 ✅, 4 ✅ | Student (business mode: approved business owner) | Create or edit a listing; validates, rate-limits, sets derived fields |
+| `upsert_listing` | 2 ✅, 4 ✅, pins | Student (business mode: approved business owner) | Create or edit a listing, with an optional map pin; validates, rate-limits, sets derived fields |
 | `set_listing_status` | 2 ✅ | Listing owner | Publish a draft, close or re-open a listing, or mark it sold |
 | `search_listings` | 2 ✅ | Student | The marketplace feed: search, filters, sort, pages |
 | `get_listing` | 2 ✅ | Student, owner, admin | One listing for the detail page |
@@ -44,7 +44,7 @@ A refused call fails with SQL state `P0001`. Its `details` field holds one of th
 | `set_business_status` | 3 ✅ | Admin | Suspend or reinstate a business |
 | `get_my_business` | 3 ✅ | Business owner | The caller's business; refused before approval |
 | `get_storefront` | 4 ✅ | Student | A business's storefront: details, products, open pre-orders |
-| `update_storefront` | 4 ✅ | Business owner | Edit the storefront's description, pickup details and logo |
+| `update_storefront` | 4 ✅, pins | Business owner | Edit the storefront's description, pickup details, map pin and logo |
 | `upsert_campaign` | 4 ✅ | Business owner | Create or edit a pre-order campaign |
 | `set_campaign_status` | 4 ✅ | Business owner | Open or close a campaign |
 | `place_order` | 4 ✅ | Student | Order ready stock or join a pre-order campaign |
@@ -92,12 +92,12 @@ Each function's full contract is added below when it is implemented.
 | **Caller** | Any signed-in user |
 | **Output** | `text[]`, from `app_config.categories` (which only admins can read directly, because it also holds the test allowlist) |
 
-## `upsert_listing(listing_id, title, description, category, price_sen, condition, quantity, photo_paths, pickup_area, mode default 'personal')`
+## `upsert_listing(listing_id, title, description, category, price_sen, condition, quantity, photo_paths, pickup_area, mode default 'personal', pickup_lat default null, pickup_lng default null)`
 
 | | |
 |---|---|
 | **Caller** | Verified student. Editing: the listing's owner. Business listings (creating or editing): the owner of an approved business (`owns_business`) |
-| **Input** | `listing_id`: `null` to create, or the listing to edit · `title`: 3–80 characters after trimming · `description`: up to 1,000 characters · `category`: one of `listing_categories()` · `price_sen`: 0–10,000,000 · `condition`: `new`, `like_new`, `good` or `fair` · `quantity`: units for sale, 1–999 (stored as `stock`) · `photo_paths`: up to 5 paths `{owner_id}/{listing_id}/{file}` ending in `.jpg`, `.jpeg`, `.png` or `.webp` · `pickup_area`: 2–80 characters · `mode` (Phase 4): `personal` or `business`, used only when creating; an edit keeps the listing's mode |
+| **Input** | `listing_id`: `null` to create, or the listing to edit · `title`: 3–80 characters after trimming · `description`: up to 1,000 characters · `category`: one of `listing_categories()` · `price_sen`: 0–10,000,000 · `condition`: `new`, `like_new`, `good` or `fair` · `quantity`: units for sale, 1–999 (stored as `stock`) · `photo_paths`: up to 5 paths `{owner_id}/{listing_id}/{file}` ending in `.jpg`, `.jpeg`, `.png` or `.webp` · `pickup_area`: 2–80 characters · `mode` (Phase 4): `personal` or `business`, used only when creating; an edit keeps the listing's mode · `pickup_lat`, `pickup_lng` (pickup pins): both or neither, inside Malaysia (latitude 0.8–7.5, longitude 99.5–119.5); a call without them saves the listing with no pin |
 | **Output** | `{ listing_id, status }` |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` · `FORBIDDEN` (not the owner; or business mode without an approved business) · `INVALID_TRANSITION` (reserved or sold personal listings can't be edited) · `RATE_LIMITED` (more than 20 new listings in an hour) · `42501` (signed out) |
 | **Derived on the server** | `owner_id` (the caller), `business_id` (the caller's business, for business mode), `status` (`draft` on create, unchanged on edit, except that restocking a sold-out business listing makes it `available`), `normalized_title`, `search_vector` |
@@ -119,7 +119,7 @@ Each function's full contract is added below when it is implemented.
 |---|---|
 | **Caller** | Verified student |
 | **Input** (all optional) | `search`: web-search syntax (`calculator -broken`, `"desk lamp"`), matched with English word forms against title, description and category · `category`, `condition`: exact match · `min_price_sen`, `max_price_sen`: inclusive · `sort`: `newest` (default), `price_asc`, `price_desc` or `relevance` · `page_size`: 1–50 (default 20) · `page_offset`: 0 or more |
-| **Output** | Rows of `listing_card`: `id, owner_id, seller_name, mode, title, description, category, price_sen, condition, photo_paths, stock, pickup_area, status, created_at, business_id, business_name` (the last two set for business products, Phase 4) |
+| **Output** | Rows of `listing_card`: `id, owner_id, seller_name, mode, title, description, category, price_sen, condition, photo_paths, stock, pickup_area, status, created_at, business_id, business_name, pickup_lat, pickup_lng` (`business_id` and `business_name` set for business products, Phase 4; the pin when the seller set one) |
 | **Shows** | `available` listings that aren't hidden, from sellers whose account is active and, for business products, whose business is approved. Ties sort newest first |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (sort or page) · `42501` |
 | **Why a function** | Profiles are private, so a plain table read can't show the seller's name. The function returns only the name, nothing else about the seller |
@@ -251,7 +251,7 @@ The approval is a **simulated** reviewer workflow for the FYP, not an official U
 | | |
 |---|---|
 | **Caller** | Verified student with a business |
-| **Output** | `{ business_id, application_id, name, description, pickup_details, logo_path, status, created_at }` (`logo_path` from Phase 4). A suspended business is returned too, so the app can explain it |
+| **Output** | `{ business_id, application_id, name, description, pickup_details, pickup_lat, pickup_lng, logo_path, status, created_at }` (`logo_path` from Phase 4; the pin is `null` when not set). A suspended business is returned too, so the app can explain it |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `FORBIDDEN` (no business: not applied, or not approved yet) · `42501` |
 
 ## Helpers
@@ -267,15 +267,15 @@ Approved businesses sell from a storefront. Their products are ordinary `listing
 | | |
 |---|---|
 | **Caller** | Verified student (the owner and admins too) |
-| **Output** | `{ business: { business_id, name, description, logo_path, pickup_details, status, owner_name }, is_owner, categories, listings, campaigns }`. `categories`: the distinct categories of its listed products. `listings`: its `available`, visible products as `listing_card`s, newest first (up to 50). `campaigns`: `open` campaigns that haven't closed, with `{ campaign_id, listing_id, listing_title, listing_photo, title, price_sen, start_at, close_at, capacity, allocated_qty, remaining, per_order_limit, pickup_details, status }`, closing soonest first |
+| **Output** | `{ business: { business_id, name, description, logo_path, pickup_details, pickup_lat, pickup_lng, status, owner_name }, is_owner, categories, listings, campaigns }`. `categories`: the distinct categories of its listed products. `listings`: its `available`, visible products as `listing_card`s, newest first (up to 50). `campaigns`: `open` campaigns that haven't closed, with `{ campaign_id, listing_id, listing_title, listing_photo, title, price_sen, start_at, close_at, capacity, allocated_qty, remaining, per_order_limit, pickup_details, status }`, closing soonest first |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` (missing, or suspended for anyone but its owner and admins) · `42501` |
 
-## `update_storefront(description text, pickup_details text, logo_path text default null)`
+## `update_storefront(description text, pickup_details text, logo_path text default null, pickup_lat double precision default null, pickup_lng double precision default null)`
 
 | | |
 |---|---|
 | **Caller** | Owner of an approved business |
-| **Input** | `description`: up to 1,000 characters · `pickup_details`: 5–200 · `logo_path`: `null` (no logo) or an uploaded `{business_id}/{file}.jpg\|jpeg\|png\|webp` in `business-logos` |
+| **Input** | `description`: up to 1,000 characters · `pickup_details`: 5–200 · `logo_path`: `null` (no logo) or an uploaded `{business_id}/{file}.jpg\|jpeg\|png\|webp` in `business-logos` · `pickup_lat`, `pickup_lng`: the pickup pin, both or neither, inside Malaysia; a call without them removes the pin |
 | **Output** | `{ business_id }` |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `FORBIDDEN` (no approved business) · `INVALID_INPUT` · `42501` |
 | **Notes** | The name stays the approved one |

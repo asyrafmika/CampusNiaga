@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import '../../../core/domain/geo_point.dart';
 import '../../../core/domain/listing_enums.dart';
 import '../../../core/utils/money.dart';
 
@@ -13,6 +14,7 @@ class ListingInput {
     required this.condition,
     required this.quantity,
     required this.pickupArea,
+    this.pickupPin,
   });
 
   final String title;
@@ -22,6 +24,9 @@ class ListingInput {
   final ListingCondition condition;
   final int quantity;
   final String pickupArea;
+
+  /// Optional; `null` saves the listing without a pin.
+  final GeoPoint? pickupPin;
 }
 
 /// A photo picked on the phone, already resized, waiting to be uploaded.

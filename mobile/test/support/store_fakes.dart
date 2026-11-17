@@ -1,5 +1,6 @@
 import 'package:mobile/core/domain/app_failure.dart';
 import 'package:mobile/core/domain/business_enums.dart';
+import 'package:mobile/core/domain/geo_point.dart';
 import 'package:mobile/core/domain/listing_enums.dart';
 import 'package:mobile/features/business/store/data/store_repository.dart';
 import 'package:mobile/features/business/store/domain/store_models.dart';
@@ -54,14 +55,16 @@ Storefront aStorefront({
   List<Listing>? listings,
   List<Campaign>? campaigns,
   bool isOwner = false,
+  GeoPoint? pickupPin,
 }) => Storefront(
-  business: const StoreBusiness(
+  business: StoreBusiness(
     id: storeId,
     name: 'Ali Bakes',
     description: 'Fudgy brownies every Friday.',
     pickupDetails: 'Tekun lobby, Fri 6-8pm',
     status: BusinessStatus.approved,
     ownerName: 'Ali',
+    pickupPin: pickupPin,
   ),
   isOwner: isOwner,
   categories: const ['Food & Beverage'],
@@ -119,6 +122,9 @@ class FakeStoreRepository implements StoreRepository {
     if (failWith case final f?) throw f;
   }
 
+  /// The pin the last storefront save sent.
+  GeoPoint? savedPin;
+
   @override
   Future<Storefront> storefront(String businessId) async {
     _check();
@@ -132,8 +138,10 @@ class FakeStoreRepository implements StoreRepository {
     required String pickupDetails,
     String? logoPath,
     NewPhoto? newLogo,
+    GeoPoint? pickupPin,
   }) async {
     calls.add('storefront $businessId ${pickupDetails.trim()}');
+    savedPin = pickupPin;
     _check();
   }
 

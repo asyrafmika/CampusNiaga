@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/app.dart';
 import 'package:mobile/core/domain/account_status.dart';
+import 'package:mobile/core/domain/geo_point.dart';
 import 'package:mobile/core/storage/preferences.dart';
+import 'package:mobile/core/widgets/pickup_map.dart';
 import 'package:mobile/features/auth/data/auth_repository.dart';
 import 'package:mobile/features/auth/domain/auth_failure.dart';
 import 'package:mobile/features/auth/domain/user_access.dart';
@@ -76,6 +78,7 @@ Future<FakeAuthRepository> pumpApp(
   FakeDiscoveryRepository? discovery,
   FakeDashboardRepository? dashboard,
   FakeChatRepository? chat,
+  Future<bool> Function(GeoPoint)? openDirections,
 }) async {
   // A Pixel 9-sized screen (the default test surface is 800x600).
   tester.view.physicalSize = const Size(1080, 2424);
@@ -116,6 +119,11 @@ Future<FakeAuthRepository> pumpApp(
         ),
         chatRepositoryProvider.overrideWithValue(
           chat ?? FakeChatRepository(chats: const []),
+        ),
+        // No network in tests: maps render without tiles.
+        mapTilesEnabledProvider.overrideWithValue(false),
+        openDirectionsProvider.overrideWithValue(
+          openDirections ?? (_) async => true,
         ),
       ],
       child: const CampusNiagaApp(),

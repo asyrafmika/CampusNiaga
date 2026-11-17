@@ -8,9 +8,9 @@ Results are as of 16 Nov 2026, branch `phase6/dashboard-qa`, from the CI run on 
 
 | Suite | Where | What it runs on | Result |
 |---|---|---|---|
-| Database (pgTAP) | `supabase/tests/database/` (22 files) | A fresh local Supabase stack started by CI (Supabase CLI 2.122.0), with every migration applied | **958 / 958 passed** |
+| Database (pgTAP) | `supabase/tests/database/` (23 files) | A fresh local Supabase stack started by CI (Supabase CLI 2.122.0), with every migration applied | **993 / 993 passed** |
 | Concurrency | `supabase/tests/concurrency/` (2 scripts) | Two real database connections at the same moment | **2 / 2 passed** |
-| Mobile (Flutter) | `mobile/test/` | `flutter test`: unit tests and widget tests through the real router, with in-memory repositories | **215 / 215 passed** |
+| Mobile (Flutter) | `mobile/test/` | `flutter test`: unit tests and widget tests through the real router, with in-memory repositories | **229 / 229 passed** |
 | Admin dashboard (React) | `admin/src/**/*.test.ts(x)` | Vitest with React Testing Library | **70 / 70 passed** |
 | Static checks | CI | `flutter analyze` and `dart format`; TypeScript `tsc --noEmit`, ESLint, production build; `supabase db lint` | **All clean** |
 
@@ -31,6 +31,8 @@ A passing test only matters if it would fail when the code is wrong. For each ph
 | 6 Dashboard (mobile) | 3 | 3 | |
 | Deal chat (database) | 30 | 29 | Two tests were added during this exercise (an overdue reservation, the closed-chat message); the miss is equivalent: senders' read markers already pass their own messages |
 | Deal chat (mobile) | 6 | 6 | |
+| Pickup pins (database) | 11 | 11 | Two tests were added during this exercise (the listings table's own Malaysia check, a longitude alone outside); a redundant not-a-number check was removed |
+| Pickup pins (mobile) | 8 | 8 | One test was added during this exercise (closing the picker keeps an existing pin) |
 
 Writing the tests also found real defects, fixed before release: number tiles that clipped their text, buttons that stretched across a row, and a cost dialog that released its text field while still closing.
 
@@ -108,6 +110,14 @@ Each requirement from the handoff maps to the automated tests that prove it. "DB
 | Read-only when the deal ends, is closed, the business is suspended or an account is suspended | DB `21`, `22`; mobile `chat_test.dart` |
 | Only the two participants read the messages (also over Realtime); admins only through a report, audited | DB `21`; admin `ModerationPage.test.tsx` |
 | Message limits (1–1,000 characters, 20 a minute), report and close | DB `21`; mobile `chat_test.dart` |
+
+### Pickup pins (added after the handoff)
+
+| Requirement | Tests |
+|---|---|
+| A seller pins a listing's pickup spot, and a business its storefront's; the pin is optional and can be moved or removed | DB `23`; mobile `pickup_pin_test.dart` |
+| Both coordinates or neither, inside Malaysia, checked by the functions and by table constraints | DB `23`; mobile `pickup_pin_test.dart` (`PickupPinRules`) |
+| Buyers see the pin on the listing and the storefront, and open directions in a maps app | DB `23`; mobile `pickup_pin_test.dart` |
 
 ## 4. Phase pass conditions (handoff section 9)
 

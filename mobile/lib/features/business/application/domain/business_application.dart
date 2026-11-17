@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../../../core/domain/business_enums.dart';
+import '../../../../core/domain/geo_point.dart';
 
 /// The student's business application (`business_applications`).
 class BusinessApplication {
@@ -92,6 +93,7 @@ class MyBusiness {
     required this.pickupDetails,
     required this.status,
     this.logoPath,
+    this.pickupPin,
   });
 
   final String id;
@@ -102,6 +104,9 @@ class MyBusiness {
 
   /// In `business-logos` (Phase 4).
   final String? logoPath;
+
+  /// Where buyers collect, if the owner pinned it.
+  final GeoPoint? pickupPin;
 }
 
 /// A document picked on the phone, waiting to be uploaded.

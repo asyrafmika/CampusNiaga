@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/domain/business_enums.dart';
+import '../../../../core/domain/geo_point.dart';
 import '../../../../core/supabase/supabase_guard.dart';
 import '../../../../core/supabase/supabase_providers.dart';
 import '../../../marketplace/data/listing_repository.dart';
@@ -37,6 +38,7 @@ class StoreRepository {
     required String pickupDetails,
     String? logoPath,
     NewPhoto? newLogo,
+    GeoPoint? pickupPin,
   }) => guardSupabase(() async {
     var path = logoPath;
     if (newLogo != null) {
@@ -57,6 +59,9 @@ class StoreRepository {
         'description': description.trim(),
         'pickup_details': pickupDetails.trim(),
         'logo_path': path,
+        // Always sent: null removes the pin.
+        'pickup_lat': pickupPin?.latitude,
+        'pickup_lng': pickupPin?.longitude,
       },
     );
     // Best effort: the old logo is no longer used.

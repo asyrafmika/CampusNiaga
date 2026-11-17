@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/domain/app_failure.dart';
+import '../../../../core/domain/geo_point.dart';
+import '../../../../core/widgets/pickup_map.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../marketplace/data/photo_picker.dart';
 import '../../../marketplace/domain/listing_input.dart';
@@ -12,7 +14,7 @@ import '../domain/store_models.dart';
 import 'store_providers.dart';
 import 'widgets/store_widgets.dart';
 
-/// Edit the storefront: description, pickup details and logo. The name
+/// Edit the storefront: description, pickup details, map pin and logo. The name
 /// stays the one the reviewer approved.
 class StorefrontEditScreen extends ConsumerWidget {
   const StorefrontEditScreen({super.key});
@@ -57,6 +59,7 @@ class _StorefrontFormState extends ConsumerState<_StorefrontForm> {
     text: widget.business.pickupDetails,
   );
   late String? _logoPath = widget.business.logoPath;
+  late GeoPoint? _pin = widget.business.pickupPin;
   NewPhoto? _newLogo;
   bool _busy = false;
 
@@ -90,6 +93,7 @@ class _StorefrontFormState extends ConsumerState<_StorefrontForm> {
             pickupDetails: _pickup.text,
             logoPath: _logoPath,
             newLogo: _newLogo,
+            pickupPin: _pin,
           );
       if (!mounted) return;
       showMessage(context, 'Storefront saved.');
@@ -190,6 +194,11 @@ class _StorefrontFormState extends ConsumerState<_StorefrontForm> {
               hintText: 'e.g. Desasiswa Tekun lobby, weekdays 6-8pm',
               prefixIcon: Icon(Icons.place_outlined),
             ),
+          ),
+          PickupPinField(
+            value: _pin,
+            enabled: !_busy,
+            onChanged: (pin) => setState(() => _pin = pin),
           ),
           const SizedBox(height: 20),
           FilledButton(
