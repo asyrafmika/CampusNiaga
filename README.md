@@ -18,7 +18,7 @@
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white">
   <img alt="MUI" src="https://img.shields.io/badge/MUI-9-007FFF?logo=mui&logoColor=white">
   <img alt="Supabase" src="https://img.shields.io/badge/Supabase-Postgres_%2B_RLS-3FCF8E?logo=supabase&logoColor=white">
-  <img alt="pgTAP" src="https://img.shields.io/badge/pgTAP-958_tests-336791?logo=postgresql&logoColor=white">
+  <img alt="pgTAP" src="https://img.shields.io/badge/pgTAP-993_tests-336791?logo=postgresql&logoColor=white">
 </p>
 
 **CampusNiaga** is an integrated marketplace and digital-entrepreneurship platform for students of **Universiti Sains Malaysia (USM)**, built as a Final Year Project prototype (CAT404).
@@ -41,6 +41,7 @@ Today, students sell in WhatsApp and Telegram groups, where older posts get buri
 | 🏪 | **M3 Storefront & Orders** | A storefront for each approved business, ready-stock products and capped pre-orders, orders from *pending* to *completed* | Mobile |
 | 💡 | **M4 Opportunity Discovery** | Request products you can't find, tap *Interested*, and see a ranked, explained list of possible business opportunities | Mobile + DB |
 | 📊 | **M5 Business Dashboard** | Orders by status, estimated revenue and profit (self-reported), top products, stock and pre-order capacity | Mobile |
+| 📍 | **Pickup pins** | Sellers and businesses can pin the pickup spot on an OpenStreetMap map; buyers see it on the listing and storefront and get directions | Mobile |
 | 💬 | **Deal chat** ([ADR 0004](docs/decisions/0004-deal-chat.md)) | Live chat between the buyer and seller of an accepted booking or confirmed order, read-only when the deal ends, with report and close | Mobile + Web |
 | 🛡️ | **Admin dashboard** | Reviewer queue and decisions, report moderation, staff roles, account suspension, audit log | Web |
 
@@ -186,11 +187,11 @@ stateDiagram-v2
 
 | Suite | What runs | Result |
 |---|---|---|
-| 🐘 Database (pgTAP) | 22 files against a fresh local Supabase in CI: every policy, privilege, function, transition and limit | **958 / 958** |
+| 🐘 Database (pgTAP) | 23 files against a fresh local Supabase in CI: every policy, privilege, function, transition and limit | **993 / 993** |
 | ⚡ Concurrency | Two real connections racing for the last unit and the last pre-order place | **2 / 2** |
-| 📱 Flutter | Unit and widget tests through the real router, with in-memory repositories | **215 / 215** |
+| 📱 Flutter | Unit and widget tests through the real router, with in-memory repositories | **229 / 229** |
 | 🖥️ React | Vitest + Testing Library | **70 / 70** |
-| 🧬 Mutation testing | Bugs planted on purpose to check that the tests catch them (Phases 3–6 and the chat) | **155 of 157 caught** |
+| 🧬 Mutation testing | Bugs planted on purpose to check that the tests catch them (Phases 3–6, the chat and pickup pins) | **174 of 176 caught** |
 
 CI ([`ci.yml`](.github/workflows/ci.yml)) runs format checks, analysis, lint, type checks, all tests and `supabase db lint` on every pull request. Every handoff phase has its pass condition as an automated test. The full record is in the [test plan and results](docs/qa/test-plan-and-results.md); usability sessions use the [usability test kit](docs/qa/usability-test-kit.md).
 
