@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/domain/app_failure.dart';
+import '../../../core/domain/geo_point.dart';
 import '../../../core/domain/listing_enums.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/money.dart';
+import '../../../core/widgets/pickup_map.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/photo_picker.dart';
 import '../domain/listing.dart';
@@ -98,6 +100,7 @@ class _ListingFormState extends ConsumerState<_ListingForm> {
     text: '${_existing?.stock ?? 1}',
   );
   late final _pickup = TextEditingController(text: _existing?.pickupArea);
+  late GeoPoint? _pin = _existing?.pickupPin;
   late String? _category = _existing?.category;
   late ListingCondition _condition =
       _existing?.condition ?? ListingCondition.good;
@@ -179,6 +182,7 @@ class _ListingFormState extends ConsumerState<_ListingForm> {
               condition: _condition,
               quantity: int.parse(_quantity.text.trim()),
               pickupArea: _pickup.text,
+              pickupPin: _pin,
             ),
             keptPhotos: [for (final p in _photos) ?p.path],
             newPhotos: [for (final p in _photos) ?p.photo],
@@ -359,6 +363,12 @@ class _ListingFormState extends ConsumerState<_ListingForm> {
                 prefixIcon: Icon(Icons.place_outlined),
                 counterText: '',
               ),
+            ),
+            const SizedBox(height: 10),
+            PickupPinField(
+              value: _pin,
+              enabled: !_busy,
+              onChanged: (pin) => setState(() => _pin = pin),
             ),
             const SizedBox(height: 28),
             if (_isDraftOrNew) ...[

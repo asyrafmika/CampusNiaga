@@ -1,4 +1,5 @@
 import '../../../../core/domain/business_enums.dart';
+import '../../../../core/domain/geo_point.dart';
 import '../../../marketplace/domain/listing.dart';
 
 /// A business's public page (`get_storefront()`).
@@ -37,6 +38,7 @@ class StoreBusiness {
     required this.status,
     this.logoPath,
     this.ownerName,
+    this.pickupPin,
   });
 
   final String id;
@@ -46,6 +48,9 @@ class StoreBusiness {
   final BusinessStatus status;
   final String? logoPath;
   final String? ownerName;
+
+  /// Where buyers collect, if the owner pinned it.
+  final GeoPoint? pickupPin;
 }
 
 /// A pre-order campaign: from the storefront (buyers) or the campaigns

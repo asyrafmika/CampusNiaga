@@ -84,8 +84,8 @@ class ListingRepository {
         .from('listings')
         .select(
           'id, owner_id, mode, business_id, title, description, category, '
-          'price_sen, condition, photo_paths, stock, pickup_area, status, '
-          'hidden, created_at',
+          'price_sen, condition, photo_paths, stock, pickup_area, pickup_lat, '
+          'pickup_lng, status, hidden, created_at',
         )
         .eq('owner_id', _uid)
         .order('updated_at', ascending: false);
@@ -159,6 +159,9 @@ class ListingRepository {
         'quantity': input.quantity,
         'photo_paths': photos,
         'pickup_area': input.pickupArea.trim(),
+        // Always sent: null removes the pin.
+        'pickup_lat': input.pickupPin?.latitude,
+        'pickup_lng': input.pickupPin?.longitude,
         // Only sent for business products (the mode matters only when
         // creating), so personal listings work with any database version.
         if (mode == ListingMode.business) 'mode': mode.wireName,

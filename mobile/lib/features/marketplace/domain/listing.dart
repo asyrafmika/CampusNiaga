@@ -1,3 +1,4 @@
+import '../../../core/domain/geo_point.dart';
 import '../../../core/domain/listing_enums.dart';
 
 /// A listing as the app shows it. [sellerName] comes from the feed and detail
@@ -21,6 +22,7 @@ class Listing {
     this.mode = ListingMode.personal,
     this.businessId,
     this.businessName,
+    this.pickupPin,
   });
 
   final String id;
@@ -36,6 +38,9 @@ class Listing {
   /// Units still for sale.
   final int stock;
   final String pickupArea;
+
+  /// Where on the map the seller hands it over, if they pinned it.
+  final GeoPoint? pickupPin;
   final ListingStatus status;
   final DateTime createdAt;
 

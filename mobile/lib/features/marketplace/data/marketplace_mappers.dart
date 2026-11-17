@@ -1,3 +1,4 @@
+import '../../../core/domain/geo_point.dart';
 import '../../../core/domain/listing_enums.dart';
 import '../domain/listing.dart';
 import '../domain/reservation.dart';
@@ -26,6 +27,7 @@ Listing listingFromRow(Map<String, dynamic> row) => Listing(
   photoPaths: _strings(row['photo_paths']),
   stock: (row['stock'] as num).toInt(),
   pickupArea: row['pickup_area'] as String,
+  pickupPin: GeoPoint.fromWire(row['pickup_lat'], row['pickup_lng']),
   status: ListingStatus.fromWire(row['status']),
   createdAt: _time(row['created_at']),
   hidden: row['hidden'] as bool? ?? false,
