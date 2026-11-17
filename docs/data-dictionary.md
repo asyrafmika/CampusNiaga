@@ -295,14 +295,15 @@ The curated synonym and plural list: `term` (primary key) → `canonical`. Seede
 
 ### `reports` (Phase 2 ✅)
 
-Written only by `report_listing()` (students) and the admin functions. Reporters read their own; admins read all. Never deleted.
+Written only by `report_listing()` and `report_conversation()` (students) and the admin functions. Reporters read their own; admins read all. Never deleted.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | uuid | |
 | `reporter_id` | uuid | The student who reported |
-| `listing_id` | uuid? | The reported listing |
-| `reported_user_id` | uuid? | The listing's owner at the time |
+| `listing_id` | uuid? | The reported listing (listing reports) |
+| `conversation_id` | uuid? | The reported deal chat (chat reports, [ADR 0004](decisions/0004-deal-chat.md)) |
+| `reported_user_id` | uuid? | The listing's owner at the time, or the other chat participant |
 | `reason` | `prohibited_item` \| `scam` \| `offensive` \| `misleading` \| `other` | `other` needs details |
 | `details` | text | Up to 500 characters |
 | `status` | `open` \| `reviewed` \| `actioned` | `reviewed`: dismissed. `actioned`: the listing was hidden or the account suspended |
@@ -310,7 +311,39 @@ Written only by `report_listing()` (students) and the admin functions. Reporters
 | `reviewed_by`, `reviewed_at`, `review_note` | | The admin's decision |
 | `created_at`, `updated_at` | timestamptz | |
 
-One open report per student per listing. Students may send 10 reports a day.
+One open report per student per listing, and per chat. Students may send 10 reports a day. Chat reports use `scam`, `offensive` or `other`.
+
+### `conversations` (deal chat, [ADR 0004](decisions/0004-deal-chat.md))
+
+One chat per accepted reservation or confirmed business order, between its buyer and seller. Written only by the chat functions; the two participants read it.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `reservation_id` | uuid? unique | Exactly one of `reservation_id` and `order_id` |
+| `order_id` | uuid? unique | |
+| `listing_id` | uuid | The item or product, for the chat's title |
+| `buyer_id`, `seller_id` | uuid | For an order, the seller is the business owner. Never equal |
+| `buyer_last_read_id`, `seller_last_read_id` | bigint | The newest message each has seen (0 = none); unread = later messages from the other person |
+| `last_message_at` | timestamptz? | |
+| `closed_at`, `closed_by` | timestamptz?, uuid? | Set when a participant closes the chat (the block). Never reopened |
+| `created_at`, `updated_at` | timestamptz | |
+
+A chat **can send** while its deal is active (reservation `accepted` and not overdue; order `confirmed`, `preparing` or `ready_for_pickup` at an approved business), it isn't closed, and neither participant is suspended. Otherwise it is read-only; its history stays readable.
+
+### `messages` (deal chat)
+
+Written only by `send_message()`; read by the chat's two participants (also through Supabase Realtime, which applies the same policy). Never edited or deleted, except with the chat or an account.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint | Increases with every message; orders a chat |
+| `conversation_id` | uuid | |
+| `sender_id` | uuid | |
+| `body` | text | 1–1,000 characters, trimmed |
+| `created_at` | timestamptz | |
+
+Students may send 20 messages a minute.
 
 ### `notifications` (Phase 2 ✅)
 

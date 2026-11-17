@@ -408,3 +408,72 @@ For approved businesses only, and only their own data: the functions take no bus
 | **Output** | `{ business_id, business_name, from_at, to_at, orders_by_status, total_orders, completed_count, estimated_revenue_sen, recorded_cost_sen, costed_completed_count, estimated_profit_sen, top_products, stock, campaigns }` |
 | **Counting** | `orders_by_status` (every status, zeros included) and `total_orders`: orders *placed* in the range. Completed figures: orders *completed* in the range (`completed_at`). `estimated_revenue_sen` = sum of their `total_sen`; `recorded_cost_sen` = sum of their entered `cost_sen` (`costed_completed_count` says how many have one); `estimated_profit_sen` = revenue − recorded costs. `top_products`: up to 5 products by revenue from those completed orders, then units, with `{ listing_id, title, units, revenue_sen }`. `stock`: every published business product with `{ listing_id, title, status, stock, hidden }`, lowest stock first. `campaigns`: draft and open pre-orders with `{ campaign_id, title, status, capacity, allocated_qty, remaining, close_at }` |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `FORBIDDEN` (no approved business) · `INVALID_INPUT` (range) · `42501` |
+
+## Deal chat ([ADR 0004](decisions/0004-deal-chat.md))
+
+Text between the buyer and seller of an accepted reservation or a confirmed business order. All callers must be verified students; anyone else who isn't a participant gets `NOT_FOUND`, so they can't tell whether a chat exists. A chat **can send** while its deal is active and it isn't closed (see `conversations` in the data dictionary). New messages arrive live through Supabase Realtime: subscribe to `INSERT` on `public.messages` filtered by `conversation_id`.
+
+`conversation_card`: `{ conversation_id, kind ('reservation' | 'order'), reservation_id, order_id, listing_id, listing_title, listing_photo, other_party_name, i_am_buyer, last_message, last_message_at, last_message_mine, unread_count, can_send, closed, created_at }`.
+
+## `open_conversation(reservation_id uuid default null, order_id uuid default null)`
+
+| | |
+|---|---|
+| **Caller** | The buyer or seller of the reservation or order |
+| **Input** | Exactly one of the two ids |
+| **Allowed** | Creates the chat while the deal is active; an existing chat is returned whatever the deal's state |
+| **Output** | `{ conversation_id, created }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` · `INVALID_TRANSITION` (reservation not accepted or overdue; order not confirmed) · `42501` |
+
+## `send_message(conversation_id uuid, body text)`
+
+| | |
+|---|---|
+| **Caller** | A participant |
+| **Input** | `body`: 1–1,000 characters after trimming |
+| **Allowed** | While the chat can send. 20 messages a minute per student |
+| **Output** | `{ message_id, created_at }`; the sender's read marker moves to it |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` · `INVALID_TRANSITION` ("This chat was closed." or read-only because the deal ended) · `RATE_LIMITED` · `42501` |
+
+## `my_conversations(page_size integer default 30, page_offset integer default 0)` · `get_conversation(conversation_id uuid)`
+
+| | |
+|---|---|
+| **Caller** | Any verified student; only their own chats |
+| **Output** | `conversation_card` rows, newest activity first; `get_conversation` returns one card or `NOT_FOUND` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (page) · `NOT_FOUND` · `42501` |
+
+## `mark_conversation_read(conversation_id uuid)`
+
+| | |
+|---|---|
+| **Caller** | A participant |
+| **Output** | `{ conversation_id, last_read_id }`: everything up to the newest message is read |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` · `42501` |
+
+## `close_conversation(conversation_id uuid)`
+
+| | |
+|---|---|
+| **Caller** | A participant |
+| **Effect** | Ends the chat for both (the block); it can't be reopened. Audit action `chat.closed` |
+| **Output** | `{ conversation_id, closed: true }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` · `INVALID_TRANSITION` (already closed) · `42501` |
+
+## `report_conversation(conversation_id uuid, reason text, details text default '')`
+
+| | |
+|---|---|
+| **Caller** | A participant, about the other one (works on closed and read-only chats too) |
+| **Input** | `reason`: `scam`, `offensive` or `other` (`other` needs details); `details` up to 500 characters |
+| **Output** | `{ report_id, status: 'open' }`. Admins handle it with `dismiss_report` or `set_account_status`, as for listing reports |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` · `ALREADY_EXISTS` (an open report on this chat) · `RATE_LIMITED` (10 reports a day) · `42501` |
+
+## `get_reported_conversation(report_id uuid)`
+
+| | |
+|---|---|
+| **Caller** | Admin |
+| **Output** | `{ conversation_id, listing_title, buyer: { id, name, email }, seller: { … }, closed_at, messages: [{ id, from ('buyer' \| 'seller'), body, created_at }] }`, oldest first, the latest 500 |
+| **Effect** | Admins can't browse chats; they see one only through a report about it. Each view is audited (`chat.viewed`) |
+| **Errors** | `FORBIDDEN` · `NOT_FOUND` (no chat on that report) · `42501` |
