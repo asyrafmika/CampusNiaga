@@ -218,6 +218,17 @@ abstract final class OrderRules {
   /// Either side may cancel until the order is completed.
   static bool canCancel(OrderStatus status) => status.isActive;
 
+  /// The deal chat (ADR 0004) opens once the business confirms, until the
+  /// order is completed or cancelled.
+  static bool canChat(OrderStatus status) => switch (status) {
+    OrderStatus.confirmed ||
+    OrderStatus.preparing ||
+    OrderStatus.readyForPickup => true,
+    OrderStatus.pendingConfirmation ||
+    OrderStatus.completed ||
+    OrderStatus.cancelled => false,
+  };
+
   /// The actions [order] offers to the signed-in student.
   static List<OrderAction> actionsFor(OrderCard order) => [
     if (!order.iAmBuyer) ?nextStep(order.status),

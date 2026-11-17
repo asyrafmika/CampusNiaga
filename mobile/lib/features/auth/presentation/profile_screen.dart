@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/router/app_routes.dart';
+import '../../../core/widgets/unread_badge.dart';
+import '../../chat/presentation/chat_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/auth_repository.dart';
 import 'auth_controller.dart';
@@ -15,6 +17,7 @@ class ProfileScreen extends ConsumerWidget {
   static const Key businessKey = Key('profile-business');
   static const Key ordersKey = Key('profile-orders');
   static const Key discoverKey = Key('profile-discover');
+  static const Key messagesKey = Key('profile-messages');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -104,8 +107,16 @@ class ProfileScreen extends ConsumerWidget {
               ),
               _Item(
                 icon: Icons.receipt_long_outlined,
-                title: 'My reservations',
+                title: 'My bookings',
                 onTap: () => context.go(AppRoutes.reservations),
+              ),
+              _Item(
+                key: messagesKey,
+                icon: Icons.chat_bubble_outline_rounded,
+                title: 'Messages',
+                subtitle: 'Chats about your bookings and orders',
+                badge: ref.watch(unreadChatsProvider).value ?? 0,
+                onTap: () => context.push(AppRoutes.messages),
               ),
               _Item(
                 key: discoverKey,
@@ -189,12 +200,16 @@ class _Item extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.onTap,
+    this.badge = 0,
   });
 
   final IconData icon;
   final String title;
   final String? subtitle;
   final VoidCallback? onTap;
+
+  /// Unread count shown before the chevron; hidden when 0.
+  final int badge;
 
   @override
   Widget build(BuildContext context) => ListTile(
@@ -204,6 +219,12 @@ class _Item extends StatelessWidget {
     subtitle: subtitle == null ? null : Text(subtitle!),
     trailing: onTap == null
         ? null
-        : const Icon(Icons.chevron_right_rounded, color: AppColors.icon),
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (badge > 0) UnreadBadge(count: badge),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.icon),
+            ],
+          ),
   );
 }

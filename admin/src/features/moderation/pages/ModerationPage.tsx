@@ -22,6 +22,7 @@ import { useState } from 'react';
 import { messageOf } from '../../../shared/lib/errors';
 import { formatDateTime, PAGE_SIZE } from '../../../shared/lib/format';
 import { ActionDialog } from '../../../shared/ui/ActionDialog';
+import { ReportedChatDialog } from '../components/ReportedChatDialog';
 import { useDismissReport, useModerateListing, useReports, useSetAccountStatus } from '../hooks/useModeration';
 import { REPORT_REASONS, type ReportFilter, type ReportRow } from '../services/moderationService';
 
@@ -33,10 +34,10 @@ type PendingAction =
 const OUTCOMES: Record<string, string> = {
   dismissed: 'Dismissed',
   listing_hidden: 'Listing hidden',
-  account_suspended: 'Seller suspended',
+  account_suspended: 'User suspended',
 };
 
-/** Reports & Moderation (admins): review reported listings and act on them. */
+/** Reports & Moderation (admins): review reported listings and chats and act on them. */
 export function ModerationPage() {
   const [filter, setFilter] = useState<ReportFilter>('open');
   const [page, setPage] = useState(0);
@@ -45,6 +46,7 @@ export function ModerationPage() {
   const dismiss = useDismissReport();
   const setStatus = useSetAccountStatus();
   const [pending, setPending] = useState<PendingAction | null>(null);
+  const [chatReportId, setChatReportId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
   const busy = moderate.isPending || dismiss.isPending || setStatus.isPending;
 
@@ -91,8 +93,8 @@ export function ModerationPage() {
     <Box>
       <Typography variant="h1">Reports &amp; Moderation</Typography>
       <Typography sx={{ color: 'text.secondary', mt: 0.5, mb: 3 }}>
-        Listings students reported. Hide a listing or suspend its seller, or dismiss the report. Every action is
-        recorded in the audit log.
+        Listings and deal chats students reported. Hide a listing, suspend the reported user, or dismiss the report.
+        Every action is recorded in the audit log.
       </Typography>
 
       <Paper sx={{ p: 3 }}>
@@ -125,10 +127,10 @@ export function ModerationPage() {
           <Table aria-label="Reports">
             <TableHead>
               <TableRow>
-                <TableCell>Listing</TableCell>
+                <TableCell>Reported</TableCell>
                 <TableCell>Reason</TableCell>
                 <TableCell>Reported by</TableCell>
-                <TableCell>Seller</TableCell>
+                <TableCell>Reported user</TableCell>
                 <TableCell>When</TableCell>
                 <TableCell align="right">{filter === 'open' ? 'Actions' : 'Outcome'}</TableCell>
               </TableRow>
@@ -141,6 +143,9 @@ export function ModerationPage() {
                   busy={busy}
                   onAction={(kind) => {
                     setPending({ kind, report });
+                  }}
+                  onViewChat={() => {
+                    setChatReportId(report.id);
                   }}
                 />
               ))}
@@ -190,6 +195,13 @@ export function ModerationPage() {
         />
       )}
 
+      <ReportedChatDialog
+        reportId={chatReportId}
+        onClose={() => {
+          setChatReportId(null);
+        }}
+      />
+
       <Snackbar
         open={notice !== null}
         autoHideDuration={4000}
@@ -211,16 +223,32 @@ type ReportTableRowProps = {
   report: ReportRow;
   busy: boolean;
   onAction: (kind: PendingAction['kind']) => void;
+  onViewChat: () => void;
 };
 
-function ReportTableRow({ report, busy, onAction }: ReportTableRowProps) {
+function ReportTableRow({ report, busy, onAction, onViewChat }: ReportTableRowProps) {
   const { listing, seller } = report;
   const sellerSuspended = seller?.accountStatus === 'suspended';
+  const chat = report.kind === 'chat';
+  const who = chat ? 'user' : 'seller';
   return (
     <TableRow hover>
       <TableCell>
-        <Typography sx={{ fontWeight: 600 }}>{listing?.title ?? 'Deleted listing'}</Typography>
-        {listing?.hidden === true && <Chip label="Hidden" size="small" color="warning" sx={{ mt: 0.5 }} />}
+        {chat ? (
+          <>
+            <Chip label="Chat" size="small" color="info" variant="outlined" sx={{ mb: 0.5 }} />
+            <Box>
+              <Button size="small" onClick={onViewChat}>
+                View chat
+              </Button>
+            </Box>
+          </>
+        ) : (
+          <>
+            <Typography sx={{ fontWeight: 600 }}>{listing?.title ?? 'Deleted listing'}</Typography>
+            {listing?.hidden === true && <Chip label="Hidden" size="small" color="warning" sx={{ mt: 0.5 }} />}
+          </>
+        )}
       </TableCell>
       <TableCell sx={{ maxWidth: 280 }}>
         <Typography sx={{ fontWeight: 600 }}>{REPORT_REASONS[report.reason]}</Typography>
@@ -262,7 +290,7 @@ function ReportTableRow({ report, busy, onAction }: ReportTableRowProps) {
                   onAction(sellerSuspended ? 'reactivate' : 'suspend');
                 }}
               >
-                {sellerSuspended ? 'Reactivate seller' : 'Suspend seller'}
+                {sellerSuspended ? `Reactivate ${who}` : `Suspend ${who}`}
               </Button>
             )}
             <Button
@@ -304,7 +332,9 @@ function ReportTableRow({ report, busy, onAction }: ReportTableRowProps) {
 
 function dialogText(action: PendingAction): { title: string; message: string; confirm: string; danger: boolean } {
   const title = action.report.listing?.title ?? 'this listing';
-  const seller = action.report.seller?.email ?? 'this seller';
+  const chat = action.report.kind === 'chat';
+  const who = chat ? 'user' : 'seller';
+  const seller = action.report.seller?.email ?? `this ${who}`;
   switch (action.kind) {
     case 'hide':
       return {
@@ -323,20 +353,22 @@ function dialogText(action: PendingAction): { title: string; message: string; co
     case 'dismiss':
       return {
         title: 'Dismiss report?',
-        message: 'The report is closed without action. The listing stays as it is.',
+        message: chat
+          ? 'The report is closed without action.'
+          : 'The report is closed without action. The listing stays as it is.',
         confirm: 'Dismiss',
         danger: false,
       };
     case 'suspend':
       return {
-        title: 'Suspend seller?',
-        message: `${seller} can no longer buy or sell, and their listings leave the marketplace. Open reports about them are closed.`,
+        title: `Suspend ${who}?`,
+        message: `${seller} can no longer buy, sell or chat, and their listings leave the marketplace. Open reports about them are closed.`,
         confirm: 'Suspend',
         danger: true,
       };
     case 'reactivate':
       return {
-        title: 'Reactivate seller?',
+        title: `Reactivate ${who}?`,
         message: `${seller} can trade again.`,
         confirm: 'Reactivate',
         danger: false,

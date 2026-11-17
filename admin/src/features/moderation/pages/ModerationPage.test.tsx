@@ -1,11 +1,11 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppError } from '../../../shared/lib/errors';
 import { renderAt } from '../../../test/render';
 import type * as moderationService from '../services/moderationService';
-import type { ReportFilter, ReportPage, ReportRow } from '../services/moderationService';
+import type { ReportedChat, ReportFilter, ReportPage, ReportRow } from '../services/moderationService';
 import { ModerationPage } from './ModerationPage';
 
 const mocks = vi.hoisted(() => ({
@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   moderateListing: vi.fn<(listingId: string, hide: boolean, note: string) => Promise<void>>(),
   dismissReport: vi.fn<(reportId: string, note: string) => Promise<void>>(),
   setAccountStatus: vi.fn<(userId: string, status: string, note: string) => Promise<void>>(),
+  getReportedChat: vi.fn<(reportId: string) => Promise<ReportedChat>>(),
 }));
 
 vi.mock('../services/moderationService', async (importOriginal) => {
@@ -22,6 +23,7 @@ vi.mock('../services/moderationService', async (importOriginal) => {
 
 const report = (overrides: Partial<ReportRow> = {}): ReportRow => ({
   id: 'rep1',
+  kind: 'listing',
   reason: 'scam',
   details: 'Price too good to be true',
   status: 'open',
@@ -114,6 +116,53 @@ describe('ModerationPage', () => {
     expect(await screen.findByText('Dismissed')).toBeInTheDocument();
     expect(screen.getByText('Not a problem')).toBeInTheDocument();
     expect(mocks.listReports).toHaveBeenLastCalledWith({ filter: 'closed', page: 0 });
+  });
+
+  it('a chat report opens the reported chat and suspends the reported user', async () => {
+    mocks.listReports.mockResolvedValue({
+      total: 1,
+      rows: [
+        report({
+          id: 'rep3',
+          kind: 'chat',
+          reason: 'offensive',
+          details: 'Rude replies',
+          listing: null,
+          seller: { id: 'amin', name: 'Amin', email: 'amin@student.usm.my', accountStatus: 'active' },
+        }),
+      ],
+    });
+    mocks.getReportedChat.mockResolvedValue({
+      listingTitle: 'Casio calculator',
+      buyer: { name: 'Siti', email: 'siti@student.usm.my' },
+      seller: { name: 'Amin', email: 'amin@student.usm.my' },
+      closedAt: null,
+      messages: [
+        { id: 1, from: 'buyer', body: 'Can I collect at 5pm?', createdAt: '2026-11-16T09:00:00Z' },
+        { id: 2, from: 'seller', body: 'Whatever, stop asking', createdAt: '2026-11-16T09:05:00Z' },
+      ],
+    });
+    mocks.setAccountStatus.mockResolvedValue();
+    renderAt(<ModerationPage />);
+
+    expect(await screen.findByText('Chat')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hide listing' })).not.toBeInTheDocument();
+    expect(mocks.getReportedChat).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'View chat' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('Whatever, stop asking')).toBeInTheDocument();
+    expect(within(dialog).getByText(/recorded in the audit log/)).toBeInTheDocument();
+    expect(mocks.getReportedChat).toHaveBeenCalledWith('rep3');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Suspend user' }));
+    expect(screen.getByText('Suspend user?')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+    expect(mocks.setAccountStatus).toHaveBeenCalledWith('amin', 'suspended', '');
   });
 
   it('says when there is nothing to review', async () => {

@@ -53,6 +53,19 @@ abstract final class AppRoutes {
     queryParameters: {'key': clusterKey},
   ).toString();
 
+  // Deal chat (ADR 0004): the list, one chat, or the chat of a booking or
+  // order (opened, and created if needed, from Bookings and My orders).
+  static const String messages = '/messages';
+  static String chat(String conversationId) => '/messages/$conversationId';
+  static String chatForReservation(String reservationId) => Uri(
+    path: '/messages/open',
+    queryParameters: {'reservation': reservationId},
+  ).toString();
+  static String chatForOrder(String orderId) => Uri(
+    path: '/messages/open',
+    queryParameters: {'order': orderId},
+  ).toString();
+
   /// The search tab, opened on one category.
   static String searchCategory(String category) =>
       Uri(path: search, queryParameters: {'category': category}).toString();

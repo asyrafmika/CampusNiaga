@@ -314,6 +314,97 @@ export type Database = {
           },
         ]
       }
+      conversations: {
+        Row: {
+          buyer_id: string
+          buyer_last_read_id: number
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          id: string
+          last_message_at: string | null
+          listing_id: string
+          order_id: string | null
+          reservation_id: string | null
+          seller_id: string
+          seller_last_read_id: number
+          updated_at: string
+        }
+        Insert: {
+          buyer_id: string
+          buyer_last_read_id?: number
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          listing_id: string
+          order_id?: string | null
+          reservation_id?: string | null
+          seller_id: string
+          seller_last_read_id?: number
+          updated_at?: string
+        }
+        Update: {
+          buyer_id?: string
+          buyer_last_read_id?: number
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          listing_id?: string
+          order_id?: string | null
+          reservation_id?: string | null
+          seller_id?: string
+          seller_last_read_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: true
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discovery_synonyms: {
         Row: {
           canonical: string
@@ -401,6 +492,45 @@ export type Database = {
           {
             foreignKeyName: "listings_owner_id_fkey"
             columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          id: number
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: never
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: never
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -680,6 +810,7 @@ export type Database = {
       reports: {
         Row: {
           action: string | null
+          conversation_id: string | null
           created_at: string
           details: string
           id: string
@@ -695,6 +826,7 @@ export type Database = {
         }
         Insert: {
           action?: string | null
+          conversation_id?: string | null
           created_at?: string
           details?: string
           id?: string
@@ -710,6 +842,7 @@ export type Database = {
         }
         Update: {
           action?: string | null
+          conversation_id?: string | null
           created_at?: string
           details?: string
           id?: string
@@ -724,6 +857,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "reports_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reports_listing_id_fkey"
             columns: ["listing_id"]
@@ -905,7 +1045,22 @@ export type Database = {
         Args: { object_name: string }
         Returns: boolean
       }
+      close_conversation: { Args: { conversation_id: string }; Returns: Json }
       close_product_request: { Args: { request_id: string }; Returns: Json }
+      conversation_can_send: {
+        Args: { c: Database["public"]["Tables"]["conversations"]["Row"] }
+        Returns: boolean
+      }
+      conversation_cards: {
+        Args: { uid: string }
+        Returns: Database["public"]["CompositeTypes"]["conversation_card"][]
+        SetofOptions: {
+          from: "*"
+          to: "conversation_card"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       create_product_request: {
         Args: {
           campus_area: string
@@ -933,6 +1088,16 @@ export type Database = {
         Args: { target_listing: string }
         Returns: number
       }
+      get_conversation: {
+        Args: { conversation_id: string }
+        Returns: Database["public"]["CompositeTypes"]["conversation_card"]
+        SetofOptions: {
+          from: "*"
+          to: "conversation_card"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_listing: {
         Args: { listing_id: string }
         Returns: Database["public"]["CompositeTypes"]["listing_card"][]
@@ -945,6 +1110,7 @@ export type Database = {
       }
       get_my_access: { Args: never; Returns: Json }
       get_my_business: { Args: never; Returns: Json }
+      get_reported_conversation: { Args: { report_id: string }; Returns: Json }
       get_storefront: { Args: { business_id: string }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       is_eligible_student_email: {
@@ -971,9 +1137,23 @@ export type Database = {
         }
       }
       listing_categories: { Args: never; Returns: string[] }
+      mark_conversation_read: {
+        Args: { conversation_id: string }
+        Returns: Json
+      }
       moderate_listing: {
         Args: { hide: boolean; listing_id: string; note?: string }
         Returns: Json
+      }
+      my_conversations: {
+        Args: { page_offset?: number; page_size?: number }
+        Returns: Database["public"]["CompositeTypes"]["conversation_card"][]
+        SetofOptions: {
+          from: "*"
+          to: "conversation_card"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       my_orders: {
         Args: { page_offset?: number; page_size?: number; side?: string }
@@ -1006,7 +1186,35 @@ export type Database = {
         }
         Returns: undefined
       }
+      open_conversation: {
+        Args: { order_id?: string; reservation_id?: string }
+        Returns: Json
+      }
       owns_business: { Args: { business_id: string }; Returns: boolean }
+      participant_conversation: {
+        Args: { conversation_id: string; lock_row: boolean }
+        Returns: {
+          buyer_id: string
+          buyer_last_read_id: number
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          id: string
+          last_message_at: string | null
+          listing_id: string
+          order_id: string | null
+          reservation_id: string | null
+          seller_id: string
+          seller_last_read_id: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "conversations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       place_order: {
         Args: {
           buyer_note?: string
@@ -1027,6 +1235,10 @@ export type Database = {
       recompute_opportunity: {
         Args: { target_cluster: string }
         Returns: undefined
+      }
+      report_conversation: {
+        Args: { conversation_id: string; details?: string; reason: string }
+        Returns: Json
       }
       report_listing: {
         Args: { details?: string; listing_id: string; reason: string }
@@ -1062,6 +1274,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      send_message: {
+        Args: { body: string; conversation_id: string }
+        Returns: Json
       }
       set_account_status: {
         Args: { account_status: string; note?: string; user_id: string }
@@ -1138,6 +1354,24 @@ export type Database = {
       [_ in never]: never
     }
     CompositeTypes: {
+      conversation_card: {
+        conversation_id: string | null
+        kind: string | null
+        reservation_id: string | null
+        order_id: string | null
+        listing_id: string | null
+        listing_title: string | null
+        listing_photo: string | null
+        other_party_name: string | null
+        i_am_buyer: boolean | null
+        last_message: string | null
+        last_message_at: string | null
+        last_message_mine: boolean | null
+        unread_count: number | null
+        can_send: boolean | null
+        closed: boolean | null
+        created_at: string | null
+      }
       listing_card: {
         id: string | null
         owner_id: string | null

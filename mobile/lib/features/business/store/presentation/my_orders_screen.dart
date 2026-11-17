@@ -272,6 +272,24 @@ class _OrderTileState extends ConsumerState<OrderTile> {
                   ),
                 ),
               ),
+            if (OrderRules.canChat(order.status))
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: Key('order-chat-${order.id}'),
+                  style: ButtonStyle(
+                    minimumSize: WidgetStateProperty.all(const Size(0, 36)),
+                  ),
+                  onPressed: () =>
+                      context.push(AppRoutes.chatForOrder(order.id)),
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                  label: Text(
+                    order.iAmBuyer
+                        ? 'Chat with the business'
+                        : 'Chat with the buyer',
+                  ),
+                ),
+              ),
             if (order.status == OrderStatus.cancelled)
               _Line(
                 Icons.block_rounded,
