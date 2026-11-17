@@ -217,7 +217,7 @@ void main() {
     await pumpApp(tester, () async => student, reservations: reservations);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Reservations'));
+    await tester.tap(find.text('Bookings'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Selling'));
     await tester.pumpAndSettle();
@@ -244,7 +244,7 @@ void main() {
     );
     await pumpApp(tester, () async => student, reservations: reservations);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Reservations'));
+    await tester.tap(find.text('Bookings'));
     await tester.pumpAndSettle();
 
     expect(find.text('ali@student.usm.my'), findsOneWidget);

@@ -52,6 +52,25 @@ void main() {
     expect(find.byKey(SplashScreen.retryKey), findsOneWidget);
   });
 
+  testWidgets('the bottom bar labels line up, the Sell button included', (
+    tester,
+  ) async {
+    await pumpApp(tester, () async => student);
+    // Wide enough that no label wraps in the wide test font (on a phone the
+    // real font fits); this checks the icons, not the label lengths.
+    tester.view.physicalSize = const Size(1600, 2424);
+    await tester.pumpAndSettle();
+
+    final bar = find.byType(NavigationBar);
+    double top(String label) => tester
+        .getTopLeft(find.descendant(of: bar, matching: find.text(label)))
+        .dy;
+    final home = top('Home');
+    for (final label in ['Search', 'Sell', 'Bookings', 'Profile']) {
+      expect(top(label), home, reason: label);
+    }
+  });
+
   testWidgets('first launch shows onboarding, then sign-in', (tester) async {
     await pumpApp(tester, () async => null, onboardingSeen: false);
     await tester.pumpAndSettle();

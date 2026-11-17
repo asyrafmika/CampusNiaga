@@ -51,7 +51,7 @@ Give each task on its own card, in this order. A participant's own account plays
 | # | Task (read out) | Module | Success point | Time limit |
 |---|---|---|---|---|
 | T1 | "Sign in to CampusNiaga with the account we gave you." | Access | The Home screen shows | 2 min |
-| T2 | "You need a calculator for under RM 30. Find one and reserve it, asking to collect it after 5pm." | M1 | The reservation shows under Reservations | 4 min |
+| T2 | "You need a calculator for under RM 30. Find one and reserve it, asking to collect it after 5pm." | M1 | The reservation shows under Bookings | 4 min |
 | T3 | "Sell something of yours: list a desk lamp for RM 15 with a photo, and publish it." | M1 | The listing is published | 5 min |
 | T4 | "Check whether anyone has asked to reserve your things, and what state your own reservation is in." | M1 | Participant states both correctly | 2 min |
 | T5 | "You want to sell brownies as a small business. Start an application, save it as a draft, then come back and submit it." | M2 | The application shows "Waiting for a reviewer" | 6 min |

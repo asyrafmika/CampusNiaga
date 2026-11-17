@@ -5,8 +5,9 @@ import '../theme/app_colors.dart';
 import 'app_routes.dart';
 
 /// The signed-in app's frame: the tab's page above a bottom navigation bar
-/// with Home, Search, Sell, Reservations and Profile. Sell opens the listing
-/// form on top instead of switching tab.
+/// with Home, Search, Sell, Bookings (reservations) and Profile. Sell opens
+/// the listing form on top instead of switching tab. Labels are one short
+/// word so they fit a bar slot (about 80 dp) on one line.
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.navigationShell});
 
@@ -67,7 +68,7 @@ class AppShell extends StatelessWidget {
               Icons.receipt_long_rounded,
               color: AppColors.primary,
             ),
-            label: 'Reservations',
+            label: 'Bookings',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
@@ -80,16 +81,30 @@ class AppShell extends StatelessWidget {
   }
 }
 
+/// The round Sell button. It takes up only an icon's 24 dp in the layout and
+/// draws its larger circle over the spare space, so the Sell label lines up
+/// with the other labels.
 class _SellIcon extends StatelessWidget {
   const _SellIcon();
 
+  static const double _diameter = 36;
+
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(6),
-    decoration: const BoxDecoration(
-      gradient: AppColors.brandGradient,
-      shape: BoxShape.circle,
+  Widget build(BuildContext context) => const SizedBox.square(
+    dimension: 24,
+    child: OverflowBox(
+      maxWidth: _diameter,
+      maxHeight: _diameter,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: AppColors.brandGradient,
+          shape: BoxShape.circle,
+        ),
+        child: SizedBox.square(
+          dimension: _diameter,
+          child: Icon(Icons.add_rounded, color: Colors.white, size: 22),
+        ),
+      ),
     ),
-    child: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
   );
 }
