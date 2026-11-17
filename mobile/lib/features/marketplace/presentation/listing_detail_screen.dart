@@ -416,7 +416,7 @@ class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
           const SnackBar(
             content: Text(
               'Reserved! The seller has 48 hours to respond. '
-              'See it under Reservations.',
+              'See it under Bookings.',
             ),
           ),
         );

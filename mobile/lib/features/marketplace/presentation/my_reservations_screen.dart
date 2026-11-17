@@ -13,7 +13,8 @@ import '../domain/reservation.dart';
 import 'marketplace_providers.dart';
 import 'widgets/listing_widgets.dart';
 
-/// My Reservations: what I'm buying and what others reserved from me.
+/// Bookings (my reservations): what I'm buying and what others reserved from
+/// me.
 class MyReservationsScreen extends StatelessWidget {
   const MyReservationsScreen({super.key});
 
@@ -23,7 +24,7 @@ class MyReservationsScreen extends StatelessWidget {
     child: Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Reservations'),
+        title: const Text('Bookings'),
         backgroundColor: AppColors.background,
         bottom: TabBar(
           labelColor: AppColors.primary,

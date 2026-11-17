@@ -341,7 +341,7 @@ flutter run
 
 The first launch shows the onboarding slides, then **Sign in**. Use **Create an account** with your USM email and confirm it from your inbox. If you open the link on the phone, it signs you in straight away; otherwise, sign in after confirming.
 
-Once signed in, the bottom bar has **Home** (newest listings and categories), **Search** (words, filters, sorting), **Sell** (the listing form: up to 5 photos from the camera or gallery, resized on the phone), **Reservations** (buying and selling) and **Profile** (My Listings, sign out). Payment and pickup are arranged between the students; the app never takes payments.
+Once signed in, the bottom bar has **Home** (newest listings and categories), **Search** (words, filters, sorting), **Sell** (the listing form: up to 5 photos from the camera or gallery, resized on the phone), **Bookings** (your reservations, buying and selling) and **Profile** (My Listings, sign out). Payment and pickup are arranged between the students; the app never takes payments.
 
 **Images:** put these in `mobile/assets/images/`; until then the app shows placeholders.
 
