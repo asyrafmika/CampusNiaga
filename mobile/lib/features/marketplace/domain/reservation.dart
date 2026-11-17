@@ -60,6 +60,12 @@ class ReservationCard {
   final String? otherPartyEmail;
 
   int get totalSen => priceSen * qty;
+
+  /// The deal chat (ADR 0004) can send while the reservation is accepted
+  /// and not overdue, as `open_conversation` checks.
+  bool canChatAt(DateTime now) =>
+      status == ReservationStatus.accepted &&
+      (expiresAt?.isAfter(now) ?? false);
 }
 
 /// The actions this user may take, matching what `resolve_reservation`

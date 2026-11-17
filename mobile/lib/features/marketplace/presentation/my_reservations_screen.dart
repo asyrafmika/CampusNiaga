@@ -239,6 +239,21 @@ class _ReservationTileState extends ConsumerState<ReservationTile> {
                     ],
                   ),
                 ),
+              if (r.canChatAt(DateTime.now())) ...[
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  key: Key('reservation-chat-${r.id}'),
+                  onPressed: () =>
+                      context.push(AppRoutes.chatForReservation(r.id)),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(44),
+                  ),
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                  label: Text(
+                    'Chat with the ${r.iAmBuyer ? 'seller' : 'buyer'}',
+                  ),
+                ),
+              ],
               if (actions.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Row(

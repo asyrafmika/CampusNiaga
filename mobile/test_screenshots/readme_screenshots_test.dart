@@ -23,11 +23,13 @@ import 'package:mobile/core/router/app_routes.dart';
 import 'package:mobile/core/widgets/app_logo.dart';
 import 'package:mobile/features/auth/domain/user_access.dart';
 import 'package:mobile/features/business/application/domain/business_application.dart';
+import 'package:mobile/features/chat/domain/chat_models.dart';
 import 'package:mobile/features/discovery/domain/discovery_models.dart';
 import 'package:mobile/features/marketplace/domain/listing.dart';
 
 import '../test/support/app_harness.dart';
 import '../test/support/business_fakes.dart';
+import '../test/support/chat_fakes.dart';
 import '../test/support/dashboard_fakes.dart';
 import '../test/support/discovery_fakes.dart';
 import '../test/support/marketplace_fakes.dart';
@@ -356,5 +358,37 @@ void main() {
     await tester.pumpAndSettle();
     await go(tester, AppRoutes.dashboard);
     await shoot(tester, 'dashboard');
+  });
+
+  screenshot('chat', (tester) async {
+    DateTime at(int minute) =>
+        DateTime.now().copyWith(hour: 16, minute: minute, second: 0);
+    ChatMessage line(int id, String body, {bool mine = false}) => ChatMessage(
+      id: id,
+      senderId: mine ? 'u1' : 'u2',
+      body: body,
+      createdAt: at(id * 3),
+    );
+    await pumpApp(
+      tester,
+      () async => student,
+      chat: FakeChatRepository(
+        chats: [
+          aConversation(other: 'Siti', title: 'Casio FX-570EX calculator'),
+        ],
+        messages: {
+          'c1': [
+            line(1, 'Hi Siti! Thanks for accepting.', mine: true),
+            line(2, 'Hi Ali! When can you collect?'),
+            line(3, 'Is 5pm today okay? I have class until 4:30.', mine: true),
+            line(4, 'Yes, 5pm works. Tekun lobby, near the noticeboard?'),
+            line(5, 'Perfect, see you there!', mine: true),
+          ],
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    await go(tester, AppRoutes.chat('c1'));
+    await shoot(tester, 'chat');
   });
 }

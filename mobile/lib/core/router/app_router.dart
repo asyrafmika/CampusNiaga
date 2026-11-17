@@ -20,6 +20,9 @@ import '../../features/business/store/presentation/my_orders_screen.dart';
 import '../../features/business/store/presentation/order_screen.dart';
 import '../../features/business/store/presentation/storefront_edit_screen.dart';
 import '../../features/business/store/presentation/storefront_screen.dart';
+import '../../features/chat/domain/chat_models.dart';
+import '../../features/chat/presentation/chat_screen.dart';
+import '../../features/chat/presentation/messages_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/discovery/presentation/discover_screen.dart';
 import '../../features/discovery/presentation/opportunity_detail_screen.dart';
@@ -170,6 +173,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => OpportunityDetailScreen(
               clusterKey: state.uri.queryParameters['key'] ?? '',
             ),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: AppRoutes.messages,
+        builder: (context, state) => const MessagesScreen(),
+        routes: [
+          // Before ':id', so "open" is never read as a chat id.
+          GoRoute(
+            path: 'open',
+            builder: (context, state) {
+              final query = state.uri.queryParameters;
+              final order = query['order'];
+              return ChatScreen(
+                deal: order != null
+                    ? ChatDeal.order(order)
+                    : ChatDeal.reservation(query['reservation'] ?? ''),
+              );
+            },
+          ),
+          GoRoute(
+            path: ':id',
+            builder: (context, state) =>
+                ChatScreen(conversationId: state.pathParameters['id']),
           ),
         ],
       ),

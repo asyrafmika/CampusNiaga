@@ -10,6 +10,7 @@ import 'package:mobile/features/auth/domain/user_access.dart';
 import 'package:mobile/features/business/application/data/business_application_repository.dart';
 import 'package:mobile/features/business/application/data/document_picker.dart';
 import 'package:mobile/features/business/store/data/store_repository.dart';
+import 'package:mobile/features/chat/data/chat_repository.dart';
 import 'package:mobile/features/dashboard/data/dashboard_repository.dart';
 import 'package:mobile/features/discovery/data/discovery_repository.dart';
 import 'package:mobile/features/marketplace/data/listing_repository.dart';
@@ -17,6 +18,7 @@ import 'package:mobile/features/marketplace/data/reservation_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'business_fakes.dart';
+import 'chat_fakes.dart';
 import 'dashboard_fakes.dart';
 import 'discovery_fakes.dart';
 import 'marketplace_fakes.dart';
@@ -73,6 +75,7 @@ Future<FakeAuthRepository> pumpApp(
   FakeStoreRepository? store,
   FakeDiscoveryRepository? discovery,
   FakeDashboardRepository? dashboard,
+  FakeChatRepository? chat,
 }) async {
   // A Pixel 9-sized screen (the default test surface is 800x600).
   tester.view.physicalSize = const Size(1080, 2424);
@@ -110,6 +113,9 @@ Future<FakeAuthRepository> pumpApp(
         ),
         dashboardRepositoryProvider.overrideWithValue(
           dashboard ?? FakeDashboardRepository(),
+        ),
+        chatRepositoryProvider.overrideWithValue(
+          chat ?? FakeChatRepository(chats: const []),
         ),
       ],
       child: const CampusNiagaApp(),
