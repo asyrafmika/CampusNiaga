@@ -18,7 +18,7 @@
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white">
   <img alt="MUI" src="https://img.shields.io/badge/MUI-9-007FFF?logo=mui&logoColor=white">
   <img alt="Supabase" src="https://img.shields.io/badge/Supabase-Postgres_%2B_RLS-3FCF8E?logo=supabase&logoColor=white">
-  <img alt="pgTAP" src="https://img.shields.io/badge/pgTAP-870_tests-336791?logo=postgresql&logoColor=white">
+  <img alt="pgTAP" src="https://img.shields.io/badge/pgTAP-958_tests-336791?logo=postgresql&logoColor=white">
 </p>
 
 **CampusNiaga** is an integrated marketplace and digital-entrepreneurship platform for students of **Universiti Sains Malaysia (USM)**, built as a Final Year Project prototype (CAT404).
@@ -41,9 +41,10 @@ Today, students sell in WhatsApp and Telegram groups, where older posts get buri
 | 🏪 | **M3 Storefront & Orders** | A storefront for each approved business, ready-stock products and capped pre-orders, orders from *pending* to *completed* | Mobile |
 | 💡 | **M4 Opportunity Discovery** | Request products you can't find, tap *Interested*, and see a ranked, explained list of possible business opportunities | Mobile + DB |
 | 📊 | **M5 Business Dashboard** | Orders by status, estimated revenue and profit (self-reported), top products, stock and pre-order capacity | Mobile |
+| 💬 | **Deal chat** ([ADR 0004](docs/decisions/0004-deal-chat.md)) | Live chat between the buyer and seller of an accepted booking or confirmed order, read-only when the deal ends, with report and close | Mobile + Web |
 | 🛡️ | **Admin dashboard** | Reviewer queue and decisions, report moderation, staff roles, account suspension, audit log | Web |
 
-**Deliberately out of scope:** in-app payments, wallets, delivery, chat, machine-learning recommendations and USM single sign-on.
+**Deliberately out of scope:** in-app payments, wallets, delivery, open-ended messaging (chat exists only inside an agreed deal), machine-learning recommendations and USM single sign-on.
 
 ## 📸 Screenshots
 
@@ -61,6 +62,12 @@ Today, students sell in WhatsApp and Telegram groups, where older posts get buri
     <td align="center"><img src="docs/images/mobile/discover.png" alt="Discover opportunities" width="200"><br><sub><b>Discover</b><br>Ranked possible opportunities</sub></td>
     <td align="center"><img src="docs/images/mobile/opportunity.png" alt="Opportunity detail" width="200"><br><sub><b>Opportunity</b><br>The numbers behind the score</sub></td>
     <td align="center"><img src="docs/images/mobile/dashboard.png" alt="Business dashboard" width="200"><br><sub><b>Dashboard</b><br>Estimated, self-reported figures</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/mobile/chat.png" alt="Deal chat" width="200"><br><sub><b>Deal chat</b><br>Arrange pickup, live</sub></td>
+    <td align="center"><img src="docs/images/mobile/splash.png" alt="Splash screen" width="200"><br><sub><b>Splash</b><br>USM purple and gold</sub></td>
+    <td></td>
+    <td></td>
   </tr>
 </table>
 
@@ -179,11 +186,11 @@ stateDiagram-v2
 
 | Suite | What runs | Result |
 |---|---|---|
-| 🐘 Database (pgTAP) | 20 files against a fresh local Supabase in CI: every policy, privilege, function, transition and limit | **870 / 870** |
+| 🐘 Database (pgTAP) | 22 files against a fresh local Supabase in CI: every policy, privilege, function, transition and limit | **958 / 958** |
 | ⚡ Concurrency | Two real connections racing for the last unit and the last pre-order place | **2 / 2** |
-| 📱 Flutter | Unit and widget tests through the real router, with in-memory repositories | **195 / 195** |
-| 🖥️ React | Vitest + Testing Library | **67 / 67** |
-| 🧬 Mutation testing | Bugs planted on purpose to check that the tests catch them (Phases 3–6) | **120 of 121 caught** |
+| 📱 Flutter | Unit and widget tests through the real router, with in-memory repositories | **215 / 215** |
+| 🖥️ React | Vitest + Testing Library | **70 / 70** |
+| 🧬 Mutation testing | Bugs planted on purpose to check that the tests catch them (Phases 3–6 and the chat) | **155 of 157 caught** |
 
 CI ([`ci.yml`](.github/workflows/ci.yml)) runs format checks, analysis, lint, type checks, all tests and `supabase db lint` on every pull request. Every handoff phase has its pass condition as an automated test. The full record is in the [test plan and results](docs/qa/test-plan-and-results.md); usability sessions use the [usability test kit](docs/qa/usability-test-kit.md).
 
@@ -219,6 +226,7 @@ CampusNiaga/
 | 4 Business | Storefront, stock, pre-orders, orders | ✅ Done |
 | 5 Discovery | Product requests, interest, opportunity ranking | ✅ Done |
 | 6 Dashboard + QA | Seller analytics, final testing | ✅ Done (usability sessions to run: [kit](docs/qa/usability-test-kit.md)) |
+| + Deal chat | Buyer–seller chat inside an agreed deal ([ADR 0004](docs/decisions/0004-deal-chat.md), a scope change after the handoff) | ✅ Done |
 
 <details>
 <summary><b>🔍 How each phase's pass condition is proven</b></summary>

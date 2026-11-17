@@ -8,10 +8,10 @@ Results are as of 16 Nov 2026, branch `phase6/dashboard-qa`, from the CI run on 
 
 | Suite | Where | What it runs on | Result |
 |---|---|---|---|
-| Database (pgTAP) | `supabase/tests/database/` (20 files) | A fresh local Supabase stack started by CI (Supabase CLI 2.122.0), with every migration applied | **870 / 870 passed** |
+| Database (pgTAP) | `supabase/tests/database/` (22 files) | A fresh local Supabase stack started by CI (Supabase CLI 2.122.0), with every migration applied | **958 / 958 passed** |
 | Concurrency | `supabase/tests/concurrency/` (2 scripts) | Two real database connections at the same moment | **2 / 2 passed** |
-| Mobile (Flutter) | `mobile/test/` | `flutter test`: unit tests and widget tests through the real router, with in-memory repositories | **195 / 195 passed** |
-| Admin dashboard (React) | `admin/src/**/*.test.ts(x)` | Vitest with React Testing Library | **67 / 67 passed** |
+| Mobile (Flutter) | `mobile/test/` | `flutter test`: unit tests and widget tests through the real router, with in-memory repositories | **215 / 215 passed** |
+| Admin dashboard (React) | `admin/src/**/*.test.ts(x)` | Vitest with React Testing Library | **70 / 70 passed** |
 | Static checks | CI | `flutter analyze` and `dart format`; TypeScript `tsc --noEmit`, ESLint, production build; `supabase db lint` | **All clean** |
 
 Automated tests never touch the hosted Supabase project; they run in CI's throwaway database.
@@ -29,6 +29,8 @@ A passing test only matters if it would fail when the code is wrong. For each ph
 | 5 Discovery (mobile) | 3 | 3 | |
 | 6 Dashboard (database) | 15 | 15 | Two tests were strengthened during this exercise (a range boundary, product ordering) |
 | 6 Dashboard (mobile) | 3 | 3 | |
+| Deal chat (database) | 30 | 29 | Two tests were added during this exercise (an overdue reservation, the closed-chat message); the miss is equivalent: senders' read markers already pass their own messages |
+| Deal chat (mobile) | 6 | 6 | |
 
 Writing the tests also found real defects, fixed before release: number tiles that clipped their text, buttons that stretched across a row, and a cost dialog that released its text field while still closing.
 
@@ -97,6 +99,15 @@ Each requirement from the handoff maps to the automated tests that prove it. "DB
 | Filter by date | DB `18`; mobile `dashboard_test.dart` |
 | Never another seller's data | DB `18`, `19` (and the function takes no business id) |
 | Labelled estimated / self-reported | mobile `dashboard_test.dart` |
+
+### Deal chat ([ADR 0004](../decisions/0004-deal-chat.md), added after the handoff)
+
+| Requirement | Tests |
+|---|---|
+| A chat opens only for an accepted reservation or a confirmed order, between its buyer and seller | DB `21`, `22`; mobile `chat_test.dart` |
+| Read-only when the deal ends, is closed, the business is suspended or an account is suspended | DB `21`, `22`; mobile `chat_test.dart` |
+| Only the two participants read the messages (also over Realtime); admins only through a report, audited | DB `21`; admin `ModerationPage.test.tsx` |
+| Message limits (1–1,000 characters, 20 a minute), report and close | DB `21`; mobile `chat_test.dart` |
 
 ## 4. Phase pass conditions (handoff section 9)
 
