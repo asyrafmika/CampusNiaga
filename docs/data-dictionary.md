@@ -105,6 +105,7 @@ A product, shared by personal sellers and approved businesses. Written only thro
 | `photo_paths` | text[] | Input | Up to 5 paths `{owner_id}/{listing_id}/{file}` in the `listing-photos` bucket (resized on the device before upload). At least 1 once the listing leaves `draft` |
 | `stock` | integer | Input (`quantity`, 1–999) + Server | Units still for sale. Reservations (personal) and ready-stock orders (business) take units out under a row lock when they are made; cancelled, declined or expired ones put them back. Never negative; at least 1 while `available`, 0 when `sold`. A business owner restocks by editing the quantity, which also makes a sold-out (`sold`) business listing `available` again |
 | `pickup_area` | text | Input | Campus pickup location |
+| `pickup_lat`, `pickup_lng` | double precision? | Input | Optional map pin, in degrees (WGS 84): both or neither, inside Malaysia's bounding box (latitude 0.8–7.5, longitude 99.5–119.5). Shown to everyone who can see the listing ([pickup pins](#pickup-pins)) |
 | `status` | `draft` \| `available` \| `reserved` \| `sold` \| `closed` | Server | `draft` → `available` → `reserved` (every remaining unit is held by accepted reservations) → `sold` (all collected); `closed` when withdrawn (it can re-open); `available` → `sold` directly when sold outside the app. A cancelled or expired reservation returns it to `available` |
 | `hidden` | boolean | Server | Admin moderation; hidden listings are left out of feeds and M4 supply |
 | `created_at`, `updated_at` | timestamptz | Server | |
@@ -181,7 +182,7 @@ Append-only, one row per status change, written in the same transaction as the c
 
 ### `businesses` (Phase 3 ✅)
 
-Created only by `review_business_application(…, 'approve')`, in the same transaction as the approval. Read: the owner, reviewers and admins directly; other students see an approved business's storefront through `get_storefront()`. The owner changes the storefront (description, pickup details, logo) through `update_storefront()`. No client writes.
+Created only by `review_business_application(…, 'approve')`, in the same transaction as the approval. Read: the owner, reviewers and admins directly; other students see an approved business's storefront through `get_storefront()`. The owner changes the storefront (description, pickup details, map pin, logo) through `update_storefront()`. No client writes.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -191,6 +192,7 @@ Created only by `review_business_application(…, 'approve')`, in the same trans
 | `name`, `description` | text | From the application; the owner may edit the description |
 | `logo_path` | text? | `{business_id}/{file}` in `business-logos`, set by `update_storefront()` |
 | `pickup_details` | text | From the application's `collection_details`; the owner may edit it. Copied into each ready-stock order |
+| `pickup_lat`, `pickup_lng` | double precision? | Optional map pin of the pickup spot, set by `update_storefront()`; same rules as on `listings` ([pickup pins](#pickup-pins)) |
 | `status` | `approved` \| `suspended` | Changed only by `set_business_status()` (admins). A suspended business loses business access at once |
 | `created_at`, `updated_at` | timestamptz | |
 
@@ -292,6 +294,10 @@ Ranking: `score` descending, then `last_interest_at` descending, then `cluster_k
 ### `discovery_synonyms` (Phase 5 ✅)
 
 The curated synonym and plural list: `term` (primary key) → `canonical`. Seeded by the migration; changed only in the Supabase dashboard. No client access.
+
+### Pickup pins
+
+Added after the handoff (`20261118000000_pickup_pins`). A seller may pin where buyers collect a listing (`listings.pickup_lat`, `pickup_lng`), and a business where buyers collect its orders (`businesses.pickup_lat`, `pickup_lng`). The pin is optional and sits beside the required pickup text. Check constraints keep both coordinates or neither, inside Malaysia's bounding box (every USM campus is in it); the functions give the same rule a readable reason through the internal helper `pickup_pin_problem(lat, lng)`. A pin is shown to everyone who can see the listing or storefront, so the app asks for a public spot, never a room. The app's maps use OpenStreetMap tiles (no API key) and credit OpenStreetMap as its licence requires.
 
 ### `reports` (Phase 2 ✅)
 
