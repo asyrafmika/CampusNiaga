@@ -16,7 +16,7 @@ Five modules:
 | M4 | Smart Business Opportunity Discovery (deterministic ranking, no ML) | Mobile + database |
 | M5 | Business Dashboard & Performance Monitoring (estimated, self-reported) | Mobile |
 
-**Never build:** in-app payments, wallets, payment gateways or verification; delivery or courier integration; chat or messaging; ML/LLM recommendations; IoT; USM SSO or official HDC APIs. Approval is a *simulated* reviewer workflow, not an official university decision. Label it that way in the UI.
+**Never build:** in-app payments, wallets, payment gateways or verification; delivery or courier integration; general chat or messaging (the one exception is the deal chat of [ADR 0004](docs/decisions/0004-deal-chat.md): text between the buyer and seller of an accepted reservation or confirmed order only); ML/LLM recommendations; IoT; USM SSO or official HDC APIs. Approval is a *simulated* reviewer workflow, not an official university decision. Label it that way in the UI.
 
 ## Repository layout
 
