@@ -25,6 +25,8 @@ export const ACTION_LABELS: Record<string, string> = {
   'application.rejected': 'Application rejected',
   'business.suspended': 'Business suspended',
   'business.reinstated': 'Business reinstated',
+  'chat.closed': 'Chat closed by a participant',
+  'chat.viewed': 'Reported chat viewed',
 };
 
 function describe(metadata: unknown): string {

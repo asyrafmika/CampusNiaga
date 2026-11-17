@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 
 import {
   dismissReport,
+  getReportedChat,
   listReports,
   moderateListing,
   setAccountStatus,
@@ -15,6 +16,20 @@ export function useReports(filter: ReportFilter, page: number) {
     queryKey: [...reportsQueryKey, { filter, page }],
     queryFn: () => listReports({ filter, page }),
     placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * A reported chat, fetched only while its dialog is open ([reportId] set).
+ * Each fetch is an audited view, so it isn't refetched in the background.
+ */
+export function useReportedChat(reportId: string | null) {
+  return useQuery({
+    queryKey: [...reportsQueryKey, 'chat', reportId],
+    queryFn: () => getReportedChat(reportId ?? ''),
+    enabled: reportId !== null,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 }
 

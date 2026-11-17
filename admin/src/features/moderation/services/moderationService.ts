@@ -16,6 +16,8 @@ export type ReportFilter = 'open' | 'closed';
 
 export type ReportRow = {
   id: string;
+  /** A listing report, or a deal chat report (ADR 0004). */
+  kind: 'listing' | 'chat';
   reason: ReportReason;
   details: string;
   status: ReportStatus;
@@ -47,7 +49,7 @@ export async function listReports({ filter, page }: { filter: ReportFilter; page
   let query = supabase
     .from('reports')
     .select(
-      'id, reason, details, status, action, review_note, created_at, ' +
+      'id, reason, details, status, action, review_note, created_at, conversation_id, ' +
         'listing:listings!reports_listing_id_fkey(id, title, hidden, status), ' +
         'reporter:profiles!reports_reporter_id_fkey(name, email), ' +
         'seller:profiles!reports_reported_user_id_fkey(id, name, email, account_status)',
@@ -68,6 +70,7 @@ export async function listReports({ filter, page }: { filter: ReportFilter; page
       action: string | null;
       review_note: string | null;
       created_at: string;
+      conversation_id: string | null;
       listing: { id: string; title: string; hidden: boolean; status: string } | null;
       reporter: { name: string; email: string } | null;
       seller: { id: string; name: string; email: string; account_status: string } | null;
@@ -80,6 +83,7 @@ export async function listReports({ filter, page }: { filter: ReportFilter; page
     total: count ?? data.length,
     rows: data.map((r) => ({
       id: r.id,
+      kind: r.conversation_id === null ? ('listing' as const) : ('chat' as const),
       reason: reasonOf(r.reason),
       details: r.details,
       status: statusOf(r.status),
@@ -94,6 +98,59 @@ export async function listReports({ filter, page }: { filter: ReportFilter; page
           : { id: r.seller.id, name: r.seller.name, email: r.seller.email, accountStatus: r.seller.account_status },
     })),
   };
+}
+
+export type ReportedChat = {
+  listingTitle: string;
+  buyer: { name: string; email: string };
+  seller: { name: string; email: string };
+  closedAt: string | null;
+  messages: { id: number; from: 'buyer' | 'seller'; body: string; createdAt: string }[];
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function personOf(value: unknown): { name: string; email: string } {
+  if (isRecord(value) && typeof value['name'] === 'string' && typeof value['email'] === 'string') {
+    return { name: value['name'], email: value['email'] };
+  }
+  throw new Error('Unexpected chat participant');
+}
+
+/** Parses `get_reported_conversation()`; throws if it isn't the promised shape. */
+export function parseReportedChat(json: unknown): ReportedChat {
+  if (!isRecord(json) || !Array.isArray(json['messages'])) throw new Error('Unexpected reported chat');
+  const closedAt = json['closed_at'];
+  return {
+    listingTitle: typeof json['listing_title'] === 'string' ? json['listing_title'] : 'Deleted listing',
+    buyer: personOf(json['buyer']),
+    seller: personOf(json['seller']),
+    closedAt: typeof closedAt === 'string' ? closedAt : null,
+    messages: json['messages'].map((m: unknown) => {
+      if (
+        isRecord(m) &&
+        typeof m['id'] === 'number' &&
+        (m['from'] === 'buyer' || m['from'] === 'seller') &&
+        typeof m['body'] === 'string' &&
+        typeof m['created_at'] === 'string'
+      ) {
+        return { id: m['id'], from: m['from'], body: m['body'], createdAt: m['created_at'] };
+      }
+      throw new Error('Unexpected chat message');
+    }),
+  };
+}
+
+/**
+ * The messages of a reported deal chat (`get_reported_conversation`). Admins
+ * see a chat only through a report about it, and each view is audited.
+ */
+export async function getReportedChat(reportId: string): Promise<ReportedChat> {
+  const { data, error } = await supabase.rpc('get_reported_conversation', { report_id: reportId });
+  if (error) throw toAppError(error);
+  return parseReportedChat(data);
 }
 
 const noteArg = (note: string) => (note.trim().length > 0 ? { note: note.trim() } : {});
