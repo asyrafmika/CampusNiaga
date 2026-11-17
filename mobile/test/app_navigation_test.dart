@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/domain/account_status.dart';
+import 'package:mobile/core/theme/app_colors.dart';
+import 'package:mobile/core/widgets/app_logo.dart';
 import 'package:mobile/features/auth/domain/auth_failure.dart';
 import 'package:mobile/features/auth/domain/user_access.dart';
 import 'package:mobile/features/auth/presentation/sign_in_screen.dart';
@@ -21,6 +23,26 @@ void main() {
 
     expect(find.text('CampusNiaga'), findsOneWidget);
     expect(find.text('BUY. SELL. START YOUR BUSINESS.'), findsOneWidget);
+    expect(find.image(const AssetImage(AppLogoMark.asset)), findsOneWidget);
+  });
+
+  testWidgets('the splash background fills the whole screen', (tester) async {
+    await pumpApp(tester, () => Completer<UserAccess?>().future);
+    // Wide enough that the splash text doesn't wrap, which is when a
+    // background that only wraps its content leaves a white strip (on a
+    // phone this happens with the real font).
+    tester.view.physicalSize = const Size(2400, 2424);
+    await tester.pump();
+
+    final background = find.byWidgetPredicate(
+      (w) =>
+          w is DecoratedBox &&
+          w.decoration is BoxDecoration &&
+          (w.decoration as BoxDecoration).gradient == AppColors.nightGradient,
+    );
+    final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+    expect(tester.getSize(background), screen);
+    expect(tester.getTopLeft(background), Offset.zero);
   });
 
   testWidgets('offers a retry when the lookup fails', (tester) async {

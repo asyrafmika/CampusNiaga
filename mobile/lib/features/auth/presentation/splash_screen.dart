@@ -19,65 +19,66 @@ class SplashScreen extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      body: DecoratedBox(
-        decoration: const BoxDecoration(gradient: AppColors.brandGradient),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              children: [
-                const Spacer(flex: 3),
-                const AppLogoMark(size: 88, onDark: true),
-                const SizedBox(height: 24),
-                Text(
-                  'CampusNiaga',
-                  style: textTheme.headlineLarge?.copyWith(
-                    color: Colors.white,
-                    fontSize: 36,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'BUY. SELL. START YOUR BUSINESS.',
-                  textAlign: TextAlign.center,
-                  style: textTheme.labelMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.75),
-                    letterSpacing: 2.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(flex: 3),
-                if (!failed)
-                  const SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                else ...[
+      backgroundColor: AppColors.night,
+      // Scaffold gives its body loose constraints, so without SizedBox.expand
+      // the gradient only covers the column's width and leaves a white strip.
+      body: SizedBox.expand(
+        child: DecoratedBox(
+          decoration: const BoxDecoration(gradient: AppColors.nightGradient),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                children: [
+                  const Spacer(flex: 3),
+                  const AppLogoMark(size: 96, onDark: true),
+                  const SizedBox(height: 24),
+                  const AppWordmark(fontSize: 36, onDark: true),
+                  const SizedBox(height: 12),
                   Text(
-                    "Couldn't reach CampusNiaga. Check your internet "
-                    'connection and try again.',
+                    'BUY. SELL. START YOUR BUSINESS.',
                     textAlign: TextAlign.center,
-                    style: textTheme.bodyMedium?.copyWith(color: Colors.white),
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    key: retryKey,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppColors.primaryDark,
+                    style: textTheme.labelMedium?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.75),
+                      letterSpacing: 2.5,
+                      fontWeight: FontWeight.w600,
                     ),
-                    onPressed: () => ref
-                        .read(authControllerProvider.notifier)
-                        .recheckAccess(),
-                    child: const Text('Try again'),
                   ),
+                  const Spacer(flex: 3),
+                  if (!failed)
+                    const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  else ...[
+                    Text(
+                      "Couldn't reach CampusNiaga. Check your internet "
+                      'connection and try again.',
+                      textAlign: TextAlign.center,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      key: retryKey,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppColors.primaryDark,
+                      ),
+                      onPressed: () => ref
+                          .read(authControllerProvider.notifier)
+                          .recheckAccess(),
+                      child: const Text('Try again'),
+                    ),
+                  ],
+                  const Spacer(),
                 ],
-                const Spacer(),
-              ],
+              ),
             ),
           ),
         ),

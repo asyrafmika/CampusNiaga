@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 
-/// CampusNiaga colours: a bright, softened navy with an amber accent,
-/// inspired by the Nestora reference.
+/// CampusNiaga colours: USM purple with a gold accent, taken from the
+/// CampusNiaga logo (docs/brand/).
 abstract final class AppColors {
-  static const Color primary = Color(0xFF3B66C4);
-  static const Color primaryDark = Color(0xFF26488F);
-  static const Color primarySoft = Color(0xFFE8EEFA);
-  static const Color accent = Color(0xFFF2A93B);
+  /// USM purple, the logo tile.
+  static const Color primary = Color(0xFF5B2A86);
+  static const Color primaryDark = Color(0xFF3F1C5E);
+  static const Color primarySoft = Color(0xFFF1EAF7);
+
+  /// The deep purple behind the dark logo; splash and launch screens.
+  static const Color night = Color(0xFF1E0F2E);
+
+  /// Gold, the mortarboard tassel. On white, text uses [accentDeep].
+  static const Color accent = Color(0xFFF5B301);
+  static const Color accentDeep = Color(0xFFE0A100);
 
   static const Color background = Color(0xFFF7F7F5);
   static const Color surface = Color(0xFFFFFFFF);
@@ -18,10 +25,19 @@ abstract final class AppColors {
   static const Color border = Color(0xFFE5E3DF);
   static const Color error = Color(0xFFC62828);
 
-  /// Splash and header backgrounds.
+  /// Header and banner backgrounds.
   static const LinearGradient brandGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [primaryDark, primary],
+  );
+
+  /// Splash and sign-in backgrounds: from [night] (the launch screen's
+  /// colour) to USM purple.
+  static const LinearGradient nightGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [night, primaryDark, primary],
+    stops: [0, 0.55, 1],
   );
 }

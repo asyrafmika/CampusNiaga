@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
 /// Photo slots. Put the files in `mobile/assets/images/` with these names;
-/// until then each slot shows a navy panel with an icon.
+/// until then each slot shows a purple panel with an icon.
 abstract final class AppImages {
   static const List<String> onboarding = [
     'assets/images/onboarding_1.jpg',

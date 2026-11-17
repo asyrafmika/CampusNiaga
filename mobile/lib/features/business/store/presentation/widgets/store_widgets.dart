@@ -9,7 +9,7 @@ import '../../../../marketplace/presentation/widgets/listing_widgets.dart';
 import '../../data/store_repository.dart';
 import '../../domain/store_models.dart';
 
-/// A business logo from the private bucket, or its initial on a navy circle.
+/// A business logo from the private bucket, or its initial on a purple circle.
 class BusinessLogo extends ConsumerWidget {
   const BusinessLogo({
     super.key,

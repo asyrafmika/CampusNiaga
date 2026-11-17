@@ -8,8 +8,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_logo.dart';
 import 'auth_style.dart';
 
-/// Sign-in style page on the brand navy: logo bar, a large left-aligned
-/// headline whose last words are amber, a subtitle, and the form on a
+/// Sign-in style page on the brand purple: logo bar, a large left-aligned
+/// headline whose last words are gold, a subtitle, and the form on a
 /// frosted-glass card that fades and slides in.
 class AuthLayout extends StatelessWidget {
   const AuthLayout({
@@ -23,7 +23,7 @@ class AuthLayout extends StatelessWidget {
     this.footer,
   });
 
-  /// Headline text; [titleAccent] follows it in amber ("Welcome " + "back.").
+  /// Headline text; [titleAccent] follows it in gold ("Welcome " + "back.").
   final String title;
   final String? titleAccent;
   final String subtitle;
@@ -159,10 +159,10 @@ class _AuroraBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const DecoratedBox(
-      decoration: BoxDecoration(gradient: AppColors.brandGradient),
+      decoration: BoxDecoration(gradient: AppColors.nightGradient),
       child: Stack(
         children: [
-          _Glow(right: -80, top: -60, size: 260, color: AuthStyle.glowBlue),
+          _Glow(right: -80, top: -60, size: 260, color: AuthStyle.glowLavender),
           _Glow(left: -90, top: 260, size: 220, color: AppColors.primary),
           _Glow(right: -60, bottom: -40, size: 220, color: AppColors.accent),
         ],
@@ -375,7 +375,7 @@ class AuthSwitchLink extends StatelessWidget {
   }
 }
 
-/// White button with navy text (as on onboarding); shows a spinner while
+/// White button with purple text (as on onboarding); shows a spinner while
 /// [busy].
 class SubmitButton extends StatelessWidget {
   const SubmitButton({
