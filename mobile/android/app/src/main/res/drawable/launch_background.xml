@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Navy launch screen, matching the Flutter splash (AppColors.primaryDark). -->
+<!-- Launch screen before Android 12: deep purple with the CampusNiaga mark,
+     matching the Flutter splash (AppColors.night). -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/launch_background" />
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/launch_logo" />
+    </item>
 </layer-list>

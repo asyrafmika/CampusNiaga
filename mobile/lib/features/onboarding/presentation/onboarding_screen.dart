@@ -82,9 +82,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      backgroundColor: AppColors.primaryDark,
+      backgroundColor: AppColors.night,
       body: DecoratedBox(
-        decoration: const BoxDecoration(gradient: AppColors.brandGradient),
+        decoration: const BoxDecoration(gradient: AppColors.nightGradient),
         child: SafeArea(
           child: Column(
             children: [

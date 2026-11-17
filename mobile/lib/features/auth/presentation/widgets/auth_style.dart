@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 
-/// The sign-in and sign-up look: the brand navy gradient of the splash and
+/// The sign-in and sign-up look: the deep purple gradient of the splash and
 /// onboarding, soft "aurora" glows, and a frosted-glass form card.
 abstract final class AuthStyle {
   static const Color text = Colors.white;
@@ -14,12 +14,12 @@ abstract final class AuthStyle {
   static const Color glass = Color(0x1AFFFFFF);
   static const Color glassBorder = Color(0x2EFFFFFF);
   static const Color error = Color(0xFFFFB4AB);
-  static const Color glowBlue = Color(0xFF7FA6FF);
+  static const Color glowLavender = Color(0xFFB98CE6);
 
   static const double fieldRadius = 14;
 
-  /// The app theme adjusted for the navy auth screens: light text, frosted
-  /// inputs that light up amber when focused.
+  /// The app theme adjusted for the purple auth screens: light text, frosted
+  /// inputs that light up gold when focused.
   static ThemeData themeFrom(ThemeData base) {
     OutlineInputBorder border(Color color, {double width = 1}) =>
         OutlineInputBorder(
@@ -36,7 +36,7 @@ abstract final class AuthStyle {
       textTheme: base.textTheme.apply(bodyColor: text, displayColor: text),
       textSelectionTheme: const TextSelectionThemeData(
         cursorColor: AppColors.accent,
-        selectionColor: Color(0x66F2A93B),
+        selectionColor: Color(0x66F5B301),
         selectionHandleColor: AppColors.accent,
       ),
       inputDecorationTheme: InputDecorationTheme(

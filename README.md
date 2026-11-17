@@ -1,9 +1,12 @@
 <p align="center">
-  <img src="docs/images/banner.svg" alt="CampusNiaga: buy, sell and grow a student business, all on campus" width="100%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/logo-dark.png">
+    <img src="docs/brand/logo-light.png" alt="CampusNiaga: buy, sell and start your business on campus" width="640">
+  </picture>
 </p>
 
 <p align="center">
-  <a href="https://github.com/asyrafmika/CampusNiaga/releases/latest"><img alt="Download the Android app" src="https://img.shields.io/badge/📱_Android_app-Download_APK-3B66C4?style=for-the-badge"></a>
+  <a href="https://github.com/asyrafmika/CampusNiaga/releases/latest"><img alt="Download the Android app" src="https://img.shields.io/badge/📱_Android_app-Download_APK-5B2A86?style=for-the-badge"></a>
   <a href="https://asyrafmika.github.io/CampusNiaga/"><img alt="Open the admin dashboard" src="https://img.shields.io/badge/🖥️_Admin_dashboard-Open_live-5D5FEF?style=for-the-badge"></a>
   <a href="docs/qa/test-plan-and-results.md"><img alt="Test results" src="https://img.shields.io/badge/✅_Tests-1%2C100%2B_passing-2E7D32?style=for-the-badge"></a>
 </p>
@@ -178,7 +181,7 @@ stateDiagram-v2
 |---|---|---|
 | 🐘 Database (pgTAP) | 20 files against a fresh local Supabase in CI: every policy, privilege, function, transition and limit | **870 / 870** |
 | ⚡ Concurrency | Two real connections racing for the last unit and the last pre-order place | **2 / 2** |
-| 📱 Flutter | Unit and widget tests through the real router, with in-memory repositories | **194 / 194** |
+| 📱 Flutter | Unit and widget tests through the real router, with in-memory repositories | **195 / 195** |
 | 🖥️ React | Vitest + Testing Library | **67 / 67** |
 | 🧬 Mutation testing | Bugs planted on purpose to check that the tests catch them (Phases 3–6) | **120 of 121 caught** |
 

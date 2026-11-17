@@ -6,9 +6,10 @@ import 'package:mobile/core/theme/app_theme.dart';
 void main() {
   final theme = buildAppTheme();
 
-  test('uses the brand navy as the primary colour', () {
+  test('uses USM purple as the primary colour and gold as the accent', () {
     expect(theme.colorScheme.primary, AppColors.primary);
-    expect(theme.colorScheme.primary, const Color(0xFF3B66C4));
+    expect(theme.colorScheme.primary, const Color(0xFF5B2A86));
+    expect(theme.colorScheme.secondary, const Color(0xFFF5B301));
   });
 
   test('uses the bundled Montserrat font', () {

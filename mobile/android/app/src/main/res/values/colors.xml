@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- AppColors.primaryDark: the launch screen matches the Flutter splash. -->
-    <color name="launch_background">#26488F</color>
+    <!-- AppColors.night: the deep purple the Flutter splash starts from, so
+         the launch screen and the splash look like one screen. -->
+    <color name="launch_background">#1E0F2E</color>
+    <!-- AppColors.primary (USM purple): behind the adaptive launcher icon. -->
+    <color name="ic_launcher_background">#5B2A86</color>
 </resources>
