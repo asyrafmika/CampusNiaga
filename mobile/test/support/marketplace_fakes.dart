@@ -1,6 +1,7 @@
 import 'package:mobile/core/domain/app_failure.dart';
 import 'package:mobile/core/domain/geo_point.dart';
 import 'package:mobile/core/domain/listing_enums.dart';
+import 'package:mobile/core/domain/payment.dart';
 import 'package:mobile/features/marketplace/data/listing_repository.dart';
 import 'package:mobile/features/marketplace/data/reservation_repository.dart';
 import 'package:mobile/features/marketplace/domain/listing.dart';
@@ -48,7 +49,9 @@ ReservationCard aReservation({
   bool iAmBuyer = false,
   ReservationStatus status = ReservationStatus.requested,
   String? email,
+  PaymentSummary? payment,
 }) => ReservationCard(
+  payment: payment,
   id: id,
   listingId: 'l1',
   listingTitle: 'Casio FX-570 calculator',
@@ -58,7 +61,9 @@ ReservationCard aReservation({
   qty: 1,
   pickupNote: 'After 5pm',
   status: status,
-  expiresAt: DateTime.utc(2026, 11, 18),
+  // Relative to now: a fixed date would make every reservation overdue once
+  // it passed (which hides the chat button).
+  expiresAt: DateTime.now().add(const Duration(days: 2)),
   createdAt: DateTime.utc(2026, 11, 16),
   iAmBuyer: iAmBuyer,
   otherPartyName: iAmBuyer ? 'Ali' : 'Siti',
@@ -166,14 +171,23 @@ class FakeReservationRepository implements ReservationRepository {
   final List<String> calls = [];
   AppFailure? failWith;
 
+  /// The payment id a transfer reservation returns.
+  String transferPaymentId = 'pay1';
+
   @override
-  Future<void> request({
+  Future<String?> request({
     required String listingId,
     required int qty,
     String? pickupNote,
+    PaymentMethod paymentMethod = PaymentMethod.cash,
   }) async {
-    calls.add('request $listingId x$qty ${pickupNote ?? ''}'.trim());
+    final transfer = paymentMethod == PaymentMethod.transfer;
+    calls.add(
+      'request $listingId x$qty ${pickupNote ?? ''}'.trim() +
+          (transfer ? ' transfer' : ''),
+    );
     if (failWith case final f?) throw f;
+    return transfer ? transferPaymentId : null;
   }
 
   @override

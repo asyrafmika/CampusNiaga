@@ -16,7 +16,9 @@ import 'package:mobile/features/chat/data/chat_repository.dart';
 import 'package:mobile/features/dashboard/data/dashboard_repository.dart';
 import 'package:mobile/features/discovery/data/discovery_repository.dart';
 import 'package:mobile/features/marketplace/data/listing_repository.dart';
+import 'package:mobile/features/marketplace/data/photo_picker.dart';
 import 'package:mobile/features/marketplace/data/reservation_repository.dart';
+import 'package:mobile/features/payments/data/payment_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'business_fakes.dart';
@@ -24,6 +26,7 @@ import 'chat_fakes.dart';
 import 'dashboard_fakes.dart';
 import 'discovery_fakes.dart';
 import 'marketplace_fakes.dart';
+import 'payment_fakes.dart';
 import 'store_fakes.dart';
 
 const student = UserAccess(
@@ -78,6 +81,8 @@ Future<FakeAuthRepository> pumpApp(
   FakeDiscoveryRepository? discovery,
   FakeDashboardRepository? dashboard,
   FakeChatRepository? chat,
+  FakePaymentRepository? payments,
+  FakePhotoPicker? photoPicker,
   Future<bool> Function(GeoPoint)? openDirections,
 }) async {
   // A Pixel 9-sized screen (the default test surface is 800x600).
@@ -120,6 +125,10 @@ Future<FakeAuthRepository> pumpApp(
         chatRepositoryProvider.overrideWithValue(
           chat ?? FakeChatRepository(chats: const []),
         ),
+        paymentRepositoryProvider.overrideWithValue(
+          payments ?? FakePaymentRepository(),
+        ),
+        photoPickerProvider.overrideWithValue(photoPicker ?? FakePhotoPicker()),
         // No network in tests: maps render without tiles.
         mapTilesEnabledProvider.overrideWithValue(false),
         openDirectionsProvider.overrideWithValue(

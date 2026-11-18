@@ -2,6 +2,7 @@ import 'package:mobile/core/domain/app_failure.dart';
 import 'package:mobile/core/domain/business_enums.dart';
 import 'package:mobile/core/domain/geo_point.dart';
 import 'package:mobile/core/domain/listing_enums.dart';
+import 'package:mobile/core/domain/payment.dart';
 import 'package:mobile/features/business/store/data/store_repository.dart';
 import 'package:mobile/features/business/store/domain/store_models.dart';
 import 'package:mobile/features/marketplace/data/listing_repository.dart';
@@ -78,7 +79,10 @@ OrderCard anOrder({
   bool iAmBuyer = true,
   String? campaignId,
   String? email,
+  PaymentSummary? payment,
+  String? cancelledBy,
 }) => OrderCard(
+  payment: payment,
   id: id,
   listingId: 'p1',
   listingTitle: 'Brownie box',
@@ -93,7 +97,8 @@ OrderCard anOrder({
   collectionDetails: 'Tekun lobby, Fri 6-8pm',
   buyerNote: 'After 6pm',
   createdAt: DateTime.utc(2026, 11, 16),
-  cancelledBy: status == OrderStatus.cancelled ? 'seller' : null,
+  cancelledBy:
+      cancelledBy ?? (status == OrderStatus.cancelled ? 'seller' : null),
   iAmBuyer: iAmBuyer,
   otherPartyName: iAmBuyer ? 'Ali' : 'Siti',
   otherPartyEmail: email,
@@ -171,19 +176,26 @@ class FakeStoreRepository implements StoreRepository {
     _check();
   }
 
+  /// The payment id a transfer order returns.
+  String transferPaymentId = 'pay2';
+
   @override
-  Future<void> placeOrder({
+  Future<String?> placeOrder({
     required String listingId,
     required int qty,
     String? campaignId,
     String? note,
+    PaymentMethod paymentMethod = PaymentMethod.cash,
   }) async {
     final trimmed = note?.trim() ?? '';
+    final transfer = paymentMethod == PaymentMethod.transfer;
     calls.add(
       'order $listingId x$qty ${campaignId ?? 'stock'}'
-      '${trimmed.isEmpty ? '' : ' $trimmed'}',
+      '${trimmed.isEmpty ? '' : ' $trimmed'}'
+      '${transfer ? ' transfer' : ''}',
     );
     _check();
+    return transfer ? transferPaymentId : null;
   }
 
   @override

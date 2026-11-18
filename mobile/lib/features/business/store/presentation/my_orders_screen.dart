@@ -11,6 +11,7 @@ import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../auth/data/auth_repository.dart';
 import '../../../marketplace/presentation/widgets/listing_widgets.dart';
+import '../../../payments/presentation/widgets/payment_widgets.dart';
 import '../domain/store_models.dart';
 import 'store_providers.dart';
 import 'widgets/store_widgets.dart';
@@ -246,6 +247,12 @@ class _OrderTileState extends ConsumerState<OrderTile> {
             _Line(Icons.place_outlined, 'Collect: ${order.collectionDetails}'),
             if (order.buyerNote case final note?)
               _Line(Icons.notes_rounded, 'Note: $note'),
+            if (order.payment case final payment?)
+              PaymentStrip(
+                payment: payment,
+                iAmBuyer: order.iAmBuyer,
+                onOpen: () => context.push(AppRoutes.payment(payment.id)),
+              ),
             if (order.otherPartyEmail case final email?)
               _Line(
                 Icons.mail_outline_rounded,
@@ -291,12 +298,11 @@ class _OrderTileState extends ConsumerState<OrderTile> {
                 ),
               ),
             if (order.status == OrderStatus.cancelled)
-              _Line(
-                Icons.block_rounded,
-                order.cancelledBy == 'seller'
-                    ? 'Cancelled by the business'
-                    : 'Cancelled by the buyer',
-              ),
+              _Line(Icons.block_rounded, switch (order.cancelledBy) {
+                'seller' => 'Cancelled by the business',
+                'system' => 'Cancelled: the payment wasn’t sent in time',
+                _ => 'Cancelled by the buyer',
+              }),
             if (next != null || canCancel) ...[
               const SizedBox(height: 8),
               Row(

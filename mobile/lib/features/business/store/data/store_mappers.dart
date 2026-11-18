@@ -1,6 +1,7 @@
 import '../../../../core/domain/business_enums.dart';
 import '../../../../core/domain/geo_point.dart';
 import '../../../marketplace/data/marketplace_mappers.dart';
+import '../../../payments/data/payment_mappers.dart';
 import '../domain/store_models.dart';
 
 /// Maps `get_storefront()`, `campaigns` rows and `order_card` rows into
@@ -83,4 +84,5 @@ OrderCard orderFromRow(Map<String, dynamic> row) => OrderCard(
   otherPartyName: row['other_party_name'] as String,
   otherPartyEmail: row['other_party_email'] as String?,
   costSen: _intOrNull(row['cost_sen']),
+  payment: paymentSummaryFromRow(row),
 );

@@ -24,6 +24,7 @@ class ManageStoreScreen extends ConsumerWidget {
 
   static const Key addProductKey = Key('store-add-product');
   static const Key newCampaignKey = Key('store-new-campaign');
+  static const Key paymentDetailsKey = Key('store-payment-details');
   static const Key dashboardKey = Key('store-dashboard');
 
   @override
@@ -135,6 +136,14 @@ class _Store extends ConsumerWidget {
                     icon: const Icon(Icons.receipt_long_rounded),
                     label: const Text('Orders'),
                   ),
+                  if (!suspended)
+                    OutlinedButton.icon(
+                      key: ManageStoreScreen.paymentDetailsKey,
+                      onPressed: () =>
+                          context.push(AppRoutes.businessPaymentDetails),
+                      icon: const Icon(Icons.account_balance_outlined),
+                      label: const Text('Payment details'),
+                    ),
                   if (!suspended)
                     FilledButton.icon(
                       key: ManageStoreScreen.dashboardKey,

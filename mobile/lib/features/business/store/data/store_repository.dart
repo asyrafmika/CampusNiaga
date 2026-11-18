@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/domain/business_enums.dart';
 import '../../../../core/domain/geo_point.dart';
+import '../../../../core/domain/payment.dart';
 import '../../../../core/supabase/supabase_guard.dart';
 import '../../../../core/supabase/supabase_providers.dart';
 import '../../../marketplace/data/listing_repository.dart';
@@ -135,23 +136,27 @@ class StoreRepository {
         );
       });
 
-  /// Orders ready stock, or pre-orders through [campaignId].
-  Future<void> placeOrder({
+  /// Orders ready stock, or pre-orders through [campaignId]. Returns the
+  /// payment's id when paying by transfer.
+  Future<String?> placeOrder({
     required String listingId,
     required int qty,
     String? campaignId,
     String? note,
+    PaymentMethod paymentMethod = PaymentMethod.cash,
   }) => guardSupabase(() async {
     final trimmed = note?.trim() ?? '';
-    await _client.rpc<Object?>(
+    final Object? result = await _client.rpc<Object?>(
       'place_order',
       params: {
         'listing_id': listingId,
         'qty': qty,
         'campaign_id': campaignId,
         'buyer_note': trimmed.isEmpty ? null : trimmed,
+        'payment_method': paymentMethod.wireName,
       },
     );
+    return (result as Map?)?['payment_id'] as String?;
   });
 
   Future<void> transitionOrder(String orderId, OrderAction action) =>

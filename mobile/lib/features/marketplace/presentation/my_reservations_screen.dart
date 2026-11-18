@@ -9,6 +9,7 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/widgets/state_views.dart';
+import '../../payments/presentation/widgets/payment_widgets.dart';
 import '../domain/reservation.dart';
 import 'marketplace_providers.dart';
 import 'widgets/listing_widgets.dart';
@@ -194,6 +195,12 @@ class _ReservationTileState extends ConsumerState<ReservationTile> {
               ),
               const SizedBox(height: 10),
               Text(statusExplanation(r), style: theme.textTheme.bodyMedium),
+              if (r.payment case final payment?)
+                PaymentStrip(
+                  payment: payment,
+                  iAmBuyer: r.iAmBuyer,
+                  onOpen: () => context.push(AppRoutes.payment(payment.id)),
+                ),
               if (r.pickupNote case final note?) ...[
                 const SizedBox(height: 6),
                 _Line(icon: Icons.schedule_rounded, text: 'Pickup: $note'),

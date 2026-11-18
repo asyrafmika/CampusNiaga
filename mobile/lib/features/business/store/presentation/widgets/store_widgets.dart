@@ -163,8 +163,9 @@ class OffPlatformNotice extends StatelessWidget {
         SizedBox(width: 10),
         Expanded(
           child: Text(
-            'You pay and collect directly with the business. CampusNiaga '
-            'doesn’t take payments or deliver.',
+            'You collect from the business and pay them directly, in cash or '
+            'by transfer. CampusNiaga never holds the money and doesn’t '
+            'deliver.',
             style: TextStyle(height: 1.35),
           ),
         ),

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/domain/business_enums.dart';
 import '../../../../core/domain/geo_point.dart';
+import '../../../../core/domain/payment.dart';
 import '../../../dashboard/presentation/dashboard_providers.dart';
 import '../../../marketplace/domain/listing_input.dart';
 import '../../../marketplace/presentation/marketplace_providers.dart';
@@ -39,20 +40,24 @@ class StoreActions {
 
   StoreRepository get _store => _ref.read(storeRepositoryProvider);
 
-  Future<void> placeOrder({
+  /// Returns the payment's id when paying by transfer.
+  Future<String?> placeOrder({
     required String listingId,
     required String businessId,
     required int qty,
     String? campaignId,
     String? note,
+    PaymentMethod paymentMethod = PaymentMethod.cash,
   }) async {
-    await _store.placeOrder(
+    final paymentId = await _store.placeOrder(
       listingId: listingId,
       qty: qty,
       campaignId: campaignId,
       note: note,
+      paymentMethod: paymentMethod,
     );
     _refreshProduct(listingId, businessId);
+    return paymentId;
   }
 
   Future<void> transitionOrder(OrderCard order, OrderAction action) async {

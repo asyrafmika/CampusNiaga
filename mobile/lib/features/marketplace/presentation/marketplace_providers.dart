@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/domain/listing_enums.dart';
+import '../../../core/domain/payment.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/listing_repository.dart';
 import '../data/reservation_repository.dart';
@@ -133,18 +134,22 @@ class MarketplaceActions {
     _refreshListing(id);
   }
 
-  Future<void> reserve({
+  /// Returns the payment's id when paying by transfer.
+  Future<String?> reserve({
     required String listingId,
     required int qty,
     String? pickupNote,
+    PaymentMethod paymentMethod = PaymentMethod.cash,
   }) async {
-    await _reservations.request(
+    final paymentId = await _reservations.request(
       listingId: listingId,
       qty: qty,
       pickupNote: pickupNote,
+      paymentMethod: paymentMethod,
     );
     _refreshListing(listingId);
     _ref.invalidate(myReservationsProvider);
+    return paymentId;
   }
 
   Future<void> resolveReservation(

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/domain/listing_enums.dart';
+import '../../../core/domain/payment.dart';
 import '../../../core/supabase/supabase_guard.dart';
 import '../../../core/supabase/supabase_providers.dart';
 import '../domain/reservation.dart';
@@ -13,12 +14,14 @@ class ReservationRepository {
 
   final SupabaseClient _client;
 
-  Future<void> request({
+  /// Reserves and returns the payment's id when paying by transfer.
+  Future<String?> request({
     required String listingId,
     required int qty,
     String? pickupNote,
+    PaymentMethod paymentMethod = PaymentMethod.cash,
   }) => guardSupabase(() async {
-    await _client.rpc<Object?>(
+    final Object? result = await _client.rpc<Object?>(
       'request_reservation',
       params: {
         'listing_id': listingId,
@@ -26,8 +29,10 @@ class ReservationRepository {
         'pickup_note': (pickupNote?.trim().isEmpty ?? true)
             ? null
             : pickupNote!.trim(),
+        'payment_method': paymentMethod.wireName,
       },
     );
+    return (result as Map?)?['payment_id'] as String?;
   });
 
   Future<void> resolve(String reservationId, ReservationAction action) =>

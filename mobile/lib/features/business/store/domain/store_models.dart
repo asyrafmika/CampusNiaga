@@ -1,6 +1,8 @@
 import '../../../../core/domain/business_enums.dart';
 import '../../../../core/domain/geo_point.dart';
+import '../../../../core/domain/payment.dart';
 import '../../../marketplace/domain/listing.dart';
+import '../../../payments/domain/payment_models.dart';
 
 /// A business's public page (`get_storefront()`).
 class Storefront {
@@ -150,6 +152,7 @@ class OrderCard {
     this.completedAt,
     this.otherPartyEmail,
     this.costSen,
+    this.payment,
   });
 
   final String id;
@@ -167,7 +170,7 @@ class OrderCard {
   final String? buyerNote;
   final String collectionDetails;
 
-  /// `buyer` or `seller`, once cancelled.
+  /// `buyer`, `seller` or `system` (payment time ran out), once cancelled.
   final String? cancelledBy;
   final DateTime createdAt;
   final DateTime? completedAt;
@@ -179,6 +182,9 @@ class OrderCard {
 
   /// The seller's recorded cost (selling side only; never shown to buyers).
   final int? costSen;
+
+  /// The transfer payment; `null` when paying cash on pickup.
+  final PaymentSummary? payment;
 
   /// The seller may record a cost on any order that isn't cancelled.
   bool get canRecordCost => !iAmBuyer && status != OrderStatus.cancelled;
@@ -234,10 +240,20 @@ abstract final class OrderRules {
     OrderStatus.cancelled => false,
   };
 
-  /// The actions [order] offers to the signed-in student.
+  /// The seller's next step for [order]: a transfer order is confirmed by
+  /// checking its payment, not with a button of its own.
+  static OrderAction? sellerNextStep(OrderCard order) =>
+      order.payment != null && order.status == OrderStatus.pendingConfirmation
+      ? null
+      : nextStep(order.status);
+
+  /// The actions [order] offers to the signed-in student. A buyer who has
+  /// sent payment proof can't cancel on their own.
   static List<OrderAction> actionsFor(OrderCard order) => [
-    if (!order.iAmBuyer) ?nextStep(order.status),
-    if (canCancel(order.status)) OrderAction.cancel,
+    if (!order.iAmBuyer) ?sellerNextStep(order),
+    if (canCancel(order.status) &&
+        (!order.iAmBuyer || PaymentRules.buyerMayCancel(order.payment)))
+      OrderAction.cancel,
   ];
 }
 
