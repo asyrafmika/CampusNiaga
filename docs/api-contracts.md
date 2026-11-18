@@ -29,9 +29,9 @@ A refused call fails with SQL state `P0001`. Its `details` field holds one of th
 | `listing_categories` | 2 ✅ | Signed-in user | The categories a listing may use |
 | `upsert_listing` | 2 ✅, 4 ✅, pins | Student (business mode: approved business owner) | Create or edit a listing, with an optional map pin; validates, rate-limits, sets derived fields |
 | `set_listing_status` | 2 ✅ | Listing owner | Publish a draft, close or re-open a listing, or mark it sold |
-| `search_listings` | 2 ✅ | Student | The marketplace feed: search, filters, sort, pages |
+| `search_listings` | 2 ✅ | Student | The marketplace feed: search, filters, sort, pages (expires overdue transfer holds first) |
 | `get_listing` | 2 ✅ | Student, owner, admin | One listing for the detail page |
-| `request_reservation` | 2 ✅ | Student | Reserve units of a listing; holds them at once |
+| `request_reservation` | 2 ✅, ADR 0005 | Student | Reserve units of a listing, paying cash or by transfer; holds them at once |
 | `resolve_reservation` | 2 ✅ | Seller / buyer | Accept, decline, cancel or mark collected |
 | `my_reservations` | 2 ✅ | Student | My Reservations, buying or selling side |
 | `report_listing` | 2 ✅ | Student | Report a listing to the admins |
@@ -47,7 +47,7 @@ A refused call fails with SQL state `P0001`. Its `details` field holds one of th
 | `update_storefront` | 4 ✅, pins | Business owner | Edit the storefront's description, pickup details, map pin and logo |
 | `upsert_campaign` | 4 ✅ | Business owner | Create or edit a pre-order campaign |
 | `set_campaign_status` | 4 ✅ | Business owner | Open or close a campaign |
-| `place_order` | 4 ✅ | Student | Order ready stock or join a pre-order campaign |
+| `place_order` | 4 ✅, ADR 0005 | Student | Order ready stock or join a pre-order campaign, paying cash or by transfer |
 | `transition_order` | 4 ✅ | Business owner / buyer | Move an order through its statuses, or cancel it |
 | `my_orders` | 4 ✅ | Student | My Orders, buying side or the business's selling side |
 | `set_order_cost` | 6 ✅ | Business owner | Record the business's cost for an order (for estimated profit) |
@@ -57,6 +57,11 @@ A refused call fails with SQL state `P0001`. Its `details` field holds one of th
 | `list_product_requests` | 5 ✅ | Student | Active requests (or my own) with interest counts |
 | `toggle_request_interest` | 5 ✅ | Student | Add or remove interest in a product request |
 | `recompute_opportunities` | 5 ✅ | Server (triggers) | Recalculate the M4 opportunity ranking |
+| `set_payment_details` | ADR 0005 | Student (business: approved owner) | Save or remove where buyers pay by transfer |
+| `seller_accepts_transfer` | ADR 0005 | Student | Whether a listing's seller takes transfers |
+| `get_payment` | ADR 0005 | Buyer / seller | The payment page: amount, deadline, where to pay (buyer), proof (seller) |
+| `submit_payment_proof` | ADR 0005 | Buyer | Send the uploaded screenshot before the deadline |
+| `review_payment` | ADR 0005 | Seller | Accept (confirm the deal) or reject (with a reason) a payment |
 
 Each function's full contract is added below when it is implemented.
 
@@ -123,6 +128,7 @@ Each function's full contract is added below when it is implemented.
 | **Shows** | `available` listings that aren't hidden, from sellers whose account is active and, for business products, whose business is approved. Ties sort newest first |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (sort or page) · `42501` |
 | **Why a function** | Profiles are private, so a plain table read can't show the seller's name. The function returns only the name, nothing else about the seller |
+| **Side effects** | Sweeps overdue transfer payments first (ADR 0005), so held units come back on sale; it never waits for rows another transaction holds |
 
 ## `get_listing(listing_id uuid)`
 
@@ -132,16 +138,17 @@ Each function's full contract is added below when it is implemented.
 | **Output** | One `listing_card` row |
 | **Shows** | Students: any listing that isn't a draft, isn't hidden, whose seller is active and, for business products, whose business is approved. The owner: their own listings in any status. Admins: everything |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` (missing or not visible to the caller) · `42501` |
+| **Side effects** | Sweeps overdue transfer payments first, like `search_listings` |
 
-## `request_reservation(listing_id uuid, qty integer default 1, pickup_note text default null)`
+## `request_reservation(listing_id uuid, qty integer default 1, pickup_note text default null, payment_method text default 'cash')`
 
 | | |
 |---|---|
 | **Caller** | Verified student who doesn't own the listing. Personal listings only: business products are ordered (`place_order`) |
-| **Input** | `qty`: 1–999 · `pickup_note`: up to 200 characters, optional |
-| **Output** | `{ reservation_id, status: 'requested', expires_at }` |
-| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` (missing or draft) · `FORBIDDEN` (own listing) · `ITEM_UNAVAILABLE` (not available, hidden, seller suspended, or fewer units left than asked; the message says how many are left) · `ALREADY_EXISTS` (an active reservation on this listing already) · `RATE_LIMITED` (more than 10 in an hour) · `42501` |
-| **Side effects** | Locks the listing, expires its overdue reservations, takes `qty` out of `stock` (the listing becomes `reserved` at 0) and notifies the seller |
+| **Input** | `qty`: 1–999 · `pickup_note`: up to 200 characters, optional · `payment_method`: `cash` or `transfer` (the seller must have payment details) |
+| **Output** | `{ reservation_id, status: 'requested', expires_at, payment_id }` (`payment_id` for a transfer; its `expires_at` is the 30-minute proof deadline) |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (including transfer to a cash-only seller) · `NOT_FOUND` (missing or draft) · `FORBIDDEN` (own listing) · `ITEM_UNAVAILABLE` (not available, hidden, seller suspended, or fewer units left than asked; the message says how many are left) · `ALREADY_EXISTS` (an active reservation on this listing already) · `RATE_LIMITED` (more than 10 in an hour) · `42501` |
+| **Side effects** | Locks the listing, expires its overdue reservations, takes `qty` out of `stock` (the listing becomes `reserved` at 0), creates the `deal_payments` row for a transfer, and notifies the seller |
 | **Concurrency** | Requests for the same listing run one at a time behind the row lock, so they can never hold more units than exist. CI proves this with two real connections (`supabase/tests/concurrency/reservation_race.sh`) |
 
 ## `resolve_reservation(reservation_id uuid, action text)`
@@ -151,8 +158,8 @@ Each function's full contract is added below when it is implemented.
 | **Caller** | The seller (`accept`, `decline`, `collect`) or either side (`cancel`) |
 | **Allowed** | `accept`, `decline`: from `requested` · `cancel`: from `requested` or `accepted` · `collect`: from `accepted` |
 | **Output** | `{ reservation_id, status, listing_status }` |
-| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (unknown action) · `NOT_FOUND` · `FORBIDDEN` (not a party, or the buyer trying a seller action) · `INVALID_TRANSITION` (wrong status, or expired) · `42501` |
-| **Side effects** | `accept` gives 7 days to collect. `decline` and `cancel` return the units. `collect` sells the listing when no stock and no other active reservation remain. Notifies the other party |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (unknown action) · `NOT_FOUND` · `FORBIDDEN` (not a party, or the buyer trying a seller action) · `INVALID_TRANSITION` (wrong status, expired, `accept` on a transfer reservation (use `review_payment`), or the buyer cancelling after sending proof) · `42501` |
+| **Side effects** | `accept` gives 7 days to collect. Declining or cancelling closes an open payment (`cancelled`). `decline` and `cancel` return the units. `collect` sells the listing when no stock and no other active reservation remain. Notifies the other party |
 
 ## `my_reservations(side text default 'buying')`
 
@@ -160,9 +167,9 @@ Each function's full contract is added below when it is implemented.
 |---|---|
 | **Caller** | Verified student |
 | **Input** | `side`: `buying` or `selling` |
-| **Output** | Rows of `reservation_card`: `id, listing_id, listing_title, listing_photo, pickup_area, price_sen, qty, pickup_note, status, expires_at, created_at, updated_at, i_am_buyer, other_party_name, other_party_email`. Active ones first, then newest |
+| **Output** | Rows of `reservation_card`: `id, listing_id, listing_title, listing_photo, pickup_area, price_sen, qty, pickup_note, status, expires_at, created_at, updated_at, i_am_buyer, other_party_name, other_party_email, payment_id, payment_status, payment_due_at, payment_reject_reason` (the payment columns are null for cash). Active ones first, then newest |
 | **Privacy** | `other_party_email` is filled only once the reservation is `accepted` or `collected`; until then each side sees only the other's name |
-| **Side effects** | Expires the caller's overdue reservations first |
+| **Side effects** | Sweeps overdue transfer payments, then expires the caller's overdue reservations (skipping listings another transaction holds) |
 
 ## `report_listing(listing_id uuid, reason text, details text default '')`
 
@@ -260,7 +267,7 @@ The approval is a **simulated** reviewer workflow for the FYP, not an official U
 
 ## Storefront, pre-orders and orders (M3)
 
-Approved businesses sell from a storefront. Their products are ordinary `listings` with `mode = 'business'` (there is no separate product module). A buyer orders ready stock, or pre-orders through an open campaign. Nothing is paid in the app: buyer and seller arrange payment and collection themselves, and the seller records progress. Every business-only function calls `owns_business()` first, so it refuses a student without an approved business, and a suspended one, with `FORBIDDEN`.
+Approved businesses sell from a storefront. Their products are ordinary `listings` with `mode = 'business'` (there is no separate product module). A buyer orders ready stock, or pre-orders through an open campaign. No money moves through the app: buyers pay cash on pickup, or by transfer with proof the seller accepts (ADR 0005); the seller records progress. Every business-only function calls `owns_business()` first, so it refuses a student without an approved business, and a suspended one, with `FORBIDDEN`.
 
 ## `get_storefront(business_id uuid)`
 
@@ -269,6 +276,7 @@ Approved businesses sell from a storefront. Their products are ordinary `listing
 | **Caller** | Verified student (the owner and admins too) |
 | **Output** | `{ business: { business_id, name, description, logo_path, pickup_details, pickup_lat, pickup_lng, status, owner_name }, is_owner, categories, listings, campaigns }`. `categories`: the distinct categories of its listed products. `listings`: its `available`, visible products as `listing_card`s, newest first (up to 50). `campaigns`: `open` campaigns that haven't closed, with `{ campaign_id, listing_id, listing_title, listing_photo, title, price_sen, start_at, close_at, capacity, allocated_qty, remaining, per_order_limit, pickup_details, status }`, closing soonest first |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` (missing, or suspended for anyone but its owner and admins) · `42501` |
+| **Side effects** | Sweeps overdue transfer payments first, like `search_listings` |
 
 ## `update_storefront(description text, pickup_details text, logo_path text default null, pickup_lat double precision default null, pickup_lng double precision default null)`
 
@@ -300,17 +308,17 @@ Approved businesses sell from a storefront. Their products are ordinary `listing
 | **Errors** | `NOT_VERIFIED_STUDENT` · `FORBIDDEN` · `INVALID_INPUT` · `NOT_FOUND` · `INVALID_TRANSITION` · `42501` |
 | **Notes** | Closing stops new orders; existing orders carry on |
 
-## `place_order(listing_id uuid, qty integer default 1, campaign_id uuid default null, buyer_note text default null)`
+## `place_order(listing_id uuid, qty integer default 1, campaign_id uuid default null, buyer_note text default null, payment_method text default 'cash')`
 
 | | |
 |---|---|
 | **Caller** | Verified student who doesn't own the business |
-| **Input** | `listing_id`: a business product · `qty`: 1–999 · `campaign_id`: `null` for ready stock, or an open campaign for this listing · `buyer_note`: up to 200 characters |
+| **Input** | `listing_id`: a business product · `qty`: 1–999 · `campaign_id`: `null` for ready stock, or an open campaign for this listing · `buyer_note`: up to 200 characters · `payment_method`: `cash` or `transfer` (the business, or its owner, must have payment details) |
 | **Ready stock** | Locks the listing; it must be `available`, visible, from an approved business with an active owner, with `stock >= qty`. Takes `qty` out of `stock` (the listing becomes `sold` at 0). Price and the business's pickup details are copied into the order |
 | **Pre-order** | Locks the campaign; it must be `open`, started and not closed, with `qty` within `per_order_limit` and `allocated_qty + qty <= capacity`. Adds `qty` to `allocated_qty`. The campaign's price and pickup details are copied into the order |
-| **Output** | `{ order_id, status: 'pending_confirmation', total_sen }` |
+| **Output** | `{ order_id, status: 'pending_confirmation', total_sen, payment_id, payment_due_at }` (the payment fields for a transfer: 30 minutes to send proof) |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (quantity, note, per-order limit, or a campaign for another listing) · `NOT_FOUND` · `FORBIDDEN` (own business) · `ITEM_UNAVAILABLE` (personal listing, not available, hidden, suspended, or not enough stock; the message says how many are left) · `INVALID_TRANSITION` (the pre-order isn't open: draft, closed, not started or past its close date) · `CAPACITY_FULL` (the message says how many places are left) · `RATE_LIMITED` (more than 20 orders in an hour) · `42501` |
-| **Side effects** | Notifies the business owner (`order_placed`) |
+| **Side effects** | Expires overdue unpaid orders on the same listing or campaign first, so their units are free. Creates the `deal_payments` row for a transfer. Notifies the business owner (`order_placed`) |
 | **Concurrency** | Orders for the same listing or campaign run one at a time behind its row lock, so they can never take more than exists. CI proves it with two real connections (`supabase/tests/concurrency/order_race.sh`) |
 
 ## `transition_order(order_id uuid, action text)`
@@ -320,8 +328,8 @@ Approved businesses sell from a storefront. Their products are ordinary `listing
 | **Caller** | The business owner (`confirm`, `prepare`, `ready`, `complete`: needs `owns_business`); the buyer or the business owner (`cancel`) |
 | **Allowed** | `confirm`: `pending_confirmation` → `confirmed` · `prepare`: `confirmed` → `preparing` · `ready`: `preparing` → `ready_for_pickup` · `complete`: `ready_for_pickup` → `completed` (sets `completed_at`) · `cancel`: any status before `completed` → `cancelled` (sets `cancelled_by`) |
 | **Output** | `{ order_id, status }` |
-| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (unknown action) · `NOT_FOUND` · `FORBIDDEN` (not a party, the buyer trying a seller action, or a suspended business progressing an order) · `INVALID_TRANSITION` · `42501` |
-| **Side effects** | Cancelling locks the campaign or listing first, then returns the quantity: `allocated_qty` goes down, or `stock` goes up (a sold-out listing becomes `available` again). Notifies the other party (`order_<status>`) |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (unknown action) · `NOT_FOUND` · `FORBIDDEN` (not a party, the buyer trying a seller action, or a suspended business progressing an order) · `INVALID_TRANSITION` (including `confirm` on a transfer order (use `review_payment`) and the buyer cancelling after sending proof) · `42501` |
+| **Side effects** | Cancelling locks the campaign or listing first, then returns the quantity: `allocated_qty` goes down, or `stock` goes up (a sold-out listing becomes `available` again), and an open payment is closed. Notifies the other party (`order_<status>`) |
 
 ## `my_orders(side text default 'buying', page_size integer default 50, page_offset integer default 0)`
 
@@ -329,9 +337,10 @@ Approved businesses sell from a storefront. Their products are ordinary `listing
 |---|---|
 | **Caller** | Verified student. `selling`: the orders of the business they own (also while it is suspended) |
 | **Input** | `side`: `buying` or `selling` · `page_size`: 1–100 · `page_offset`: 0 or more |
-| **Output** | Rows of `order_card`: `id, listing_id, listing_title, listing_photo, business_id, business_name, campaign_id, campaign_title, qty, unit_price_sen, total_sen, status, buyer_note, collection_details, cancelled_by, created_at, updated_at, completed_at, i_am_buyer, other_party_name, other_party_email, cost_sen`. `cost_sen` (Phase 6) is shown only on the selling side; buyers never see a seller's cost. Orders in progress first, then newest |
+| **Output** | Rows of `order_card`: `id, listing_id, listing_title, listing_photo, business_id, business_name, campaign_id, campaign_title, qty, unit_price_sen, total_sen, status, buyer_note, collection_details, cancelled_by, created_at, updated_at, completed_at, i_am_buyer, other_party_name, other_party_email, cost_sen, payment_id, payment_status, payment_due_at, payment_reject_reason`. `cost_sen` (Phase 6) is shown only on the selling side; the payment columns (ADR 0005) are null for cash; buyers never see a seller's cost. Orders in progress first, then newest |
 | **Privacy** | `other_party_email` (the buyer's, or the business owner's) is filled only from `confirmed` to `completed`; a pending or cancelled order shows only the name |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `42501` |
+| **Side effects** | Sweeps overdue transfer payments first |
 
 `can_upload_business_logo(name)` is the Storage helper for `business-logos`.
 
@@ -477,3 +486,57 @@ Text between the buyer and seller of an accepted reservation or a confirmed busi
 | **Output** | `{ conversation_id, listing_title, buyer: { id, name, email }, seller: { … }, closed_at, messages: [{ id, from ('buyer' \| 'seller'), body, created_at }] }`, oldest first, the latest 500 |
 | **Effect** | Admins can't browse chats; they see one only through a report about it. Each view is audited (`chat.viewed`) |
 | **Errors** | `FORBIDDEN` · `NOT_FOUND` (no chat on that report) · `42501` |
+
+## Transfer payments ([ADR 0005](decisions/0005-transfer-payments.md))
+
+A buyer may pay a seller's own bank account or QR code outside the app and upload a screenshot; the seller checks their bank and accepts or rejects it. CampusNiaga never holds or moves money, and records what the seller decided. The units stay held while a payment is open; a payment without proof 30 minutes after ordering or reserving expires and releases them.
+
+## `set_payment_details(for_business boolean, bank_name text default null, account_name text default null, account_number text default null, qr_path text default null)`
+
+| | |
+|---|---|
+| **Caller** | Verified student. `for_business`: the owner of an approved business |
+| **Input** | `bank_name` (2–60), `account_name` (2–80) and `account_number` (6–20 digits; spaces and dashes removed) together or not at all · `qr_path`: the caller's own upload `{uid}/{file}` in `payment-qr`. Neither an account number nor a QR code removes the details |
+| **Output** | `{ saved: true }`, or `{ saved: false }` when removed |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `FORBIDDEN` (business details without an approved business) · `INVALID_INPUT` · `42501` |
+
+## `seller_accepts_transfer(listing_id uuid)`
+
+| | |
+|---|---|
+| **Caller** | Verified student |
+| **Output** | `true` when the listing's business (for a business product) or seller has payment details. The details themselves aren't returned |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` (draft, hidden or missing) · `42501` |
+
+## `get_payment(payment_id uuid)`
+
+| | |
+|---|---|
+| **Caller** | The payment's buyer or seller |
+| **Output** | `{ payment_id, order_id, reservation_id, i_am_buyer, item_title, qty, deal_status, seller_name, amount_sen, status, due_at, proof_path, submitted_at, decided_at, reject_reason, pay_to }`. `pay_to` = `{ bank_name, account_name, account_number, qr_path }` for the buyer while the payment is `awaiting_proof` or `submitted`; otherwise `null` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` (missing, or not a party) · `42501` |
+| **Side effects** | Sweeps overdue transfer payments first |
+
+## `submit_payment_proof(payment_id uuid, proof_path text)`
+
+| | |
+|---|---|
+| **Caller** | The payment's buyer |
+| **Input** | `proof_path`: the buyer's upload `{buyer_id}/{payment_id}/{file}` in `payment-proofs` |
+| **Allowed** | `awaiting_proof` → `submitted`, before `due_at` |
+| **Output** | `{ payment_id, status: 'submitted' }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` · `FORBIDDEN` (the seller) · `INVALID_INPUT` (no such upload) · `INVALID_TRANSITION` (already sent, or the time has run out) · `42501` |
+| **Side effects** | Locks the deal's listing or campaign first. A reservation's hold becomes 7 days, for the seller to check. Notifies the seller (`payment_submitted`) |
+
+## `review_payment(payment_id uuid, accept boolean, reason text default null)`
+
+| | |
+|---|---|
+| **Caller** | The payment's seller (for an order, the owner of the approved business) |
+| **Input** | `accept` · `reason`: required to reject, 1–200 characters |
+| **Allowed** | `submitted` → `accepted` / `rejected` |
+| **Output** | `{ payment_id, status, deal_status }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` · `FORBIDDEN` (the buyer, or a suspended business) · `INVALID_TRANSITION` (no proof yet, or already decided) · `42501` |
+| **Side effects** | Accept: the order becomes `confirmed`, or the reservation `accepted` (7 days to collect). Reject: the order is cancelled (`cancelled_by = 'seller'`) or the reservation declined, and the units go back on sale. Audited (`payment.accepted` / `payment.rejected`); notifies the buyer |
+
+`can_read_payment_qr`, `can_upload_payment_proof`, `can_read_payment_proof` and `can_delete_payment_proof` are the Storage helpers for `payment-qr` and `payment-proofs`. `payment_details_for`, `cancel_order_hold`, `expire_unpaid_orders`, `expire_overdue_payments` and `lock_payment` are internal.

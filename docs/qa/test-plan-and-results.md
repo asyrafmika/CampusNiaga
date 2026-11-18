@@ -8,9 +8,9 @@ Results are as of 16 Nov 2026, branch `phase6/dashboard-qa`, from the CI run on 
 
 | Suite | Where | What it runs on | Result |
 |---|---|---|---|
-| Database (pgTAP) | `supabase/tests/database/` (23 files) | A fresh local Supabase stack started by CI (Supabase CLI 2.122.0), with every migration applied | **993 / 993 passed** |
+| Database (pgTAP) | `supabase/tests/database/` (24 files) | A fresh local Supabase stack started by CI (Supabase CLI 2.122.0), with every migration applied | **1,087 / 1,087 passed** |
 | Concurrency | `supabase/tests/concurrency/` (2 scripts) | Two real database connections at the same moment | **2 / 2 passed** |
-| Mobile (Flutter) | `mobile/test/` | `flutter test`: unit tests and widget tests through the real router, with in-memory repositories | **229 / 229 passed** |
+| Mobile (Flutter) | `mobile/test/` | `flutter test`: unit tests and widget tests through the real router, with in-memory repositories | **253 / 253 passed** |
 | Admin dashboard (React) | `admin/src/**/*.test.ts(x)` | Vitest with React Testing Library | **70 / 70 passed** |
 | Static checks | CI | `flutter analyze` and `dart format`; TypeScript `tsc --noEmit`, ESLint, production build; `supabase db lint` | **All clean** |
 
@@ -33,8 +33,10 @@ A passing test only matters if it would fail when the code is wrong. For each ph
 | Deal chat (mobile) | 6 | 6 | |
 | Pickup pins (database) | 11 | 11 | Two tests were added during this exercise (the listings table's own Malaysia check, a longitude alone outside); a redundant not-a-number check was removed |
 | Pickup pins (mobile) | 8 | 8 | One test was added during this exercise (closing the picker keeps an existing pin) |
+| Transfer payments (database) | 26 | 26 | Four tests were added during this exercise (a closed payment hides the QR code again, no more proof once it is sent, a QR path pointing at someone else's upload, an accepted order is confirmed) |
+| Transfer payments (mobile) | 15 | 15 | |
 
-Writing the tests also found real defects, fixed before release: number tiles that clipped their text, buttons that stretched across a row, and a cost dialog that released its text field while still closing.
+Writing the tests also found real defects, fixed before release: number tiles that clipped their text, buttons that stretched across a row, a cost dialog that released its text field while still closing, and QR buttons that overflowed a phone-width row. A test fixture with a fixed expiry date went stale on 18 Nov 2026; it is now relative to the current time.
 
 ## 3. Functional testing: requirements to tests
 
@@ -118,6 +120,17 @@ Each requirement from the handoff maps to the automated tests that prove it. "DB
 | A seller pins a listing's pickup spot, and a business its storefront's; the pin is optional and can be moved or removed | DB `23`; mobile `pickup_pin_test.dart` |
 | Both coordinates or neither, inside Malaysia, checked by the functions and by table constraints | DB `23`; mobile `pickup_pin_test.dart` (`PickupPinRules`) |
 | Buyers see the pin on the listing and the storefront, and open directions in a maps app | DB `23`; mobile `pickup_pin_test.dart` |
+
+### Transfer payments ([ADR 0005](../decisions/0005-transfer-payments.md), added after the handoff)
+
+| Requirement | Tests |
+|---|---|
+| A seller saves a bank account and/or QR code (and a business its own); only the owner reads them; bank fields together, 6–20 digits | DB `24`; mobile `payment_test.dart` |
+| A buyer chooses cash or transfer; transfer only when the seller has details | DB `24`; mobile `payment_test.dart` |
+| The item is held while the buyer pays; no proof within 30 minutes releases it (on the next stock change or read) | DB `24` |
+| The buyer sees where to pay and uploads proof; nobody else can upload it; the seller and admins can read it | DB `24`; mobile `payment_test.dart` |
+| The seller accepts (order confirmed, booking accepted) or rejects with a reason (cancelled, units back); decisions are audited | DB `24`; mobile `payment_test.dart` |
+| A buyer who has sent proof can't cancel alone; transfer deals can't be confirmed or accepted without checking the payment | DB `24`; mobile `payment_test.dart` |
 
 ## 4. Phase pass conditions (handoff section 9)
 

@@ -123,12 +123,12 @@ Written only by `request_reservation()` and `resolve_reservation()`. The buyer a
 | `qty` | integer | Units reserved, 1–999 and no more than the listing's stock at the time |
 | `pickup_note` | text? | Buyer's preferred time or place, up to 200 characters |
 | `status` | `requested` \| `accepted` \| `declined` \| `cancelled` \| `collected` \| `expired` | `requested` → `accepted` (seller) → `collected` (seller). `requested` → `declined` (seller). `requested`/`accepted` → `cancelled` (either side) or `expired` |
-| `expires_at` | timestamptz? | Set while `requested` (48 hours to answer) or `accepted` (7 days to collect); cleared otherwise |
+| `expires_at` | timestamptz? | Set while `requested` (48 hours to answer; 30 minutes for a transfer reservation's proof, then 7 days for the seller to check it) or `accepted` (7 days to collect); cleared otherwise |
 | `created_at`, `updated_at` | timestamptz | |
 
 **Units are held from the moment of the request.** `request_reservation()` locks the listing row, checks `stock` and takes the units out in one transaction, so two buyers asking for the last unit at the same moment can't both get it: the second waits for the lock, then gets `ITEM_UNAVAILABLE`. Declining, cancelling or expiring returns the units; collecting keeps them gone, and the listing becomes `sold` when no stock and no active reservation remain. A buyer has at most one active (`requested` or `accepted`) reservation per listing (`ALREADY_EXISTS`, plus a partial unique index). A listing with active reservations can't be closed or marked sold.
 
-**Expiry is lazy:** overdue reservations become `expired` (and return their units) when a reservation on the same listing is requested or resolved, when the listing's status is changed, or when the buyer or seller opens My Reservations. There is no scheduled job.
+**Expiry is lazy:** overdue reservations become `expired` (and return their units) when a reservation on the same listing is requested or resolved, when the listing's status is changed, or when the buyer or seller opens My Reservations. There is no scheduled job. A transfer reservation also expires with its payment (see `deal_payments`), which read functions sweep.
 
 ### `business_applications` (Phase 3 ✅)
 
@@ -233,12 +233,12 @@ An order for a business product: ready stock (no campaign) or a pre-order (with 
 | `status` | `pending_confirmation` \| `confirmed` \| `preparing` \| `ready_for_pickup` \| `completed` \| `cancelled` | The seller moves it forward one step at a time; either side may cancel before `completed` |
 | `buyer_note` | text? | The buyer's collection preference, up to 200 characters |
 | `collection_details` | text | Snapshot of where and when to collect: the campaign's `pickup_details` for a pre-order, otherwise the business's |
-| `cancelled_by` | `buyer` \| `seller`? | Set exactly when `cancelled`. A seller cancelling a pending order is a rejection |
+| `cancelled_by` | `buyer` \| `seller` \| `system`? | Set exactly when `cancelled`. A seller cancelling a pending order is a rejection; `system` means a transfer payment's proof didn't arrive in time ([ADR 0005](decisions/0005-transfer-payments.md)) |
 | `cost_sen` | integer? | The seller's own cost for this order (0–100,000,000), for estimated profit. Written only by `set_order_cost()` (Phase 6); self-reported, never verified |
 | `completed_at` | timestamptz? | Set exactly when `completed`; M5 date filters and totals |
 | `created_at`, `updated_at` | timestamptz | |
 
-**Quantity is held from the moment of ordering.** `place_order()` locks the listing (ready stock) or the campaign (pre-order), checks what is left and takes it in one transaction, so two buyers can never get more than exists: the second waits for the lock, then gets `ITEM_UNAVAILABLE` or `CAPACITY_FULL`. A ready-stock order takes units out of `listings.stock` (the listing becomes `sold` at 0); a pre-order adds to `campaigns.allocated_qty` and doesn't touch the listing's stock. Cancelling returns them; progressing and completing keep them (capacity is a fulfilment limit, so a completed pre-order still counts). No payment happens in the app: buyer and seller arrange payment and collection themselves.
+**Quantity is held from the moment of ordering.** `place_order()` locks the listing (ready stock) or the campaign (pre-order), checks what is left and takes it in one transaction, so two buyers can never get more than exists: the second waits for the lock, then gets `ITEM_UNAVAILABLE` or `CAPACITY_FULL`. A ready-stock order takes units out of `listings.stock` (the listing becomes `sold` at 0); a pre-order adds to `campaigns.allocated_qty` and doesn't touch the listing's stock. Cancelling returns them; progressing and completing keep them (capacity is a fulfilment limit, so a completed pre-order still counts). No money moves through the app: buyers pay cash on pickup, or by transfer to the seller's own account with proof the seller checks (`deal_payments`).
 
 ### `product_requests` (Phase 5 ✅)
 
@@ -351,6 +351,44 @@ Written only by `send_message()`; read by the chat's two participants (also thro
 
 Students may send 20 messages a minute.
 
+### `payment_details` (transfer payments, [ADR 0005](decisions/0005-transfer-payments.md))
+
+Where buyers pay a seller by transfer. One row per student and, optionally, one per approved business (used for its orders instead). Written only by `set_payment_details()`; only its owner reads the row. A buyer gets the details only through `get_payment()`, while their payment is open.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `profile_id` | uuid? unique | Exactly one of `profile_id` and `business_id` |
+| `business_id` | uuid? unique | |
+| `bank_name` | text? | 2–60 characters |
+| `account_name` | text? | The account holder, 2–80 characters |
+| `account_number` | text? | 6–20 digits (spaces and dashes are removed). The three bank fields are all set or all empty |
+| `qr_path` | text? | `{owner_id}/{file}` in `payment-qr`; must be the owner's own upload |
+| `created_at`, `updated_at` | timestamptz | |
+
+At least an account number or a QR code. Saving neither removes the row.
+
+### `deal_payments` (transfer payments)
+
+The payment of one transfer order or reservation (cash deals have none). Written only by the ordering, reserving and payment functions; the buyer and the seller read their own, admins read all.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `order_id` | uuid? unique | Exactly one of `order_id` and `reservation_id` |
+| `reservation_id` | uuid? unique | |
+| `buyer_id`, `seller_id` | uuid | For an order, the seller is the business owner |
+| `business_id` | uuid? | Set for orders, so the business's own details are used |
+| `amount_sen` | bigint | The order's `total_sen`, or the listing price × quantity |
+| `status` | `awaiting_proof` \| `submitted` \| `accepted` \| `rejected` \| `expired` \| `cancelled` | `awaiting_proof` → `submitted` (buyer, before `due_at`) → `accepted` / `rejected` (seller). `awaiting_proof` → `expired` after `due_at`; `submitted` → `expired` if the seller never decides on a reservation (7 days). Either becomes `cancelled` when the deal is cancelled or declined |
+| `due_at` | timestamptz | 30 minutes after ordering or reserving |
+| `proof_path` | text? | `{buyer_id}/{payment_id}/{file}` in `payment-proofs`; set from `submitted` on |
+| `submitted_at`, `decided_at` | timestamptz? | `decided_at` exactly when `accepted` or `rejected` |
+| `reject_reason` | text? | 1–200 characters, exactly when `rejected` |
+| `created_at`, `updated_at` | timestamptz | |
+
+**The units stay held while a payment is open.** No proof by `due_at`: the order is cancelled (`cancelled_by = 'system'`) or the reservation expires, and the units go back on sale. Expiry is lazy: changing a listing's or campaign's stock expires its overdue payments first, and `search_listings`, `get_listing`, `get_storefront`, `my_orders`, `my_reservations` and `get_payment` sweep every overdue payment first, skipping rows another transaction holds. Accepting confirms the order or accepts the reservation; rejecting cancels or declines it. The app records what the seller decided; it never checks a payment itself.
+
 ### `notifications` (Phase 2 ✅)
 
 In-app notices written by database functions. The recipient reads their own and may set `read`; nothing else is writable.
@@ -359,7 +397,7 @@ In-app notices written by database functions. The recipient reads their own and 
 |---|---|---|
 | `id` | bigint | |
 | `recipient_id` | uuid | |
-| `type` | text | `order_placed`, `order_confirmed`, `order_preparing`, `order_ready_for_pickup`, `order_completed`, `order_cancelled`, `reservation_requested`, `reservation_accepted`, `reservation_declined`, `reservation_cancelled`, `reservation_collected`, `reservation_expired`, `listing_hidden`, `listing_restored`, `application_under_review`, `application_info_requested`, `application_approved`, `application_rejected`, `business_suspended`, `business_reinstated`; later phases add more |
+| `type` | text | `order_placed`, `order_confirmed`, `order_preparing`, `order_ready_for_pickup`, `order_completed`, `order_cancelled`, `reservation_requested`, `reservation_accepted`, `reservation_declined`, `reservation_cancelled`, `reservation_collected`, `reservation_expired`, `listing_hidden`, `listing_restored`, `application_under_review`, `application_info_requested`, `application_approved`, `application_rejected`, `business_suspended`, `business_reinstated`, `reservation_payment_expired`, `order_payment_expired`, `payment_submitted`, `payment_accepted`, `payment_rejected`; later phases add more |
 | `target` | text? | What it's about, e.g. `reservation:{id}`, `listing:{id}`, `application:{id}`, `business:{id}` or `order:{id}` |
 | `title`, `body` | text | |
 | `read` | boolean | |
@@ -372,3 +410,5 @@ In-app notices written by database functions. The recipient reads their own and 
 | `listing-photos` (Phase 2) | Product photos: JPEG, PNG or WebP, up to 5 MB, under `{owner_id}/{listing_id}/` | Private bucket. A verified student uploads only into a folder of a listing they own (`can_upload_listing_photo`) and deletes only their own files; verified students and admins read, with their sign-in token |
 | `application-documents` (Phase 3) | Business application documents: PDF, JPEG or PNG, up to 5 MB, under `{applicant_id}/{application_id}/` | Private. The applicant uploads and deletes only while their application is `draft` or `info_requested`, up to `app_config.max_application_documents` files (`can_upload_application_document`); files are never overwritten. The applicant, and reviewers and admins once it is submitted, read through short-lived signed URLs (`can_read_application_document`) |
 | `business-logos` (Phase 4) | Business logos: JPEG, PNG or WebP, up to 2 MB, under `{business_id}/` | Private bucket. The owner of an approved business uploads into its folder (`can_upload_business_logo`) and deletes its own files; verified students and staff read with their sign-in token |
+| `payment-qr` (ADR 0005) | Sellers' payment QR codes: JPEG, PNG or WebP, up to 2 MB, under `{owner_id}/` | Private. A verified student uploads into and deletes from their own folder only. Read by the owner, and by a buyer whose payment to that seller is open (`can_read_payment_qr`) |
+| `payment-proofs` (ADR 0005) | Buyers' payment screenshots: JPEG, PNG or WebP, up to 5 MB, under `{buyer_id}/{payment_id}/` | Private. The buyer uploads up to 3 files while the payment is `awaiting_proof` and before its deadline (`can_upload_payment_proof`), and deletes them until sending. Read by the buyer, the seller and admins (`can_read_payment_proof`) |
