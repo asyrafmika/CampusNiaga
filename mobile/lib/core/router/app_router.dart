@@ -36,6 +36,8 @@ import '../../features/marketplace/presentation/report_listing_screen.dart';
 import '../../features/marketplace/presentation/search_screen.dart';
 import '../../features/onboarding/presentation/onboarding_controller.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
+import '../../features/payments/presentation/payment_details_screen.dart';
+import '../../features/payments/presentation/payment_screen.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
 
@@ -210,6 +212,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MyListingsScreen(),
       ),
       GoRoute(
+        path: '/payments/:id',
+        builder: (context, state) =>
+            PaymentScreen(paymentId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: AppRoutes.paymentDetails,
+        builder: (context, state) => const PaymentDetailsScreen(),
+      ),
+      GoRoute(
         path: '/listing/:id',
         builder: (context, state) =>
             ListingDetailScreen(listingId: state.pathParameters['id']!),
@@ -249,6 +260,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'dashboard',
                 builder: (context, state) => const DashboardScreen(),
+              ),
+              GoRoute(
+                path: 'payment-details',
+                builder: (context, state) =>
+                    const PaymentDetailsScreen(forBusiness: true),
               ),
               GoRoute(
                 path: 'campaigns/new',

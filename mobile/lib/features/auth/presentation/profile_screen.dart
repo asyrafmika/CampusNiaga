@@ -18,6 +18,7 @@ class ProfileScreen extends ConsumerWidget {
   static const Key ordersKey = Key('profile-orders');
   static const Key discoverKey = Key('profile-discover');
   static const Key messagesKey = Key('profile-messages');
+  static const Key paymentDetailsKey = Key('profile-payment-details');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -149,6 +150,15 @@ class ProfileScreen extends ConsumerWidget {
                 subtitle: 'Apply, track your application or see your business',
                 onTap: () => context.push(AppRoutes.business),
               ),
+              _Item(
+                key: paymentDetailsKey,
+                icon: Icons.account_balance_outlined,
+                title: 'Payment details',
+                subtitle:
+                    'Bank account or QR code for buyers who pay by '
+                    'transfer',
+                onTap: () => context.push(AppRoutes.paymentDetails),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -158,8 +168,9 @@ class ProfileScreen extends ConsumerWidget {
                 icon: Icons.handshake_outlined,
                 title: 'How trading works',
                 subtitle:
-                    'Buyers and sellers arrange payment and campus pickup '
-                    'themselves. CampusNiaga doesn’t take payments or deliver.',
+                    'Buyers pay cash on pickup, or by bank transfer or QR with '
+                    'a receipt the seller checks. CampusNiaga never holds the '
+                    'money and doesn’t deliver.',
               ),
             ],
           ),

@@ -1,14 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/domain/app_failure.dart';
 import '../../../core/domain/listing_enums.dart';
+import '../../../core/domain/payment.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/widgets/pickup_map.dart';
 import '../../../core/widgets/state_views.dart';
+import '../../payments/presentation/payment_providers.dart';
+import '../../payments/presentation/widgets/payment_widgets.dart';
 import '../domain/listing.dart';
 import 'marketplace_providers.dart';
 import 'widgets/listing_widgets.dart';
@@ -409,6 +414,7 @@ class _ReserveSheet extends ConsumerStatefulWidget {
 class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
   final _note = TextEditingController();
   int _qty = 1;
+  PaymentMethod _method = PaymentMethod.cash;
   bool _busy = false;
 
   @override
@@ -421,15 +427,22 @@ class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
     setState(() => _busy = true);
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
+    final router = GoRouter.of(context);
     try {
-      await ref
+      final paymentId = await ref
           .read(marketplaceActionsProvider)
           .reserve(
             listingId: widget.listing.id,
             qty: _qty,
             pickupNote: _note.text,
+            paymentMethod: _method,
           );
       navigator.pop();
+      if (paymentId != null) {
+        // Transfer: straight to where to pay; the item is held meanwhile.
+        unawaited(router.push(AppRoutes.payment(paymentId)));
+        return;
+      }
       messenger
         ..hideCurrentSnackBar()
         ..showSnackBar(
@@ -465,7 +478,9 @@ class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
           Text('Reserve this item', style: theme.textTheme.titleLarge),
           const SizedBox(height: 4),
           Text(
-            'The item is held for you while the seller responds.',
+            _method == PaymentMethod.transfer
+                ? 'The item is held for you for 30 minutes while you pay.'
+                : 'The item is held for you while the seller responds.',
             style: theme.textTheme.bodyMedium,
           ),
           if (listing.stock > 1) ...[
@@ -502,6 +517,13 @@ class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
             ),
           ],
           const SizedBox(height: 16),
+          PaymentMethodPicker(
+            value: _method,
+            transferAvailable:
+                ref.watch(acceptsTransferProvider(listing.id)).value ?? false,
+            onChanged: (m) => setState(() => _method = m),
+          ),
+          const SizedBox(height: 4),
           TextField(
             controller: _note,
             maxLength: 200,
@@ -534,7 +556,11 @@ class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
                       color: Colors.white,
                     ),
                   )
-                : const Text('Confirm reservation'),
+                : Text(
+                    _method == PaymentMethod.transfer
+                        ? 'Reserve and pay'
+                        : 'Confirm reservation',
+                  ),
           ),
         ],
       ),

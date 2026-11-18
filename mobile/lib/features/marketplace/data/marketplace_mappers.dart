@@ -1,5 +1,6 @@
 import '../../../core/domain/geo_point.dart';
 import '../../../core/domain/listing_enums.dart';
+import '../../payments/data/payment_mappers.dart';
 import '../domain/listing.dart';
 import '../domain/reservation.dart';
 
@@ -53,6 +54,7 @@ ReservationCard reservationFromRow(Map<String, dynamic> row) => ReservationCard(
   iAmBuyer: row['i_am_buyer'] as bool,
   otherPartyName: row['other_party_name'] as String,
   otherPartyEmail: row['other_party_email'] as String?,
+  payment: paymentSummaryFromRow(row),
 );
 
 /// A list of rows from an RPC or a select.

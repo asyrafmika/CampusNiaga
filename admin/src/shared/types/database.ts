@@ -411,6 +411,96 @@ export type Database = {
           },
         ]
       }
+      deal_payments: {
+        Row: {
+          amount_sen: number
+          business_id: string | null
+          buyer_id: string
+          created_at: string
+          decided_at: string | null
+          due_at: string
+          id: string
+          order_id: string | null
+          proof_path: string | null
+          reject_reason: string | null
+          reservation_id: string | null
+          seller_id: string
+          status: string
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_sen: number
+          business_id?: string | null
+          buyer_id: string
+          created_at?: string
+          decided_at?: string | null
+          due_at: string
+          id?: string
+          order_id?: string | null
+          proof_path?: string | null
+          reject_reason?: string | null
+          reservation_id?: string | null
+          seller_id: string
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_sen?: number
+          business_id?: string | null
+          buyer_id?: string
+          created_at?: string
+          decided_at?: string | null
+          due_at?: string
+          id?: string
+          order_id?: string | null
+          proof_path?: string | null
+          reject_reason?: string | null
+          reservation_id?: string | null
+          seller_id?: string
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_payments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_payments_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_payments_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: true
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_payments_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discovery_synonyms: {
         Row: {
           canonical: string
@@ -739,6 +829,57 @@ export type Database = {
           },
         ]
       }
+      payment_details: {
+        Row: {
+          account_name: string | null
+          account_number: string | null
+          bank_name: string | null
+          business_id: string | null
+          created_at: string
+          id: string
+          profile_id: string | null
+          qr_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_name?: string | null
+          account_number?: string | null
+          bank_name?: string | null
+          business_id?: string | null
+          created_at?: string
+          id?: string
+          profile_id?: string | null
+          qr_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string | null
+          account_number?: string | null
+          bank_name?: string | null
+          business_id?: string | null
+          created_at?: string
+          id?: string
+          profile_id?: string | null
+          qr_path?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_details_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_details_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_requests: {
         Row: {
           campus_area: string
@@ -1041,10 +1182,19 @@ export type Database = {
         Args: { object_name: string }
         Returns: boolean
       }
+      can_delete_payment_proof: {
+        Args: { object_name: string }
+        Returns: boolean
+      }
       can_read_application_document: {
         Args: { object_name: string }
         Returns: boolean
       }
+      can_read_payment_proof: {
+        Args: { object_name: string }
+        Returns: boolean
+      }
+      can_read_payment_qr: { Args: { object_name: string }; Returns: boolean }
       can_upload_application_document: {
         Args: { object_name: string }
         Returns: boolean
@@ -1056,6 +1206,14 @@ export type Database = {
       can_upload_listing_photo: {
         Args: { object_name: string }
         Returns: boolean
+      }
+      can_upload_payment_proof: {
+        Args: { object_name: string }
+        Returns: boolean
+      }
+      cancel_order_hold: {
+        Args: { by_whom: string; target_order: string }
+        Returns: undefined
       }
       close_conversation: { Args: { conversation_id: string }; Returns: Json }
       close_product_request: { Args: { request_id: string }; Returns: Json }
@@ -1100,6 +1258,11 @@ export type Database = {
         Args: { target_listing: string }
         Returns: number
       }
+      expire_overdue_payments: { Args: never; Returns: number }
+      expire_unpaid_orders: {
+        Args: { target_campaign: string; target_listing: string }
+        Returns: number
+      }
       get_conversation: {
         Args: { conversation_id: string }
         Returns: Database["public"]["CompositeTypes"]["conversation_card"]
@@ -1122,6 +1285,7 @@ export type Database = {
       }
       get_my_access: { Args: never; Returns: Json }
       get_my_business: { Args: never; Returns: Json }
+      get_payment: { Args: { payment_id: string }; Returns: Json }
       get_reported_conversation: { Args: { report_id: string }; Returns: Json }
       get_storefront: { Args: { business_id: string }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
@@ -1149,6 +1313,32 @@ export type Database = {
         }
       }
       listing_categories: { Args: never; Returns: string[] }
+      lock_payment: {
+        Args: { target_payment: string }
+        Returns: {
+          amount_sen: number
+          business_id: string | null
+          buyer_id: string
+          created_at: string
+          decided_at: string | null
+          due_at: string
+          id: string
+          order_id: string | null
+          proof_path: string | null
+          reject_reason: string | null
+          reservation_id: string | null
+          seller_id: string
+          status: string
+          submitted_at: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "deal_payments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       mark_conversation_read: {
         Args: { conversation_id: string }
         Returns: Json
@@ -1227,6 +1417,26 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      payment_details_for: {
+        Args: { business: string; seller: string }
+        Returns: {
+          account_name: string | null
+          account_number: string | null
+          bank_name: string | null
+          business_id: string | null
+          created_at: string
+          id: string
+          profile_id: string | null
+          qr_path: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_details"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       pickup_pin_problem: {
         Args: { lat: number; lng: number }
         Returns: string
@@ -1236,6 +1446,7 @@ export type Database = {
           buyer_note?: string
           campaign_id?: string
           listing_id: string
+          payment_method?: string
           qty?: number
         }
         Returns: Json
@@ -1261,7 +1472,12 @@ export type Database = {
         Returns: Json
       }
       request_reservation: {
-        Args: { listing_id: string; pickup_note?: string; qty?: number }
+        Args: {
+          listing_id: string
+          payment_method?: string
+          pickup_note?: string
+          qty?: number
+        }
         Returns: Json
       }
       resolve_reservation: {
@@ -1270,6 +1486,10 @@ export type Database = {
       }
       review_business_application: {
         Args: { action: string; application_id: string; note?: string }
+        Returns: Json
+      }
+      review_payment: {
+        Args: { accept: boolean; payment_id: string; reason?: string }
         Returns: Json
       }
       search_listings: {
@@ -1290,6 +1510,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      seller_accepts_transfer: {
+        Args: { listing_id: string }
+        Returns: boolean
       }
       send_message: {
         Args: { body: string; conversation_id: string }
@@ -1315,12 +1539,26 @@ export type Database = {
         Args: { cost_sen: number; order_id: string }
         Returns: Json
       }
+      set_payment_details: {
+        Args: {
+          account_name?: string
+          account_number?: string
+          bank_name?: string
+          for_business: boolean
+          qr_path?: string
+        }
+        Returns: Json
+      }
       set_staff_role: {
         Args: { enabled: boolean; role: string; target_user_id: string }
         Returns: Json
       }
       submit_business_application: {
         Args: { application_id: string; response_note?: string }
+        Returns: Json
+      }
+      submit_payment_proof: {
+        Args: { payment_id: string; proof_path: string }
         Returns: Json
       }
       toggle_request_interest: { Args: { request_id: string }; Returns: Json }
@@ -1435,6 +1673,10 @@ export type Database = {
         other_party_name: string | null
         other_party_email: string | null
         cost_sen: number | null
+        payment_id: string | null
+        payment_status: string | null
+        payment_due_at: string | null
+        payment_reject_reason: string | null
       }
       request_card: {
         id: string | null
@@ -1466,6 +1708,10 @@ export type Database = {
         i_am_buyer: boolean | null
         other_party_name: string | null
         other_party_email: string | null
+        payment_id: string | null
+        payment_status: string | null
+        payment_due_at: string | null
+        payment_reject_reason: string | null
       }
     }
   }

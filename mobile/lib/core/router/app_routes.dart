@@ -44,6 +44,13 @@ abstract final class AppRoutes {
   static String editCampaign(String campaignId) =>
       '/business/store/campaigns/$campaignId';
 
+  // Transfer payments (ADR 0005): one payment, and where sellers save their
+  // bank account or QR code (their own, or their business's).
+  static String payment(String paymentId) => '/payments/$paymentId';
+  static const String paymentDetails = '/payment-details';
+  static const String businessPaymentDetails =
+      '/business/store/payment-details';
+
   // Opportunity discovery (M4). Cluster keys contain spaces, '&' and '|',
   // so they travel as an encoded query parameter.
   static const String discover = '/discover';

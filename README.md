@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://github.com/asyrafmika/CampusNiaga/releases/latest"><img alt="Download the Android app" src="https://img.shields.io/badge/📱_Android_app-Download_APK-5B2A86?style=for-the-badge"></a>
   <a href="https://asyrafmika.github.io/CampusNiaga/"><img alt="Open the admin dashboard" src="https://img.shields.io/badge/🖥️_Admin_dashboard-Open_live-5D5FEF?style=for-the-badge"></a>
-  <a href="docs/qa/test-plan-and-results.md"><img alt="Test results" src="https://img.shields.io/badge/✅_Tests-1%2C100%2B_passing-2E7D32?style=for-the-badge"></a>
+  <a href="docs/qa/test-plan-and-results.md"><img alt="Test results" src="https://img.shields.io/badge/✅_Tests-1%2C400%2B_passing-2E7D32?style=for-the-badge"></a>
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white">
   <img alt="MUI" src="https://img.shields.io/badge/MUI-9-007FFF?logo=mui&logoColor=white">
   <img alt="Supabase" src="https://img.shields.io/badge/Supabase-Postgres_%2B_RLS-3FCF8E?logo=supabase&logoColor=white">
-  <img alt="pgTAP" src="https://img.shields.io/badge/pgTAP-993_tests-336791?logo=postgresql&logoColor=white">
+  <img alt="pgTAP" src="https://img.shields.io/badge/pgTAP-1%2C087_tests-336791?logo=postgresql&logoColor=white">
 </p>
 
 **CampusNiaga** is an integrated marketplace and digital-entrepreneurship platform for students of **Universiti Sains Malaysia (USM)**, built as a Final Year Project prototype (CAT404).
@@ -26,7 +26,7 @@
 Today, students sell in WhatsApp and Telegram groups, where older posts get buried. CampusNiaga puts one-off personal sales and approved student micro-businesses in one place. Its **Smart Business Opportunity Discovery** compares what students ask for with what is already on sale, and explains every ranking it makes.
 
 > [!IMPORTANT]
-> Business approval is a **simulated** university reviewer workflow for this prototype. It is not an official USM or HDC decision and is not connected to any university system. CampusNiaga takes **no payments** and arranges **no delivery**: buyers and sellers pay and meet on campus themselves.
+> Business approval is a **simulated** university reviewer workflow for this prototype. It is not an official USM or HDC decision and is not connected to any university system. CampusNiaga **never holds or moves money** and arranges **no delivery**: buyers pay cash on pickup, or pay the seller's own bank account or QR and upload a receipt the seller checks ([ADR 0005](docs/decisions/0005-transfer-payments.md)), and meet on campus themselves.
 
 ## 📑 Contents
 
@@ -43,9 +43,10 @@ Today, students sell in WhatsApp and Telegram groups, where older posts get buri
 | 📊 | **M5 Business Dashboard** | Orders by status, estimated revenue and profit (self-reported), top products, stock and pre-order capacity | Mobile |
 | 📍 | **Pickup pins** | Sellers and businesses can pin the pickup spot on an OpenStreetMap map; buyers see it on the listing and storefront and get directions | Mobile |
 | 💬 | **Deal chat** ([ADR 0004](docs/decisions/0004-deal-chat.md)) | Live chat between the buyer and seller of an accepted booking or confirmed order, read-only when the deal ends, with report and close | Mobile + Web |
+| 💳 | **Pay by transfer** ([ADR 0005](docs/decisions/0005-transfer-payments.md)) | Sellers save a bank account or DuitNow QR. Buyers choose cash or transfer, pay outside the app and upload a receipt within 30 minutes while the item is held; the seller accepts (confirming the deal) or rejects it, and unpaid holds are released | Mobile |
 | 🛡️ | **Admin dashboard** | Reviewer queue and decisions, report moderation, staff roles, account suspension, audit log | Web |
 
-**Deliberately out of scope:** in-app payments, wallets, delivery, open-ended messaging (chat exists only inside an agreed deal), machine-learning recommendations and USM single sign-on.
+**Deliberately out of scope:** payment gateways, wallets and any handling of money (transfers are paid outside the app), delivery, open-ended messaging (chat exists only inside an agreed deal), machine-learning recommendations and USM single sign-on.
 
 ## 📸 Screenshots
 
@@ -187,11 +188,11 @@ stateDiagram-v2
 
 | Suite | What runs | Result |
 |---|---|---|
-| 🐘 Database (pgTAP) | 23 files against a fresh local Supabase in CI: every policy, privilege, function, transition and limit | **993 / 993** |
+| 🐘 Database (pgTAP) | 24 files against a fresh local Supabase in CI: every policy, privilege, function, transition and limit | **1,087 / 1,087** |
 | ⚡ Concurrency | Two real connections racing for the last unit and the last pre-order place | **2 / 2** |
-| 📱 Flutter | Unit and widget tests through the real router, with in-memory repositories | **229 / 229** |
+| 📱 Flutter | Unit and widget tests through the real router, with in-memory repositories | **253 / 253** |
 | 🖥️ React | Vitest + Testing Library | **70 / 70** |
-| 🧬 Mutation testing | Bugs planted on purpose to check that the tests catch them (Phases 3–6, the chat and pickup pins) | **174 of 176 caught** |
+| 🧬 Mutation testing | Bugs planted on purpose to check that the tests catch them (Phases 3–6, the chat, pickup pins and transfer payments) | **215 of 217 caught** |
 
 CI ([`ci.yml`](.github/workflows/ci.yml)) runs format checks, analysis, lint, type checks, all tests and `supabase db lint` on every pull request. Every handoff phase has its pass condition as an automated test. The full record is in the [test plan and results](docs/qa/test-plan-and-results.md); usability sessions use the [usability test kit](docs/qa/usability-test-kit.md).
 
@@ -228,6 +229,7 @@ CampusNiaga/
 | 5 Discovery | Product requests, interest, opportunity ranking | ✅ Done |
 | 6 Dashboard + QA | Seller analytics, final testing | ✅ Done (usability sessions to run: [kit](docs/qa/usability-test-kit.md)) |
 | + Deal chat | Buyer–seller chat inside an agreed deal ([ADR 0004](docs/decisions/0004-deal-chat.md), a scope change after the handoff) | ✅ Done |
+| + Pay by transfer | Bank or QR transfer with a receipt the seller checks ([ADR 0005](docs/decisions/0005-transfer-payments.md), a scope change after the handoff) | ✅ Done |
 
 <details>
 <summary><b>🔍 How each phase's pass condition is proven</b></summary>
@@ -350,7 +352,7 @@ flutter run
 
 The first launch shows the onboarding slides, then **Sign in**. Use **Create an account** with your USM email and confirm it from your inbox. If you open the link on the phone, it signs you in straight away; otherwise, sign in after confirming.
 
-Once signed in, the bottom bar has **Home** (newest listings and categories), **Search** (words, filters, sorting), **Sell** (the listing form: up to 5 photos from the camera or gallery, resized on the phone), **Bookings** (your reservations, buying and selling) and **Profile** (My Listings, sign out). Payment and pickup are arranged between the students; the app never takes payments.
+Once signed in, the bottom bar has **Home** (newest listings and categories), **Search** (words, filters, sorting), **Sell** (the listing form: up to 5 photos from the camera or gallery, resized on the phone), **Bookings** (your reservations, buying and selling) and **Profile** (My Listings, sign out). Buyers pay cash on pickup or by transfer to the seller (with a receipt the seller checks); the app never holds the money.
 
 **Images:** put these in `mobile/assets/images/`; until then the app shows placeholders.
 

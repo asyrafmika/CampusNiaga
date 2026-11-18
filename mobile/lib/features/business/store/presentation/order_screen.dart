@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/domain/app_failure.dart';
 import '../../../../core/domain/listing_enums.dart';
+import '../../../../core/domain/payment.dart';
+import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/dates.dart';
 import '../../../../core/utils/money.dart';
@@ -11,6 +13,8 @@ import '../../../../core/widgets/state_views.dart';
 import '../../../marketplace/domain/listing.dart';
 import '../../../marketplace/presentation/marketplace_providers.dart';
 import '../../../marketplace/presentation/widgets/listing_widgets.dart';
+import '../../../payments/presentation/payment_providers.dart';
+import '../../../payments/presentation/widgets/payment_widgets.dart';
 import '../domain/store_models.dart';
 import 'store_providers.dart';
 import 'widgets/store_widgets.dart';
@@ -96,6 +100,7 @@ class _OrderFormState extends ConsumerState<_OrderForm> {
   /// The chosen pre-order; `null` means ready stock.
   late Campaign? _campaign = _initialChoice();
   int _qty = 1;
+  PaymentMethod _method = PaymentMethod.cash;
   bool _busy = false;
 
   Campaign? _initialChoice() {
@@ -121,7 +126,7 @@ class _OrderFormState extends ConsumerState<_OrderForm> {
     setState(() => _busy = true);
     final preOrder = _campaign != null;
     try {
-      await ref
+      final paymentId = await ref
           .read(storeActionsProvider)
           .placeOrder(
             listingId: widget.listing.id,
@@ -129,8 +134,14 @@ class _OrderFormState extends ConsumerState<_OrderForm> {
             qty: _qty,
             campaignId: _campaign?.id,
             note: _note.text,
+            paymentMethod: _method,
           );
       if (!mounted) return;
+      if (paymentId != null) {
+        // Transfer: straight to where to pay; the order waits for the proof.
+        context.pushReplacement(AppRoutes.payment(paymentId));
+        return;
+      }
       showMessage(
         context,
         preOrder
@@ -242,6 +253,13 @@ class _OrderFormState extends ConsumerState<_OrderForm> {
           if (_campaign?.perOrderLimit case final limit?)
             Text('Up to $limit per order.', style: theme.textTheme.bodySmall),
           const SizedBox(height: 12),
+          PaymentMethodPicker(
+            value: _method,
+            transferAvailable:
+                ref.watch(acceptsTransferProvider(listing.id)).value ?? false,
+            onChanged: (m) => setState(() => _method = m),
+          ),
+          const SizedBox(height: 4),
           TextField(
             key: const Key('order-note'),
             controller: _note,
