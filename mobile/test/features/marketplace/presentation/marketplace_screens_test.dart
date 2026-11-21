@@ -35,7 +35,9 @@ void main() {
     expect(find.text('1 available'), findsOneWidget);
   });
 
-  testWidgets('a buyer reserves an item with a pickup note', (tester) async {
+  testWidgets('a buyer reserves an item for pickup at the seller\'s spot', (
+    tester,
+  ) async {
     final reservations = FakeReservationRepository();
     await pumpApp(tester, () async => student, reservations: reservations);
     await tester.pumpAndSettle();
@@ -43,11 +45,19 @@ void main() {
 
     await tester.tap(find.byKey(ListingDetailScreen.reserveKey));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).last, 'After 5pm');
+    // No pickup preference to type: the seller's spot is shown, and other
+    // arrangements go through the chat once the seller accepts.
+    expect(find.byType(TextField), findsNothing);
+    expect(
+      tester
+          .widget<Text>(find.byKey(ListingDetailScreen.reservePickupKey))
+          .data,
+      contains('Pickup at Desasiswa Tekun'),
+    );
     await tester.tap(find.text('Confirm reservation'));
     await tester.pumpAndSettle();
 
-    expect(reservations.calls, ['request l1 x1 After 5pm']);
+    expect(reservations.calls, ['request l1 x1']);
     expect(find.textContaining('Reserved!'), findsOneWidget);
   });
 

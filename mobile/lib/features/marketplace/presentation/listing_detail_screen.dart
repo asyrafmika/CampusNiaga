@@ -26,6 +26,7 @@ class ListingDetailScreen extends ConsumerWidget {
   final String listingId;
 
   static const Key reserveKey = Key('detail-reserve');
+  static const Key reservePickupKey = Key('reserve-pickup');
   static const Key orderKey = Key('detail-order');
   static const Key storefrontKey = Key('detail-storefront');
   static const Key pickupMapKey = Key('detail-pickup-map');
@@ -412,16 +413,9 @@ class _ReserveSheet extends ConsumerStatefulWidget {
 }
 
 class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
-  final _note = TextEditingController();
   int _qty = 1;
   PaymentMethod _method = PaymentMethod.cash;
   bool _busy = false;
-
-  @override
-  void dispose() {
-    _note.dispose();
-    super.dispose();
-  }
 
   Future<void> _confirm() async {
     setState(() => _busy = true);
@@ -434,7 +428,6 @@ class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
           .reserve(
             listingId: widget.listing.id,
             qty: _qty,
-            pickupNote: _note.text,
             paymentMethod: _method,
           );
       navigator.pop();
@@ -524,15 +517,28 @@ class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
             onChanged: (m) => setState(() => _method = m),
           ),
           const SizedBox(height: 4),
-          TextField(
-            controller: _note,
-            maxLength: 200,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              hintText: 'Pickup preference (optional), e.g. after 5pm at Tekun',
-            ),
+          // Collection happens where the seller pinned it; a different time
+          // or place is agreed in the deal chat once the seller accepts.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.place_outlined,
+                size: 18,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Pickup at ${listing.pickupArea}. Once the seller accepts, '
+                  'you can chat to agree on a time or another place.',
+                  key: ListingDetailScreen.reservePickupKey,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           Row(
             children: [
               Text('Total', style: theme.textTheme.bodyMedium),
