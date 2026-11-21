@@ -106,7 +106,7 @@ A product, shared by personal sellers and approved businesses. Written only thro
 | `stock` | integer | Input (`quantity`, 1–999) + Server | Units still for sale. Reservations (personal) and ready-stock orders (business) take units out under a row lock when they are made; cancelled, declined or expired ones put them back. Never negative; at least 1 while `available`, 0 when `sold`. A business owner restocks by editing the quantity, which also makes a sold-out (`sold`) business listing `available` again |
 | `pickup_area` | text | Input | Campus pickup location |
 | `pickup_lat`, `pickup_lng` | double precision? | Input | Optional map pin, in degrees (WGS 84): both or neither, inside Malaysia's bounding box (latitude 0.8–7.5, longitude 99.5–119.5). Shown to everyone who can see the listing ([pickup pins](#pickup-pins)) |
-| `status` | `draft` \| `available` \| `reserved` \| `sold` \| `closed` | Server | `draft` → `available` → `reserved` (every remaining unit is held by accepted reservations) → `sold` (all collected); `closed` when withdrawn (it can re-open); `available` → `sold` directly when sold outside the app. A cancelled or expired reservation returns it to `available` |
+| `status` | `draft` \| `available` \| `reserved` \| `sold` \| `closed` | Server | `draft` → `available` → `reserved` (no units left: every unit is held by requested or accepted reservations) → `sold` (all collected); `closed` when withdrawn (it can re-open); `available` → `sold` directly when sold outside the app. A cancelled or expired reservation returns it to `available` |
 | `hidden` | boolean | Server | Admin moderation; hidden listings are left out of feeds and M4 supply |
 | `created_at`, `updated_at` | timestamptz | Server | |
 
@@ -121,7 +121,7 @@ Written only by `request_reservation()` and `resolve_reservation()`. The buyer a
 | `id` | uuid | |
 | `listing_id`, `buyer_id`, `seller_id` | uuid | The buyer can't be the seller |
 | `qty` | integer | Units reserved, 1–999 and no more than the listing's stock at the time |
-| `pickup_note` | text? | Buyer's preferred time or place, up to 200 characters |
+| `pickup_note` | text? | Up to 200 characters. Optional; the app no longer asks for it (collection is at the listing's pickup area or pin, and other arrangements are made in the deal chat once the seller accepts), so it is null for new reservations |
 | `status` | `requested` \| `accepted` \| `declined` \| `cancelled` \| `collected` \| `expired` | `requested` → `accepted` (seller) → `collected` (seller). `requested` → `declined` (seller). `requested`/`accepted` → `cancelled` (either side) or `expired` |
 | `expires_at` | timestamptz? | Set while `requested` (48 hours to answer; 30 minutes for a transfer reservation's proof, then 7 days for the seller to check it) or `accepted` (7 days to collect); cleared otherwise |
 | `created_at`, `updated_at` | timestamptz | |
