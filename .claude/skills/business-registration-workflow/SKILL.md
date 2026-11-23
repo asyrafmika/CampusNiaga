@@ -24,7 +24,7 @@ Documents go in the private `application-documents` bucket at `{applicant_id}/{a
 |---|---|---|---|---|
 | (new) | `draft` | applicant (student) | direct insert | `status = 'draft'`, `applicant_id = auth.uid()`, `is_student()` |
 | `draft` | `submitted` | applicant | `submit_business_application` | required fields valid, documents within limits |
-| `submitted` | `under_review` | admin | `review_business_application(action => 'start_review')` | sets `reviewer_id` |
+| `submitted` | `under_review` | admin | `review_business_application(action => 'start_review')` | sets `admin_id` |
 | `under_review` | `info_requested` | admin | `… 'request_info'` | non-empty note |
 | `info_requested` | `submitted` | applicant | `submit_business_application` (resubmit) | edited while `info_requested` |
 | `under_review` | `approved` | admin | `… 'approve'` | approval effects (below) |
@@ -39,7 +39,7 @@ Documents go in the private `application-documents` bucket at `{applicant_id}/{a
 
 - Read: own applications and their history.
 - Insert: only as `draft`, as themselves.
-- Update directly: only the content columns (column-level grant), and only while `draft` or `info_requested` (policy). Never `status`, `reviewer_id`, `remarks` or `applicant_id`.
+- Update directly: only the content columns (column-level grant), and only while `draft` or `info_requested` (policy). Never `status`, `admin_id`, `remarks` or `applicant_id`.
 - Storage: upload or delete own files only while the application is editable; read own files.
 
 ## Administrator permissions (the HDC administrator reviews; ADR 0009)

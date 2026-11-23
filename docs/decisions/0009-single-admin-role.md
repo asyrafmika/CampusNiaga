@@ -20,9 +20,9 @@ At USM, one office handles all of this: the HDC administrator. The project owner
 | Granting | `set_staff_role` accepts only `admin`. The dashboard has one switch per account |
 | History | `application_status_history.actor_role` keeps `reviewer` on entries written before this change. New entries say `admin`. The apps label old entries "Reviewer" and new ones "HDC administrator" |
 | Wording | Screens say "HDC administrator" or "administrator". The disclaimer stays: approval is a **simulated** reviewer workflow, not an official USM or HDC decision |
-| Column names | `business_applications.reviewer_id` and `remarks` keep their names; they now hold the deciding administrator and their note |
+| Column names | `business_applications.reviewer_id` is renamed `admin_id` (migration `20261123000400_rename_reviewer_id`); `remarks` keeps its name and holds the administrator's note |
 
-Migration: `20261123000300_single_admin_role`.
+Migrations: `20261123000300_single_admin_role`, then `20261123000400_rename_reviewer_id`.
 
 ## Consequences
 
