@@ -16,7 +16,7 @@ Everything needed to run CampusNiaga's usability test with real students and rec
 
 - **Five to eight USM students.** Five participants typically reveal most usability problems; more improve confidence in the numbers.
 - A mix: at least two who have never seen the app, at least two who already sell things on campus (WhatsApp or Telegram groups), and at least one interested in running a small business.
-- **Web dashboard (optional):** one or two people acting as reviewers, for the reviewer tasks.
+- **Web dashboard (optional):** one or two people acting as HDC administrators, for the dashboard tasks.
 - Each student needs their own `@student.usm.my` account in the hosted project. For anyone without one, add their email to `app_config.test_allowlist` in the Supabase dashboard (and remove it afterwards).
 
 ## 3. Before the sessions
@@ -26,7 +26,7 @@ Everything needed to run CampusNiaga's usability test with real students and rec
    - 6–8 personal listings across categories, with photos, 2 of them under RM 30 in Stationery (one a calculator).
    - One approved business ("Ali Bakes") with 2 products, a logo and an open pre-order (capacity 10).
    - 3 product requests for similar items (for example "brownie", "brownies", "chocolate brownie") so Discover has an opportunity to show.
-   - One business application from a test account in `info_requested` with a reviewer note, for task T6.
+   - One business application from a test account in `info_requested` with an administrator's note, for task T6.
 3. Print one observation sheet (section 5) and one SUS form (section 6) per participant.
 4. Keep a stopwatch, and decide whether to record the screen (ask permission first).
 
@@ -51,11 +51,11 @@ Give each task on its own card, in this order. A participant's own account plays
 | # | Task (read out) | Module | Success point | Time limit |
 |---|---|---|---|---|
 | T1 | "Sign in to CampusNiaga with the account we gave you." | Access | The Home screen shows | 2 min |
-| T2 | "You need a calculator for under RM 30. Find one and reserve it, asking to collect it after 5pm." | M1 | The reservation shows under Bookings | 4 min |
+| T2 | "You need a calculator for under RM 30. Find one, ask the seller if it works, then buy it with cash." | M1 | The purchase shows under Purchases | 4 min |
 | T3 | "Sell something of yours: list a desk lamp for RM 15 with a photo, and publish it." | M1 | The listing is published | 5 min |
-| T4 | "Check whether anyone has asked to reserve your things, and what state your own reservation is in." | M1 | Participant states both correctly | 2 min |
-| T5 | "You want to sell brownies as a small business. Start an application, save it as a draft, then come back and submit it." | M2 | The application shows "Waiting for a reviewer" | 6 min |
-| T6 | "(Using the second account) A reviewer has asked for changes to this application. Find out what they want, make the change and send it back." | M2 | The application is resubmitted with the change | 4 min |
+| T4 | "Check whether anyone has bought your things, and what state your own purchase is in." | M1 | Participant states both correctly | 2 min |
+| T5 | "You want to sell brownies as a small business. Start an application, save it as a draft, then come back and submit it." | M2 | The application shows "Waiting for an administrator" | 6 min |
+| T6 | "(Using the second account) An administrator has asked for changes to this application. Find out what they want, make the change and send it back." | M2 | The application is resubmitted with the change | 4 min |
 | T7 | "Find Ali Bakes' storefront and pre-order two boxes from its open pre-order." | M3 | The pre-order shows under My orders | 4 min |
 | T8 | "You can't find a phone stand on campus. Ask for one, and show interest in someone else's request." | M4 | The request exists and one Interested is ticked | 4 min |
 | T9 | "Look at the top possible opportunity. Explain in your own words why it ranks there." | M4 | Participant names at least two of its reasons | 3 min |
@@ -65,7 +65,7 @@ Give each task on its own card, in this order. A participant's own account plays
 
 | # | Task | Module | Success point | Time limit |
 |---|---|---|---|---|
-| W1 | "Sign in as a reviewer and find the oldest application waiting for review." | M2 | The application's detail page is open | 3 min |
+| W1 | "Sign in as an HDC administrator and find the oldest application waiting for review." | M2 | The application's detail page is open | 3 min |
 | W2 | "Ask the applicant to add their prices, then approve the other application in the queue." | M2 | One is `info_requested`, the other `approved` | 4 min |
 
 ## 5. Observation sheet (one per participant)

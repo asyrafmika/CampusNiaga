@@ -210,7 +210,7 @@ export async function setBusinessStatus(businessId: string, status: BusinessStat
 
 /**
  * A short-lived link to a private document, made on demand when the
- * reviewer opens it. Never stored or logged.
+ * administrator opens it. Never stored or logged.
  */
 export async function documentUrl(path: string): Promise<string> {
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, SIGNED_URL_SECONDS);

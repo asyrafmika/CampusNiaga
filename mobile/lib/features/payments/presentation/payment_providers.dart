@@ -73,7 +73,7 @@ class PaymentActions {
     _ref
       ..invalidate(paymentProvider(paymentId))
       ..invalidate(myOrdersProvider)
-      ..invalidate(myReservationsProvider)
+      ..invalidate(myPurchasesProvider)
       ..invalidate(listingDetailProvider)
       ..invalidate(myListingsProvider)
       ..invalidate(storefrontProvider)

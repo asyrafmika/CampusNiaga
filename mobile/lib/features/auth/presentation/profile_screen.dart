@@ -18,7 +18,6 @@ class ProfileScreen extends ConsumerWidget {
   static const Key ordersKey = Key('profile-orders');
   static const Key discoverKey = Key('profile-discover');
   static const Key messagesKey = Key('profile-messages');
-  static const Key paymentDetailsKey = Key('profile-payment-details');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -108,14 +107,14 @@ class ProfileScreen extends ConsumerWidget {
               ),
               _Item(
                 icon: Icons.receipt_long_outlined,
-                title: 'My bookings',
-                onTap: () => context.go(AppRoutes.reservations),
+                title: 'Purchases and sales',
+                onTap: () => context.go(AppRoutes.purchases),
               ),
               _Item(
                 key: messagesKey,
                 icon: Icons.chat_bubble_outline_rounded,
                 title: 'Messages',
-                subtitle: 'Chats about your bookings and orders',
+                subtitle: 'Chats about items and orders',
                 badge: ref.watch(unreadChatsProvider).value ?? 0,
                 onTap: () => context.push(AppRoutes.messages),
               ),
@@ -149,15 +148,6 @@ class ProfileScreen extends ConsumerWidget {
                 title: 'My business',
                 subtitle: 'Apply, track your application or see your business',
                 onTap: () => context.push(AppRoutes.business),
-              ),
-              _Item(
-                key: paymentDetailsKey,
-                icon: Icons.account_balance_outlined,
-                title: 'Payment details',
-                subtitle:
-                    'Bank account or QR code for buyers who pay by '
-                    'transfer',
-                onTap: () => context.push(AppRoutes.paymentDetails),
               ),
             ],
           ),

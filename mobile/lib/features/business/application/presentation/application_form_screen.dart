@@ -41,8 +41,8 @@ class ApplicationFormScreen extends ConsumerWidget {
           current.status != ApplicationStatus.rejected) {
         body = const EmptyView(
           icon: Icons.lock_clock_outlined,
-          title: 'Your application is with the reviewers',
-          message: 'You can change it if a reviewer asks for changes.',
+          title: 'Your application is with the HDC administrator',
+          message: 'You can change it if the administrator asks for changes.',
         );
       } else {
         body = _ApplicationForm(
@@ -179,7 +179,7 @@ class _ApplicationFormState extends ConsumerState<_ApplicationForm> {
               const SizedBox(height: 12),
               ReviewerNoteCard(
                 note: remarks,
-                title: 'What the reviewer asked for',
+                title: 'What the administrator asked for',
               ),
             ],
             label('Business name'),

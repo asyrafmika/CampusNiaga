@@ -45,7 +45,7 @@ class _PhotoPlaceholder extends StatelessWidget {
   );
 }
 
-/// A small coloured label for a listing or reservation status.
+/// A small coloured label for a listing or purchase status.
 class StatusPill extends StatelessWidget {
   const StatusPill({super.key, required this.label, required this.tone});
 
@@ -53,21 +53,20 @@ class StatusPill extends StatelessWidget {
     label: status.label,
     tone: switch (status) {
       ListingStatus.available => PillTone.good,
-      ListingStatus.reserved => PillTone.warning,
       ListingStatus.draft => PillTone.neutral,
-      ListingStatus.sold || ListingStatus.closed => PillTone.muted,
+      ListingStatus.sold ||
+      ListingStatus.closed ||
+      ListingStatus.deleted => PillTone.muted,
     },
   );
 
-  factory StatusPill.reservation(ReservationStatus status) => StatusPill(
+  factory StatusPill.purchase(PurchaseStatus status) => StatusPill(
     label: status.label,
     tone: switch (status) {
-      ReservationStatus.requested => PillTone.warning,
-      ReservationStatus.accepted => PillTone.info,
-      ReservationStatus.collected => PillTone.good,
-      ReservationStatus.declined ||
-      ReservationStatus.cancelled ||
-      ReservationStatus.expired => PillTone.muted,
+      PurchaseStatus.awaitingPayment => PillTone.warning,
+      PurchaseStatus.awaitingHandover => PillTone.info,
+      PurchaseStatus.completed => PillTone.good,
+      PurchaseStatus.cancelled => PillTone.muted,
     },
   );
 

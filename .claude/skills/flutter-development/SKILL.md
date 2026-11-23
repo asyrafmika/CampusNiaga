@@ -25,7 +25,7 @@ mobile/lib/
 │  └─ widgets/                    widgets shared by 2+ features (empty states, error views, price text)
 └─ features/
    ├─ auth/                       login, register, verify email, profile
-   ├─ marketplace/                explore/search, listing detail, listing form, my listings, reservations, report
+   ├─ marketplace/                explore/search, listing detail, listing form, my listings, purchases, report
    ├─ business/
    │  ├─ application/             apply, draft, upload docs, track status, respond to request (M2)
    │  └─ store/                   storefront, products, campaigns, orders (M3)
@@ -49,7 +49,7 @@ Each feature (or sub-feature) has the same three layers:
 
 **Models (domain)**
 - Immutable classes with `final` fields and `const` constructors, plus `fromRow(Map<String, Object?>)` / `toRow()` mappers for the `snake_case` columns, placed in the data layer so domain stays Supabase-free.
-- Statuses are enhanced enums with a `wireName` matching the snake_case value (`ReservationStatus.requested('requested')`), plus a `fromWire` that throws `FormatException` on unknown values.
+- Statuses are enhanced enums with a `wireName` matching the snake_case value (`PurchaseStatus.completed('completed')`), plus a `fromWire` that throws `FormatException` on unknown values.
 - Money is `int priceSen`. Format only through `core/utils/money.dart` (`formatRm(int sen)`). Never use `double` for money.
 - No code generation (freezed or json_serializable). Write `copyWith` only where it's used.
 
@@ -60,9 +60,9 @@ Each feature (or sub-feature) has the same three layers:
 - Use `ref.watch` in build and `ref.read` in callbacks. Cancel subscriptions via `ref.onDispose`.
 
 **Data access**
-- All privileged operations (reserve, resolve reservation, submit/resubmit application, place order, transition order, toggle interest) go through `core/supabase/rpc_client.dart`. It converts a `PostgrestException` whose `details` holds a reason (e.g. `ITEM_UNAVAILABLE`) into an `AppFailure` subtype.
+- All privileged operations (buy, change a purchase, submit/resubmit application, place order, transition order, toggle interest) go through `core/supabase/rpc_client.dart`. It converts a `PostgrestException` whose `details` holds a reason (e.g. `ITEM_UNAVAILABLE`) into an `AppFailure` subtype.
 - Queries are paginated (`range` or keyset on `created_at`, page size 20), select only needed columns, and match indexes declared in the migrations.
-- Use streams (`snapshots()`) only for things the user watches change: own reservations, orders, application status. Use one-shot `get()` for feeds.
+- Use streams (`snapshots()`) only for things the user watches change: own purchases, orders, application status. Use one-shot `get()` for feeds.
 - Upload photos through the repository: resize on the device first (about 1280 px longest side, 80% JPEG quality), then check size and type (rules enforce it again).
 - Listing create/edit calls `upsertListing`; the app never writes `listings` documents directly (ADR 0002).
 

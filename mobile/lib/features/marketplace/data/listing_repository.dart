@@ -88,6 +88,8 @@ class ListingRepository {
           'pickup_lng, status, hidden, created_at',
         )
         .eq('owner_id', _uid)
+        // Deleted ones stay only for the purchases that point at them.
+        .neq('status', ListingStatus.deleted.wireName)
         .order('updated_at', ascending: false);
     return rows.map(listingFromRow).toList();
   });

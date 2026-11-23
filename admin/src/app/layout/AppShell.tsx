@@ -16,11 +16,11 @@ import { NavLink, Outlet, useLocation } from 'react-router';
 
 import { roleLabel, signOut, useAccess, type StaffAccess } from '../../features/auth';
 import { palette } from '../theme';
-import { visibleNavItems } from './navigation';
+import { NAV_ITEMS } from './navigation';
 
 const SIDEBAR_WIDTH = 260;
 
-function Sidebar({ access }: { access: StaffAccess }) {
+function Sidebar() {
   const { pathname } = useLocation();
   return (
     <Box
@@ -60,7 +60,7 @@ function Sidebar({ access }: { access: StaffAccess }) {
       </Stack>
 
       <List disablePadding sx={{ flexGrow: 1 }}>
-        {visibleNavItems(access).map((item) => {
+        {NAV_ITEMS.map((item) => {
           const active = item.path === '/' ? pathname === '/' : pathname.startsWith(item.path);
           const disabled = item.comingIn !== undefined;
           return (
@@ -153,7 +153,7 @@ export function AppShell() {
   if (state.status !== 'ready') return null;
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <Sidebar access={state.access} />
+      <Sidebar />
       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
         <TopBar access={state.access} />
         <Box component="main" sx={{ p: 4 }}>

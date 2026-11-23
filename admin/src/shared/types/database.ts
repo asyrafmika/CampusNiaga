@@ -331,7 +331,6 @@ export type Database = {
           last_message_at: string | null
           listing_id: string
           order_id: string | null
-          reservation_id: string | null
           seller_id: string
           seller_last_read_id: number
           updated_at: string
@@ -346,7 +345,6 @@ export type Database = {
           last_message_at?: string | null
           listing_id: string
           order_id?: string | null
-          reservation_id?: string | null
           seller_id: string
           seller_last_read_id?: number
           updated_at?: string
@@ -361,7 +359,6 @@ export type Database = {
           last_message_at?: string | null
           listing_id?: string
           order_id?: string | null
-          reservation_id?: string | null
           seller_id?: string
           seller_last_read_id?: number
           updated_at?: string
@@ -396,13 +393,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "conversations_reservation_id_fkey"
-            columns: ["reservation_id"]
-            isOneToOne: true
-            referencedRelation: "reservations"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "conversations_seller_id_fkey"
             columns: ["seller_id"]
             isOneToOne: false
@@ -422,8 +412,8 @@ export type Database = {
           id: string
           order_id: string | null
           proof_path: string | null
+          purchase_id: string | null
           reject_reason: string | null
-          reservation_id: string | null
           seller_id: string
           status: string
           submitted_at: string | null
@@ -439,8 +429,8 @@ export type Database = {
           id?: string
           order_id?: string | null
           proof_path?: string | null
+          purchase_id?: string | null
           reject_reason?: string | null
-          reservation_id?: string | null
           seller_id: string
           status?: string
           submitted_at?: string | null
@@ -456,8 +446,8 @@ export type Database = {
           id?: string
           order_id?: string | null
           proof_path?: string | null
+          purchase_id?: string | null
           reject_reason?: string | null
-          reservation_id?: string | null
           seller_id?: string
           status?: string
           submitted_at?: string | null
@@ -486,10 +476,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "deal_payments_reservation_id_fkey"
-            columns: ["reservation_id"]
+            foreignKeyName: "deal_payments_purchase_id_fkey"
+            columns: ["purchase_id"]
             isOneToOne: true
-            referencedRelation: "reservations"
+            referencedRelation: "purchases"
             referencedColumns: ["id"]
           },
           {
@@ -960,6 +950,79 @@ export type Database = {
         }
         Relationships: []
       }
+      purchases: {
+        Row: {
+          buyer_id: string
+          cancel_reason: string | null
+          cancelled_by: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          listing_id: string
+          payment_method: string
+          qty: number
+          seller_id: string
+          status: string
+          total_sen: number
+          unit_price_sen: number
+          updated_at: string
+        }
+        Insert: {
+          buyer_id: string
+          cancel_reason?: string | null
+          cancelled_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          listing_id: string
+          payment_method: string
+          qty: number
+          seller_id: string
+          status: string
+          total_sen: number
+          unit_price_sen: number
+          updated_at?: string
+        }
+        Update: {
+          buyer_id?: string
+          cancel_reason?: string | null
+          cancelled_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          listing_id?: string
+          payment_method?: string
+          qty?: number
+          seller_id?: string
+          status?: string
+          total_sen?: number
+          unit_price_sen?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           action: string | null
@@ -1080,67 +1143,6 @@ export type Database = {
           },
         ]
       }
-      reservations: {
-        Row: {
-          buyer_id: string
-          created_at: string
-          expires_at: string | null
-          id: string
-          listing_id: string
-          pickup_note: string | null
-          qty: number
-          seller_id: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          buyer_id: string
-          created_at?: string
-          expires_at?: string | null
-          id?: string
-          listing_id: string
-          pickup_note?: string | null
-          qty: number
-          seller_id: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          buyer_id?: string
-          created_at?: string
-          expires_at?: string | null
-          id?: string
-          listing_id?: string
-          pickup_note?: string | null
-          qty?: number
-          seller_id?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reservations_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reservations_listing_id_fkey"
-            columns: ["listing_id"]
-            isOneToOne: false
-            referencedRelation: "listings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reservations_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       staff_roles: {
         Row: {
           created_at: string
@@ -1167,6 +1169,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_business_performance: {
+        Args: { business_id: string; from_at?: string; to_at?: string }
+        Returns: Json
+      }
+      admin_business_performance_list: {
+        Args: {
+          from_at?: string
+          page_offset?: number
+          page_size?: number
+          to_at?: string
+        }
+        Returns: Json
+      }
       application_status_summary: {
         Args: never
         Returns: {
@@ -1176,6 +1191,14 @@ export type Database = {
       }
       business_dashboard: {
         Args: { from_at?: string; to_at?: string }
+        Returns: Json
+      }
+      business_figures: {
+        Args: { from_at: string; target_business: string; to_at: string }
+        Returns: Json
+      }
+      buy_item: {
+        Args: { listing_id: string; payment_method?: string; qty?: number }
         Returns: Json
       }
       can_delete_application_document: {
@@ -1215,8 +1238,22 @@ export type Database = {
         Args: { by_whom: string; target_order: string }
         Returns: undefined
       }
+      cancel_purchase: {
+        Args: { purchase_id: string; reason?: string; relist?: boolean }
+        Returns: Json
+      }
+      cancel_purchase_hold: {
+        Args: {
+          by_whom: string
+          listing_after?: string
+          target_purchase: string
+          why: string
+        }
+        Returns: undefined
+      }
       close_conversation: { Args: { conversation_id: string }; Returns: Json }
       close_product_request: { Args: { request_id: string }; Returns: Json }
+      complete_purchase: { Args: { purchase_id: string }; Returns: Json }
       conversation_can_send: {
         Args: { c: Database["public"]["Tables"]["conversations"]["Row"] }
         Returns: boolean
@@ -1254,13 +1291,13 @@ export type Database = {
         Args: { note?: string; report_id: string }
         Returns: Json
       }
-      expire_listing_reservations: {
-        Args: { target_listing: string }
-        Returns: number
-      }
       expire_overdue_payments: { Args: never; Returns: number }
       expire_unpaid_orders: {
         Args: { target_campaign: string; target_listing: string }
+        Returns: number
+      }
+      expire_unpaid_purchases: {
+        Args: { target_listing: string }
         Returns: number
       }
       get_conversation: {
@@ -1288,12 +1325,15 @@ export type Database = {
       get_payment: { Args: { payment_id: string }; Returns: Json }
       get_reported_conversation: { Args: { report_id: string }; Returns: Json }
       get_storefront: { Args: { business_id: string }; Returns: Json }
+      has_bought_item: {
+        Args: { student: string; target_listing: string }
+        Returns: boolean
+      }
       is_admin: { Args: never; Returns: boolean }
       is_eligible_student_email: {
         Args: { allowlist: string[]; domains: string[]; email: string }
         Returns: boolean
       }
-      is_reviewer: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       is_student: { Args: never; Returns: boolean }
       list_product_requests: {
@@ -1325,8 +1365,8 @@ export type Database = {
           id: string
           order_id: string | null
           proof_path: string | null
+          purchase_id: string | null
           reject_reason: string | null
-          reservation_id: string | null
           seller_id: string
           status: string
           submitted_at: string | null
@@ -1335,6 +1375,31 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "deal_payments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      lock_purchase: {
+        Args: { target_purchase: string }
+        Returns: {
+          buyer_id: string
+          cancel_reason: string | null
+          cancelled_by: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          listing_id: string
+          payment_method: string
+          qty: number
+          seller_id: string
+          status: string
+          total_sen: number
+          unit_price_sen: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "purchases"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1367,12 +1432,12 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      my_reservations: {
-        Args: { side?: string }
-        Returns: Database["public"]["CompositeTypes"]["reservation_card"][]
+      my_purchases: {
+        Args: { page_offset?: number; page_size?: number; side?: string }
+        Returns: Database["public"]["CompositeTypes"]["purchase_card"][]
         SetofOptions: {
           from: "*"
-          to: "reservation_card"
+          to: "purchase_card"
           isOneToOne: false
           isSetofReturn: true
         }
@@ -1389,7 +1454,7 @@ export type Database = {
         Returns: undefined
       }
       open_conversation: {
-        Args: { order_id?: string; reservation_id?: string }
+        Args: { listing_id?: string; order_id?: string; purchase_id?: string }
         Returns: Json
       }
       owns_business: { Args: { business_id: string }; Returns: boolean }
@@ -1405,7 +1470,6 @@ export type Database = {
           last_message_at: string | null
           listing_id: string
           order_id: string | null
-          reservation_id: string | null
           seller_id: string
           seller_last_read_id: number
           updated_at: string
@@ -1463,25 +1527,13 @@ export type Database = {
         Args: { target_cluster: string }
         Returns: undefined
       }
+      relist_purchase: { Args: { purchase_id: string }; Returns: Json }
       report_conversation: {
         Args: { conversation_id: string; details?: string; reason: string }
         Returns: Json
       }
       report_listing: {
         Args: { details?: string; listing_id: string; reason: string }
-        Returns: Json
-      }
-      request_reservation: {
-        Args: {
-          listing_id: string
-          payment_method?: string
-          pickup_note?: string
-          qty?: number
-        }
-        Returns: Json
-      }
-      resolve_reservation: {
-        Args: { action: string; reservation_id: string }
         Returns: Json
       }
       review_business_application: {
@@ -1615,7 +1667,6 @@ export type Database = {
       conversation_card: {
         conversation_id: string | null
         kind: string | null
-        reservation_id: string | null
         order_id: string | null
         listing_id: string | null
         listing_title: string | null
@@ -1678,6 +1729,30 @@ export type Database = {
         payment_due_at: string | null
         payment_reject_reason: string | null
       }
+      purchase_card: {
+        id: string | null
+        listing_id: string | null
+        listing_title: string | null
+        listing_photo: string | null
+        pickup_area: string | null
+        qty: number | null
+        unit_price_sen: number | null
+        total_sen: number | null
+        payment_method: string | null
+        status: string | null
+        cancelled_by: string | null
+        cancel_reason: string | null
+        relist_from: string | null
+        created_at: string | null
+        updated_at: string | null
+        completed_at: string | null
+        i_am_buyer: boolean | null
+        other_party_name: string | null
+        payment_id: string | null
+        payment_status: string | null
+        payment_due_at: string | null
+        payment_reject_reason: string | null
+      }
       request_card: {
         id: string | null
         name: string | null
@@ -1691,27 +1766,6 @@ export type Database = {
         interest_count: number | null
         i_am_interested: boolean | null
         is_mine: boolean | null
-      }
-      reservation_card: {
-        id: string | null
-        listing_id: string | null
-        listing_title: string | null
-        listing_photo: string | null
-        pickup_area: string | null
-        price_sen: number | null
-        qty: number | null
-        pickup_note: string | null
-        status: string | null
-        expires_at: string | null
-        created_at: string | null
-        updated_at: string | null
-        i_am_buyer: boolean | null
-        other_party_name: string | null
-        other_party_email: string | null
-        payment_id: string | null
-        payment_status: string | null
-        payment_due_at: string | null
-        payment_reject_reason: string | null
       }
     }
   }

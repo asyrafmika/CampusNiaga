@@ -10,7 +10,7 @@ Results are as of 16 Nov 2026, branch `phase6/dashboard-qa`, from the CI run on 
 |---|---|---|---|
 | Database (pgTAP) | `supabase/tests/database/` (24 files) | A fresh local Supabase stack started by CI (Supabase CLI 2.122.0), with every migration applied | **1,087 / 1,087 passed** |
 | Concurrency | `supabase/tests/concurrency/` (2 scripts) | Two real database connections at the same moment | **2 / 2 passed** |
-| Mobile (Flutter) | `mobile/test/` | `flutter test`: unit tests and widget tests through the real router, with in-memory repositories | **253 / 253 passed** |
+| Mobile (Flutter) | `mobile/test/` | `flutter test`: unit tests and widget tests through the real router, with in-memory repositories | **267 / 267 passed** |
 | Admin dashboard (React) | `admin/src/**/*.test.ts(x)` | Vitest with React Testing Library | **70 / 70 passed** |
 | Static checks | CI | `flutter analyze` and `dart format`; TypeScript `tsc --noEmit`, ESLint, production build; `supabase db lint` | **All clean** |
 
@@ -47,9 +47,9 @@ Each requirement from the handoff maps to the automated tests that prove it. "DB
 | Requirement | Tests |
 |---|---|
 | Only verified USM students (confirmed email, `student.usm.my` or the test allowlist, active account) can trade | DB `01`, `02`, `04`; mobile `test/app_navigation_test.dart` |
-| Reviewer and admin roles come from server tables and take effect at once; students can't grant themselves roles | DB `03`, `04` |
-| Staff-only web access: students are signed out of the dashboard; reviewers can't open admin pages | admin `RequireStaff.test.tsx`, `navigation.test.tsx` |
-| Hiding buttons is never the security: every rule is enforced by the database | Every DB file tests refused callers (other student, reviewer, signed out, suspended) as well as the allowed one |
+| The HDC administrator role (the only staff role, ADR 0009) comes from a server table and takes effect at once; students can't grant themselves roles | DB `03`, `04` |
+| Staff-only web access: students are signed out of the dashboard; every page is behind the administrator check | admin `RequireStaff.test.tsx`, `router.test.ts` |
+| Hiding buttons is never the security: every rule is enforced by the database | Every DB file tests refused callers (other student, role-less staff, signed out, suspended) as well as the allowed one |
 
 ### M1 Student Marketplace (section 4)
 
@@ -57,9 +57,9 @@ Each requirement from the handoff maps to the automated tests that prove it. "DB
 |---|---|
 | Shared listing form (title, description, category, photos, RM price, condition, quantity, pickup, mode) with server validation | DB `05`, `12`; mobile `marketplace_screens_test.dart` |
 | Searchable feed with category, price and condition filters; detail page with seller or storefront attribution | DB `05`, `12`; mobile `marketplace_screens_test.dart` |
-| Lifecycle draft → available → reserved → sold; the seller can edit or close | DB `05`, `06` |
-| One active reservation per buyer per item; seller accepts or declines; only needed contact details are shared, after acceptance | DB `06`, `08` |
-| A simultaneous reservation can't double-book | DB `08`; `concurrency/reservation_race.sh` |
+| Lifecycle draft → available → sold; the seller can edit or close (ADR 0006) | DB `05`, `06` |
+| One unfinished purchase per buyer per item and 3 unfinished cash ones; no seller accept; no email shared (ADR 0006) | DB `06`, `08` |
+| A simultaneous purchase can't double-sell | DB `08`; `concurrency/purchase_race.sh` |
 | Users report listings; admins hide listings or suspend accounts; history is kept | DB `07`; admin `ModerationPage.test.tsx` |
 
 ### M2 Business Registration & Approval (section 4)
@@ -69,16 +69,16 @@ Each requirement from the handoff maps to the automated tests that prove it. "DB
 | Application with name, category, description, contact and collection details, optional documents | DB `09`; mobile `application_screens_test.dart` |
 | States draft → submitted → under_review → info_requested / approved / rejected; every other move refused | DB `09` (all 24 status-action pairs) |
 | Edit and resubmit after a request for changes; history, notes and times kept | DB `09`, `11` |
-| Only a reviewer action approves and creates the business; suspension is server-side | DB `10`, `11` |
+| Only an administrator's action approves and creates the business; suspension is server-side | DB `10`, `11` |
 | Students see only their applications; drafts stay private; documents are private | DB `09` |
-| Reviewer queue, detail, decisions and status counts, labelled as a simulated workflow | admin `ApplicationsPage.test.tsx`, `ApplicationDetailPage.test.tsx` |
+| Review queue, detail, decisions and status counts, labelled as a simulated workflow | admin `ApplicationsPage.test.tsx`, `ApplicationDetailPage.test.tsx` |
 
 ### M3 Storefront & Orders (section 5)
 
 | Requirement | Tests |
 |---|---|
 | Storefront with name, logo, description, categories, pickup details | DB `12`; mobile `store_screens_test.dart` |
-| Only approved businesses publish business products; personal items are reserved, business products ordered | DB `12`, `13` |
+| Only approved businesses publish business products; personal items are bought with Buy now, business products ordered | DB `12`, `13` |
 | Ready stock is never oversold | DB `13`, `14`; `concurrency/order_race.sh` |
 | Pre-order campaigns: dates, price, per-order limit, capacity, pickup, draft / open / closed | DB `13` |
 | Pending and later orders hold capacity; cancellation releases it; capacity is never exceeded | DB `13`, `14`; `concurrency/order_race.sh` |
@@ -108,8 +108,8 @@ Each requirement from the handoff maps to the automated tests that prove it. "DB
 
 | Requirement | Tests |
 |---|---|
-| A chat opens only for an accepted reservation or a confirmed order, between its buyer and seller | DB `21`, `22`; mobile `chat_test.dart` |
-| Read-only when the deal ends, is closed, the business is suspended or an account is suspended | DB `21`, `22`; mobile `chat_test.dart` |
+| A chat opens about an available or bought item (holding nothing), or a confirmed order, between two people only | DB `21`, `22`; mobile `chat_test.dart` |
+| Read-only when the item is gone or the order ends, the chat is closed, or the business or an account is suspended | DB `21`, `22`; mobile `chat_test.dart` |
 | Only the two participants read the messages (also over Realtime); admins only through a report, audited | DB `21`; admin `ModerationPage.test.tsx` |
 | Message limits (1–1,000 characters, 20 a minute), report and close | DB `21`; mobile `chat_test.dart` |
 
@@ -129,7 +129,7 @@ Each requirement from the handoff maps to the automated tests that prove it. "DB
 | A buyer chooses cash or transfer; transfer only when the seller has details | DB `24`; mobile `payment_test.dart` |
 | The item is held while the buyer pays; no proof within 30 minutes releases it (on the next stock change or read) | DB `24` |
 | The buyer sees where to pay and uploads proof; nobody else can upload it; the seller and admins can read it | DB `24`; mobile `payment_test.dart` |
-| The seller accepts (order confirmed, booking accepted) or rejects with a reason (cancelled, units back); decisions are audited | DB `24`; mobile `payment_test.dart` |
+| The seller accepts (order confirmed, purchase awaiting handover) or rejects with a reason (cancelled, units back); decisions are audited | DB `24`; mobile `payment_test.dart` |
 | A buyer who has sent proof can't cancel alone; transfer deals can't be confirmed or accepted without checking the payment | DB `24`; mobile `payment_test.dart` |
 
 ## 4. Phase pass conditions (handoff section 9)
@@ -137,7 +137,7 @@ Each requirement from the handoff maps to the automated tests that prove it. "DB
 | Phase | Pass condition | Automated proof |
 |---|---|---|
 | 1 Foundation | Auth + verified-student gate; staff-only web access | DB `04`; mobile `app_navigation_test.dart`; admin `RequireStaff.test.tsx` |
-| 2 Marketplace | Publish, find, reserve; no double booking; seller marks sold | DB `08`; `reservation_race.sh` |
+| 2 Marketplace | Publish, find, buy; no double selling; seller completes the sale | DB `08`; `purchase_race.sh` |
 | 3 Approval | Submit → request edits → resubmit → approve; no business features before; all audited | DB `11` |
 | 4 Business | Storefront, product, campaign; two buyers can't exceed stock or capacity; cancellation frees quantity | DB `14`; `order_race.sh` |
 | 5 Discovery | Synonyms cluster, one student once, supply lowers the score, price gap matters, reasons match | DB `17` |
@@ -147,7 +147,7 @@ Each requirement from the handoff maps to the automated tests that prove it. "DB
 
 `supabase/tests/database/20_end_to_end_scenario.test.sql` runs the handoff's minimal scenario fixture through all five modules in one go: 2 students, 1 applicant, 1 approved business seller, 1 reviewer and 1 admin; 2 personal listings, 2 business products, a capacity-3 pre-order, three similar requests ("brownie", "brownies", "chocolate brownie") and a competing listing. It follows the three cross-module flows of the handoff:
 
-- **Casual:** student → personal listing → reservation (a second buyer is refused) → collection → sold.
+- **Casual:** student → personal listing → Buy now (sold at once; a second buyer is refused) → handover → completed.
 - **Business:** apply → reviewer requests edits → resubmit → approve (all audited) → storefront and products → order (no overselling) and pre-order (capacity full at 3) → every order status → dashboard (estimated revenue and profit), with the other business seeing none of it.
 - **Discovery:** three requests form one cluster, three distinct students however many taps, the competing listing lowers the score, the price gap adds to it, the reasons say so, and hiding the listing removes it from supply at once.
 
@@ -164,17 +164,42 @@ Result: **33 / 33 passed**.
 
 ### Manual end-to-end checklist (Android emulator, hosted project)
 
-Use three accounts: two students (one becomes the business owner) and one staff account with the reviewer role. Tick each step.
+Use three accounts: two students (one becomes the business owner) and one HDC administrator account. Tick each step.
 
 | # | Step | Expected | Done |
 |---|---|---|---|
 | 1 | Sign up with a USM address; open the confirmation email | The app lets you in after confirming | ☐ |
 | 2 | Sign up with a non-USM address | "CampusNiaga is for USM students" | ☐ |
 | 3 | Student A lists an item with a photo and publishes it | It appears in student B's feed and search | ☐ |
-| 4 | Student B reserves it; A accepts and marks it collected | B sees A's email after acceptance; the item becomes sold | ☐ |
+| 4 | Student B chats with A, then buys it; A completes the sale | Chatting leaves it available; it is sold at Confirm purchase; the purchase shows Completed | ☐ |
 | 5 | B reports another listing; admin hides it in the dashboard | It leaves the feed; the audit log shows it | ☐ |
-| 6 | A applies for a business with a document; reviewer requests changes; A resubmits; reviewer approves | The timeline shows every step; A's My business shows the store | ☐ |
+| 6 | A applies for a business with a document; the administrator requests changes; A resubmits; the administrator approves | The timeline shows every step; A's My business shows the store | ☐ |
 | 7 | A edits the storefront (logo), adds a product, opens a pre-order | B sees the storefront, the product and the pre-order | ☐ |
 | 8 | B orders and pre-orders; A confirms, prepares, readies and completes the order, and records a cost | B is notified at each step; A's dashboard shows the sale and estimated profit | ☐ |
 | 9 | B requests "brownies"; A taps Interested | Discover shows a possible opportunity with 2 students and its reasons | ☐ |
 | 10 | Admin suspends A's business | A's products and storefront disappear for B; A sees the suspension | ☐ |
+
+## Buy now, admin performance, listing payment step, one staff role (23 Nov 2026)
+
+Run locally. The database tests ran on PGlite (PostgreSQL compiled to WebAssembly), not on Supabase.
+
+| Check | Result |
+|---|---|
+| All 26 pgTAP files (26: deleting listings, ADR 0008; 03, 04, 09-11: one staff role, ADR 0009) | Passed |
+| Upgrade rehearsal: every old reservation and payment state, repeated chats and reports, converted by the migrations | 28 / 28 checks |
+| Mutation testing: rules of the four migrations broken on purpose | 24 of 24 caught |
+| Flutter: format, analyze, tests | 267 / 267 passed |
+| Admin: typecheck, lint, tests, build | 91 / 91 passed |
+| Screens | The changed mobile screens rendered at 360 and 411 wide with the app's fonts; both admin pages rendered in Edge against a fake backend |
+
+Still to run: CI (SQL lint and the two-connection purchase race need a real PostgreSQL), and these manual steps on the hosted project once the migrations are pushed:
+
+| # | Step | Expected | Done |
+|---|---|---|---|
+| 1 | Two phones buy the last unit together | One succeeds; the other is told it has just been sold | ☐ |
+| 2 | Buy by QR, send a receipt; the seller rejects it | The item is available again; the buyer sees the reason | ☐ |
+| 3 | Admin opens Business Performance and one business | The owner's revenue, no cost or profit; two audit entries | ☐ |
+| 4 | A student signs in to the dashboard | Signed out with the "staff only" message | ☐ |
+| 5 | Sell an item: details, then How buyers pay you, then Publish | The QR or bank details are saved and offered on the next listing; Profile has no Payment details | ☐ |
+| 6 | Delete a listing that a buyer bought | It leaves My listings and the feed; the buyer still opens it from Purchases | ☐ |
+| 7 | After the push, open Users & Roles | One HDC Administrator switch per account; any former reviewer is an administrator, with a `role.granted` audit entry | ☐ |

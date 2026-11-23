@@ -17,7 +17,7 @@ import 'package:mobile/features/dashboard/data/dashboard_repository.dart';
 import 'package:mobile/features/discovery/data/discovery_repository.dart';
 import 'package:mobile/features/marketplace/data/listing_repository.dart';
 import 'package:mobile/features/marketplace/data/photo_picker.dart';
-import 'package:mobile/features/marketplace/data/reservation_repository.dart';
+import 'package:mobile/features/marketplace/data/purchase_repository.dart';
 import 'package:mobile/features/payments/data/payment_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -35,7 +35,6 @@ const student = UserAccess(
   emailConfirmed: true,
   accountStatus: AccountStatus.active,
   isStudent: true,
-  isReviewer: false,
   isAdmin: false,
 );
 
@@ -74,7 +73,7 @@ Future<FakeAuthRepository> pumpApp(
   Future<UserAccess?> Function() lookup, {
   bool onboardingSeen = true,
   FakeListingRepository? listings,
-  FakeReservationRepository? reservations,
+  FakePurchaseRepository? purchases,
   FakeBusinessApplicationRepository? applications,
   FakeDocumentPicker? documentPicker,
   FakeStoreRepository? store,
@@ -104,8 +103,8 @@ Future<FakeAuthRepository> pumpApp(
         listingRepositoryProvider.overrideWithValue(
           listings ?? FakeListingRepository(),
         ),
-        reservationRepositoryProvider.overrideWithValue(
-          reservations ?? FakeReservationRepository(),
+        purchaseRepositoryProvider.overrideWithValue(
+          purchases ?? FakePurchaseRepository(),
         ),
         businessApplicationRepositoryProvider.overrideWithValue(
           applications ?? FakeBusinessApplicationRepository(),

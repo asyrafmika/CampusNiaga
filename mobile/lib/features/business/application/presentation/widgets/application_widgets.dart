@@ -36,12 +36,12 @@ class SimulatedReviewNotice extends StatelessWidget {
   );
 }
 
-/// What the reviewer wrote, highlighted.
+/// What the HDC administrator wrote, highlighted.
 class ReviewerNoteCard extends StatelessWidget {
   const ReviewerNoteCard({
     super.key,
     required this.note,
-    this.title = 'Reviewer’s note',
+    this.title = 'Administrator’s note',
   });
 
   final String note;

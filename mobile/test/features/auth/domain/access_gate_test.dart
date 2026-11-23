@@ -14,7 +14,6 @@ UserAccess access({
   emailConfirmed: emailConfirmed,
   accountStatus: status,
   isStudent: isStudent,
-  isReviewer: false,
   isAdmin: false,
 );
 

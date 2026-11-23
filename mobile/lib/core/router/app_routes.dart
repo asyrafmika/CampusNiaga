@@ -13,7 +13,7 @@ abstract final class AppRoutes {
 
   // Bottom navigation tabs (home is the first).
   static const String search = '/search';
-  static const String reservations = '/reservations';
+  static const String purchases = '/purchases';
   static const String profile = '/profile';
 
   // Full-screen pages opened from the tabs.
@@ -22,6 +22,10 @@ abstract final class AppRoutes {
   static String listing(String id) => '/listing/$id';
   static String editListing(String id) => '/listing/$id/edit';
   static String reportListing(String id) => '/listing/$id/report';
+  static String listingPayment(String id, {bool publish = false}) => Uri(
+    path: '/listing/$id/payment',
+    queryParameters: publish ? {'publish': '1'} : null,
+  ).toString();
 
   // Business application (M2): track status, the form, its documents.
   static const String business = '/business';
@@ -44,10 +48,10 @@ abstract final class AppRoutes {
   static String editCampaign(String campaignId) =>
       '/business/store/campaigns/$campaignId';
 
-  // Transfer payments (ADR 0005): one payment, and where sellers save their
-  // bank account or QR code (their own, or their business's).
+  // Transfer payments (ADR 0005): one payment, and where a business saves
+  // its bank account or QR code. A student's own are on the listing's
+  // payment step (ADR 0008).
   static String payment(String paymentId) => '/payments/$paymentId';
-  static const String paymentDetails = '/payment-details';
   static const String businessPaymentDetails =
       '/business/store/payment-details';
 
@@ -60,13 +64,18 @@ abstract final class AppRoutes {
     queryParameters: {'key': clusterKey},
   ).toString();
 
-  // Deal chat (ADR 0004): the list, one chat, or the chat of a booking or
-  // order (opened, and created if needed, from Bookings and My orders).
+  // Chat (ADRs 0004 and 0006): the list, one chat, or the chat of an item,
+  // purchase or order (opened, and created if needed, from the listing,
+  // Purchases and My orders).
   static const String messages = '/messages';
   static String chat(String conversationId) => '/messages/$conversationId';
-  static String chatForReservation(String reservationId) => Uri(
+  static String chatForListing(String listingId) => Uri(
     path: '/messages/open',
-    queryParameters: {'reservation': reservationId},
+    queryParameters: {'listing': listingId},
+  ).toString();
+  static String chatForPurchase(String purchaseId) => Uri(
+    path: '/messages/open',
+    queryParameters: {'purchase': purchaseId},
   ).toString();
   static String chatForOrder(String orderId) => Uri(
     path: '/messages/open',

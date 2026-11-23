@@ -3,6 +3,7 @@ import '../../../core/domain/business_enums.dart';
 
 /// What the signed-in user may do, as reported by `get_my_access()`.
 /// The database enforces every rule itself; the app uses this for navigation.
+/// `isAdmin` is the HDC administrator, the one staff role (ADR 0009).
 class UserAccess {
   const UserAccess({
     required this.userId,
@@ -10,7 +11,6 @@ class UserAccess {
     required this.emailConfirmed,
     required this.accountStatus,
     required this.isStudent,
-    required this.isReviewer,
     required this.isAdmin,
     this.isBusinessOwner = false,
     this.businessStatus,
@@ -21,7 +21,6 @@ class UserAccess {
   final bool emailConfirmed;
   final AccountStatus accountStatus;
   final bool isStudent;
-  final bool isReviewer;
   final bool isAdmin;
 
   /// A verified student with an approved (not suspended) business.

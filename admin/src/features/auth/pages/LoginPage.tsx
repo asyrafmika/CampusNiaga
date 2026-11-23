@@ -58,7 +58,7 @@ export function LoginPage() {
           <Box>
             <Typography variant="h1">Staff sign in</Typography>
             <Typography sx={{ color: 'text.secondary', mt: 0.5 }}>
-              For CampusNiaga reviewers and administrators.
+              For CampusNiaga HDC administrators.
             </Typography>
           </Box>
 

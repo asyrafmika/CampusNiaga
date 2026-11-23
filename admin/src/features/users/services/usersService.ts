@@ -1,4 +1,3 @@
-import type { StaffRole } from '../../auth';
 import { toAppError } from '../../../shared/lib/errors';
 import { escapeLike, PAGE_SIZE } from '../../../shared/lib/format';
 import { supabase } from '../../../shared/supabase/client';
@@ -9,13 +8,12 @@ export type UserRow = {
   email: string;
   accountStatus: string;
   createdAt: string;
-  isReviewer: boolean;
   isAdmin: boolean;
 };
 
 export type UserPage = { rows: UserRow[]; total: number };
 
-/** One page of accounts with their staff roles, newest first. Admins only (RLS). */
+/** One page of accounts with their administrator role, newest first. Admins only (RLS). */
 export async function listUsers({ page, search }: { page: number; search: string }): Promise<UserPage> {
   let query = supabase
     .from('profiles')
@@ -29,15 +27,15 @@ export async function listUsers({ page, search }: { page: number; search: string
   if (error) throw toAppError(error);
 
   const ids = profiles.map((p) => p.id);
-  const roles = new Map<string, Set<string>>();
+  const admins = new Set<string>();
   if (ids.length > 0) {
-    const { data, error: rolesError } = await supabase.from('staff_roles').select('user_id, role').in('user_id', ids);
+    const { data, error: rolesError } = await supabase
+      .from('staff_roles')
+      .select('user_id')
+      .eq('role', 'admin')
+      .in('user_id', ids);
     if (rolesError) throw toAppError(rolesError);
-    for (const { user_id, role } of data) {
-      const set = roles.get(user_id) ?? new Set<string>();
-      set.add(role);
-      roles.set(user_id, set);
-    }
+    for (const { user_id } of data) admins.add(user_id);
   }
 
   return {
@@ -48,14 +46,16 @@ export async function listUsers({ page, search }: { page: number; search: string
       email: p.email,
       accountStatus: p.account_status,
       createdAt: p.created_at,
-      isReviewer: roles.get(p.id)?.has('reviewer') ?? false,
-      isAdmin: roles.get(p.id)?.has('admin') ?? false,
+      isAdmin: admins.has(p.id),
     })),
   };
 }
 
-/** Grants or removes a role through the audited `set_staff_role` function. */
-export async function setStaffRole(userId: string, role: StaffRole, enabled: boolean): Promise<void> {
-  const { error } = await supabase.rpc('set_staff_role', { target_user_id: userId, role, enabled });
+/**
+ * Grants or removes the HDC administrator role, the only staff role
+ * (ADR 0009), through the audited `set_staff_role` function.
+ */
+export async function setAdminRole(userId: string, enabled: boolean): Promise<void> {
+  const { error } = await supabase.rpc('set_staff_role', { target_user_id: userId, role: 'admin', enabled });
   if (error) throw toAppError(error);
 }

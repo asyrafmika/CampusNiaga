@@ -2,7 +2,7 @@
 
 The server functions the mobile app and admin dashboard call. They are PostgreSQL functions in Supabase, called over RPC (`supabase.rpc('name', {...})`). Data shapes are in the [data dictionary](data-dictionary.md).
 
-Anything that grants privileges, changes another user's data, or could conflict with another user (stock, capacity, reservations) goes through one of these functions. Each one checks the caller, validates its input and makes its changes, including the audit entry, in a single transaction.
+Anything that grants privileges, changes another user's data, or could conflict with another user (stock, capacity, purchases) goes through one of these functions. Each one checks the caller, validates its input and makes its changes, including the audit entry, in a single transaction.
 
 ## Errors
 
@@ -17,30 +17,33 @@ A refused call fails with SQL state `P0001`. Its `details` field holds one of th
 | `INVALID_TRANSITION` | The status change isn't allowed from the current status |
 | `ITEM_UNAVAILABLE` | Listing no longer available, or stock ran out |
 | `CAPACITY_FULL` | Pre-order capacity reached |
-| `ALREADY_EXISTS` | Duplicate, e.g. an existing active reservation or open application |
+| `ALREADY_EXISTS` | Duplicate, e.g. an unfinished purchase of the item or an open application |
 | `RATE_LIMITED` | Too many requests in a short time |
 
 ## Functions
 
 | Function | Phase | Caller | Purpose |
 |---|---|---|---|
-| `get_my_access` | 1 ✅ | Signed-in user | What the user may do: student, reviewer, admin, account status |
-| `set_staff_role` | 1 ✅ | Admin | Grant or remove the reviewer / admin role |
+| `get_my_access` | 1 ✅, ADR 0009 | Signed-in user | What the user may do: student, HDC administrator, account status |
+| `set_staff_role` | 1 ✅, ADR 0009 | Admin | Grant or remove the HDC administrator role |
 | `listing_categories` | 2 ✅ | Signed-in user | The categories a listing may use |
 | `upsert_listing` | 2 ✅, 4 ✅, pins | Student (business mode: approved business owner) | Create or edit a listing, with an optional map pin; validates, rate-limits, sets derived fields |
-| `set_listing_status` | 2 ✅ | Listing owner | Publish a draft, close or re-open a listing, or mark it sold |
+| `set_listing_status` | 2 ✅, ADR 0008 | Listing owner | Publish a draft, mark sold, re-open an old closed listing, or delete |
 | `search_listings` | 2 ✅ | Student | The marketplace feed: search, filters, sort, pages (expires overdue transfer holds first) |
 | `get_listing` | 2 ✅ | Student, owner, admin | One listing for the detail page |
-| `request_reservation` | 2 ✅, ADR 0005 | Student | Reserve units of a listing, paying cash or by transfer; holds them at once |
-| `resolve_reservation` | 2 ✅ | Seller / buyer | Accept, decline, cancel or mark collected |
-| `my_reservations` | 2 ✅ | Student | My Reservations, buying or selling side |
+| `buy_item` | 2 ✅, ADR 0006 | Student | Buy now: the units are the buyer's at once, paying cash or by transfer |
+| `complete_purchase` | ADR 0006 | Seller | The item was handed over |
+| `cancel_purchase` | ADR 0006 | Seller / buyer | Cancel; a seller gives a reason and relists or closes |
+| `relist_purchase` | ADR 0006 | Seller | Relist uncollected cash after 24 hours |
+| `my_purchases` | ADR 0006 | Student | Purchases, buying or selling side |
+| `open_conversation` | ADR 0004, 0006 | Student | Chat about an item, a purchase or a confirmed order |
 | `report_listing` | 2 ✅ | Student | Report a listing to the admins |
 | `moderate_listing` | 2 ✅ | Admin | Hide or restore a listing |
 | `dismiss_report` | 2 ✅ | Admin | Close a report without action |
 | `set_account_status` | 2 ✅ | Admin | Suspend or reactivate an account |
 | `submit_business_application` | 3 ✅ | Applicant | Submit or resubmit an application |
-| `review_business_application` | 3 ✅ | Reviewer, admin | Start review, request info, approve or reject |
-| `application_status_summary` | 3 ✅ | Reviewer, admin | Number of applications in each status |
+| `review_business_application` | 3 ✅, ADR 0009 | Admin | Start review, request info, approve or reject |
+| `application_status_summary` | 3 ✅ | Admin | Number of applications in each status |
 | `set_business_status` | 3 ✅ | Admin | Suspend or reinstate a business |
 | `get_my_business` | 3 ✅ | Business owner | The caller's business; refused before approval |
 | `get_storefront` | 4 ✅ | Student | A business's storefront: details, products, open pre-orders |
@@ -52,6 +55,8 @@ A refused call fails with SQL state `P0001`. Its `details` field holds one of th
 | `my_orders` | 4 ✅ | Student | My Orders, buying side or the business's selling side |
 | `set_order_cost` | 6 ✅ | Business owner | Record the business's cost for an order (for estimated profit) |
 | `business_dashboard` | 6 ✅ | Business owner | The business's own performance figures for a date range |
+| `admin_business_performance_list` | ADR 0007 | Admin | Every business's headline figures and the totals; audited |
+| `admin_business_performance` | ADR 0007 | Admin | One business's figures, without cost or profit; audited |
 | `create_product_request` | 5 ✅ | Student | Ask for a product nobody sells yet |
 | `close_product_request` | 5 ✅ | Request creator | Close a request that is no longer needed |
 | `list_product_requests` | 5 ✅ | Student | Active requests (or my own) with interest counts |
@@ -73,7 +78,7 @@ Each function's full contract is added below when it is implemented.
 |---|---|
 | **Caller** | Any signed-in user |
 | **Input** | None. Everything is read on the server from the caller's account |
-| **Output** | `{ user_id, email, email_confirmed, account_status, is_student, is_reviewer, is_admin, is_business_owner, business_status }` |
+| **Output** | `{ user_id, email, email_confirmed, account_status, is_student, is_admin, is_business_owner, business_status }`. `is_admin` is the HDC administrator, the one staff role; `is_reviewer` was removed in [ADR 0009](decisions/0009-single-admin-role.md) |
 | **Errors** | `FORBIDDEN` (no user in the request) · `42501` (signed out) |
 | **Notes** | Roles are read live, so the result reflects changes immediately. The apps use it to decide which screens to show; the database still enforces every rule itself. `is_business_owner` (Phase 3) is true when the user is a verified student with an `approved` business; `business_status` is that business's status (`approved` or `suspended`), or `null` without one |
 
@@ -84,7 +89,7 @@ Each function's full contract is added below when it is implemented.
 | | |
 |---|---|
 | **Caller** | Admin |
-| **Input** | `target_user_id`: an existing account · `role`: `reviewer` or `admin` · `enabled`: grant (`true`) or remove (`false`) |
+| **Input** | `target_user_id`: an existing account · `role`: `admin` (the only role since [ADR 0009](decisions/0009-single-admin-role.md)) · `enabled`: grant (`true`) or remove (`false`) |
 | **Output** | `{ user_id, role, enabled, changed }`. `changed` is `false` when the user already had (or already lacked) the role |
 | **Errors** | `FORBIDDEN` (not an admin, or an admin removing their own admin role) · `INVALID_INPUT` · `NOT_FOUND` · `42501` (signed out) |
 | **Side effects** | When `changed`: adds or removes the `staff_roles` row and writes audit entry `role.granted` or `role.revoked` with `metadata.role` |
@@ -104,7 +109,7 @@ Each function's full contract is added below when it is implemented.
 | **Caller** | Verified student. Editing: the listing's owner. Business listings (creating or editing): the owner of an approved business (`owns_business`) |
 | **Input** | `listing_id`: `null` to create, or the listing to edit · `title`: 3–80 characters after trimming · `description`: up to 1,000 characters · `category`: one of `listing_categories()` · `price_sen`: 0–10,000,000 · `condition`: `new`, `like_new`, `good` or `fair` · `quantity`: units for sale, 1–999 (stored as `stock`) · `photo_paths`: up to 5 paths `{owner_id}/{listing_id}/{file}` ending in `.jpg`, `.jpeg`, `.png` or `.webp` · `pickup_area`: 2–80 characters · `mode` (Phase 4): `personal` or `business`, used only when creating; an edit keeps the listing's mode · `pickup_lat`, `pickup_lng` (pickup pins): both or neither, inside Malaysia (latitude 0.8–7.5, longitude 99.5–119.5); a call without them saves the listing with no pin |
 | **Output** | `{ listing_id, status }` |
-| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` · `FORBIDDEN` (not the owner; or business mode without an approved business) · `INVALID_TRANSITION` (reserved or sold personal listings can't be edited) · `RATE_LIMITED` (more than 20 new listings in an hour) · `42501` (signed out) |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` (including a deleted listing) · `FORBIDDEN` (not the owner; or business mode without an approved business) · `INVALID_TRANSITION` (sold personal listings can't be edited) · `RATE_LIMITED` (more than 20 new listings in an hour) · `42501` (signed out) |
 | **Derived on the server** | `owner_id` (the caller), `business_id` (the caller's business, for business mode), `status` (`draft` on create, unchanged on edit, except that restocking a sold-out business listing makes it `available`), `normalized_title`, `search_vector` |
 | **Notes** | Photos are stored under the listing's id, so the app creates the draft first (no photos), uploads, then calls again with the paths. A published listing must keep at least one photo |
 
@@ -113,10 +118,10 @@ Each function's full contract is added below when it is implemented.
 | | |
 |---|---|
 | **Caller** | Verified student who owns the listing |
-| **Allowed changes** | `draft` → `available` (needs a photo) or `closed` · `available` → `closed` or `sold` · `closed` → `available`. `reserved` changes through reservations |
+| **Allowed changes** | `draft` → `available` (needs a photo) · `available` → `sold` · `closed` → `available` · anything but `deleted` → `deleted`. Nothing is closed any more. Purchases and orders in progress don't block marking sold or deleting |
 | **Output** | `{ listing_id, status }` |
-| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (unknown status, or publishing without a photo) · `NOT_FOUND` · `FORBIDDEN` · `INVALID_TRANSITION` · `42501` |
-| **Side effects** | `sold` sets `stock` to 0 (every remaining unit went, for example sold outside the app) |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (unknown status, or publishing without a photo) · `NOT_FOUND` (missing or deleted) · `FORBIDDEN` · `INVALID_TRANSITION` · `42501` |
+| **Side effects** | `sold` sets `stock` to 0 (every remaining unit went, for example sold outside the app). `deleted` closes the product's draft and open pre-orders |
 
 ## `search_listings(search, category, condition, min_price_sen, max_price_sen, sort, page_size, page_offset)`
 
@@ -136,40 +141,61 @@ Each function's full contract is added below when it is implemented.
 |---|---|
 | **Caller** | Verified student or admin |
 | **Output** | One `listing_card` row |
-| **Shows** | Students: any listing that isn't a draft, isn't hidden, whose seller is active and, for business products, whose business is approved. The owner: their own listings in any status. Admins: everything |
+| **Shows** | Students: any listing that isn't a draft or deleted, isn't hidden, whose seller is active and, for business products, whose business is approved; and a deleted one they bought. The owner: their own listings in any status. Admins: everything |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` (missing or not visible to the caller) · `42501` |
 | **Side effects** | Sweeps overdue transfer payments first, like `search_listings` |
 
-## `request_reservation(listing_id uuid, qty integer default 1, pickup_note text default null, payment_method text default 'cash')`
+## `buy_item(listing_id uuid, qty integer default 1, payment_method text default 'cash')`
 
 | | |
 |---|---|
 | **Caller** | Verified student who doesn't own the listing. Personal listings only: business products are ordered (`place_order`) |
-| **Input** | `qty`: 1–999 · `pickup_note`: up to 200 characters, optional · `payment_method`: `cash` or `transfer` (the seller must have payment details) |
-| **Output** | `{ reservation_id, status: 'requested', expires_at, payment_id }` (`payment_id` for a transfer; its `expires_at` is the 30-minute proof deadline) |
-| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (including transfer to a cash-only seller) · `NOT_FOUND` (missing or draft) · `FORBIDDEN` (own listing) · `ITEM_UNAVAILABLE` (not available, hidden, seller suspended, or fewer units left than asked; the message says how many are left) · `ALREADY_EXISTS` (an active reservation on this listing already) · `RATE_LIMITED` (more than 10 in an hour) · `42501` |
-| **Side effects** | Locks the listing, expires its overdue reservations, takes `qty` out of `stock` (the listing becomes `reserved` at 0), creates the `deal_payments` row for a transfer, and notifies the seller |
-| **Concurrency** | Requests for the same listing run one at a time behind the row lock, so they can never hold more units than exist. CI proves this with two real connections (`supabase/tests/concurrency/reservation_race.sh`) |
+| **Input** | `qty`: 1–999 · `payment_method`: `cash` or `transfer` (the seller must have payment details) |
+| **Output** | `{ purchase_id, status, total_sen, payment_id, payment_due_at }`: `status` is `awaiting_handover` for cash, `awaiting_payment` for a transfer (which also has the payment) |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (including transfer to a cash-only seller) · `NOT_FOUND` (missing or draft) · `FORBIDDEN` (own listing) · `ITEM_UNAVAILABLE` (sold, closed, hidden, seller suspended, a business product, or fewer units left than asked) · `ALREADY_EXISTS` (an unfinished purchase of it already) · `RATE_LIMITED` (3 unfinished cash purchases, or 10 purchases in an hour) · `42501` |
+| **Side effects** | Locks the listing, expires its overdue transfers, takes `qty` out of `stock` (`sold` at 0), snapshots the price, creates the `deal_payments` row for a transfer and notifies the seller (`purchase_created`) |
+| **Concurrency** | Purchases of one listing run one at a time behind its row lock, and one buyer's behind an advisory lock (so the limits hold). CI proves the first with two real connections (`supabase/tests/concurrency/purchase_race.sh`) |
 
-## `resolve_reservation(reservation_id uuid, action text)`
+## `complete_purchase(purchase_id uuid)`
 
 | | |
 |---|---|
-| **Caller** | The seller (`accept`, `decline`, `collect`) or either side (`cancel`) |
-| **Allowed** | `accept`, `decline`: from `requested` · `cancel`: from `requested` or `accepted` · `collect`: from `accepted` |
-| **Output** | `{ reservation_id, status, listing_status }` |
-| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (unknown action) · `NOT_FOUND` · `FORBIDDEN` (not a party, or the buyer trying a seller action) · `INVALID_TRANSITION` (wrong status, expired, `accept` on a transfer reservation (use `review_payment`), or the buyer cancelling after sending proof) · `42501` |
-| **Side effects** | `accept` gives 7 days to collect. Declining or cancelling closes an open payment (`cancelled`). `decline` and `cancel` return the units. `collect` sells the listing when no stock and no other active reservation remain. Notifies the other party |
+| **Caller** | The seller |
+| **Allowed** | `awaiting_handover` → `completed` |
+| **Output** | `{ purchase_id, status }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` (missing, or not a party) · `FORBIDDEN` (the buyer) · `INVALID_TRANSITION` (payment not checked, or finished) · `42501` |
+| **Side effects** | Notifies the buyer (`purchase_completed`) |
 
-## `my_reservations(side text default 'buying')`
+## `cancel_purchase(purchase_id uuid, reason text default null, relist boolean default true)`
+
+| | |
+|---|---|
+| **Caller** | The buyer or the seller |
+| **Input** | `reason`: up to 200 characters, required from the seller · `relist`: the seller's choice, relist the item (`true`) or delete the listing (`false`); ignored for a buyer |
+| **Allowed** | From either awaiting status. A buyer can't once they've sent a receipt |
+| **Output** | `{ purchase_id, status, listing_status }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` · `INVALID_TRANSITION` · `42501` |
+| **Side effects** | Returns the units, closes an open payment, notifies the other side (`purchase_cancelled`) |
+
+## `relist_purchase(purchase_id uuid)`
+
+| | |
+|---|---|
+| **Caller** | The seller |
+| **Allowed** | Cash, `awaiting_handover`, at least 24 hours after buying |
+| **Output** | `{ purchase_id, status, listing_status }` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` · `FORBIDDEN` (the buyer) · `INVALID_TRANSITION` · `42501` |
+| **Side effects** | Cancels the purchase and puts the units on sale |
+
+## `my_purchases(side text default 'buying', page_size integer default 50, page_offset integer default 0)`
 
 | | |
 |---|---|
 | **Caller** | Verified student |
-| **Input** | `side`: `buying` or `selling` |
-| **Output** | Rows of `reservation_card`: `id, listing_id, listing_title, listing_photo, pickup_area, price_sen, qty, pickup_note, status, expires_at, created_at, updated_at, i_am_buyer, other_party_name, other_party_email, payment_id, payment_status, payment_due_at, payment_reject_reason` (the payment columns are null for cash). Active ones first, then newest |
-| **Privacy** | `other_party_email` is filled only once the reservation is `accepted` or `collected`; until then each side sees only the other's name |
-| **Side effects** | Sweeps overdue transfer payments, then expires the caller's overdue reservations (skipping listings another transaction holds) |
+| **Input** | `side`: `buying` or `selling` · `page_size`: 1–100 |
+| **Output** | Rows of `purchase_card`: `id, listing_id, listing_title, listing_photo, pickup_area, qty, unit_price_sen, total_sen, payment_method, status, cancelled_by, cancel_reason, relist_from, created_at, updated_at, completed_at, i_am_buyer, other_party_name, payment_id, payment_status, payment_due_at, payment_reject_reason` (`relist_from` for uncollected cash; the payment columns are null for cash). Unfinished first, then newest |
+| **Privacy** | No email: the two sides use the item chat |
+| **Side effects** | Sweeps overdue transfer payments first |
 
 ## `report_listing(listing_id uuid, reason text, details text default '')`
 
@@ -187,7 +213,7 @@ Each function's full contract is added below when it is implemented.
 | **Caller** | Admin |
 | **Output** | `{ listing_id, hidden, changed }` |
 | **Errors** | `FORBIDDEN` · `INVALID_INPUT` · `NOT_FOUND` · `42501` |
-| **Side effects** | When `changed`: sets `listings.hidden`, writes audit `listing.hidden` or `listing.restored` and notifies the owner. Hiding also closes the listing's open reports as `actioned` / `listing_hidden`. A hidden listing leaves the feed and can't be reserved; its owner and admins still see it |
+| **Side effects** | When `changed`: sets `listings.hidden`, writes audit `listing.hidden` or `listing.restored` and notifies the owner. Hiding also closes the listing's open reports as `actioned` / `listing_hidden`. A hidden listing leaves the feed and can't be bought; its owner and admins still see it |
 
 ## `dismiss_report(report_id uuid, note text default null)`
 
@@ -227,19 +253,19 @@ The approval is a **simulated** reviewer workflow for the FYP, not an official U
 
 | | |
 |---|---|
-| **Caller** | Reviewer or admin, not on their own application |
+| **Caller** | Admin, not on their own application |
 | **Actions** | `start_review`: `submitted` → `under_review` · `request_info`: `under_review` → `info_requested` (note required) · `approve`: `under_review` → `approved` · `reject`: `under_review` → `rejected` (note required) |
 | **Input** | `note`: up to 1,000 characters; required (not blank) for `request_info` and `reject`, optional otherwise |
 | **Output** | `{ application_id, status, business_id }`. `business_id` is set only by `approve` |
-| **Errors** | `FORBIDDEN` (not staff, or own application) · `INVALID_INPUT` (unknown action, missing or long note) · `NOT_FOUND` (missing, or still a draft) · `INVALID_TRANSITION` · `ALREADY_EXISTS` (approve: the applicant already has a business) · `42501` |
-| **Side effects** | `reviewer_id` = caller; `remarks` = the note when one is given; `decided_at` on approve and reject. History row (`actor_role` `reviewer` or `admin`); audit `application.<status>`; notification `application_<status>` to the applicant |
+| **Errors** | `FORBIDDEN` (not an administrator, or own application) · `INVALID_INPUT` (unknown action, missing or long note) · `NOT_FOUND` (missing, or still a draft) · `INVALID_TRANSITION` · `ALREADY_EXISTS` (approve: the applicant already has a business) · `42501` |
+| **Side effects** | `reviewer_id` = caller; `remarks` = the note when one is given; `decided_at` on approve and reject. History row (`actor_role` `admin`; older rows may say `reviewer`); audit `application.<status>`; notification `application_<status>` to the applicant |
 | **Approval** | In the same transaction, inserts the `businesses` row (`owner_id` = applicant, name, description, `pickup_details` = collection details, `status` `approved`). Business access follows immediately: `owns_business()` and `get_my_access()` read the table live, so there is no token to refresh |
 
 ## `application_status_summary()`
 
 | | |
 |---|---|
-| **Caller** | Reviewer or admin |
+| **Caller** | Admin |
 | **Output** | Rows `{ status, total }`, one for each of `submitted`, `under_review`, `info_requested`, `approved`, `rejected`, in that order, including zeros. Drafts are private and not counted |
 | **Errors** | `FORBIDDEN` · `42501` |
 
@@ -263,7 +289,7 @@ The approval is a **simulated** reviewer workflow for the FYP, not an official U
 
 ## Helpers
 
-`owns_business(business_id uuid) → boolean`: the caller is a verified student, owns that business, and it is `approved`. Phase 4 functions call it first. `is_staff() → boolean`: the caller has any `staff_roles` row (reviewer or admin); used by the review-queue policies. Storage policies use `can_upload_application_document(name)` and `can_read_application_document(name)`.
+`owns_business(business_id uuid) → boolean`: the caller is a verified student, owns that business, and it is `approved`. Phase 4 functions call it first. `is_staff() → boolean`: the caller has a `staff_roles` row, which since [ADR 0009](decisions/0009-single-admin-role.md) means an administrator; used by the review-queue policies. Storage policies use `can_upload_application_document(name)` and `can_read_application_document(name)`.
 
 ## Storefront, pre-orders and orders (M3)
 
@@ -418,21 +444,44 @@ For approved businesses only, and only their own data: the functions take no bus
 | **Counting** | `orders_by_status` (every status, zeros included) and `total_orders`: orders *placed* in the range. Completed figures: orders *completed* in the range (`completed_at`). `estimated_revenue_sen` = sum of their `total_sen`; `recorded_cost_sen` = sum of their entered `cost_sen` (`costed_completed_count` says how many have one); `estimated_profit_sen` = revenue − recorded costs. `top_products`: up to 5 products by revenue from those completed orders, then units, with `{ listing_id, title, units, revenue_sen }`. `stock`: every published business product with `{ listing_id, title, status, stock, hidden }`, lowest stock first. `campaigns`: draft and open pre-orders with `{ campaign_id, title, status, capacity, allocated_qty, remaining, close_at }` |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `FORBIDDEN` (no approved business) · `INVALID_INPUT` (range) · `42501` |
 
-## Deal chat ([ADR 0004](decisions/0004-deal-chat.md))
+## Business performance for administrators ([ADR 0007](decisions/0007-admin-business-performance.md))
 
-Text between the buyer and seller of an accepted reservation or a confirmed business order. All callers must be verified students; anyone else who isn't a participant gets `NOT_FOUND`, so they can't tell whether a chat exists. A chat **can send** while its deal is active and it isn't closed (see `conversations` in the data dictionary). New messages arrive live through Supabase Realtime: subscribe to `INSERT` on `public.messages` filtered by `conversation_id`.
+Admins only. Never a seller's cost or profit, and no personal sales. Both functions write an audit entry, so clients shouldn't refetch them in the background. `business_figures` is the internal helper they share with `business_dashboard`.
 
-`conversation_card`: `{ conversation_id, kind ('reservation' | 'order'), reservation_id, order_id, listing_id, listing_title, listing_photo, other_party_name, i_am_buyer, last_message, last_message_at, last_message_mine, unread_count, can_send, closed, created_at }`.
-
-## `open_conversation(reservation_id uuid default null, order_id uuid default null)`
+## `admin_business_performance_list(from_at timestamptz default null, to_at timestamptz default null, page_size integer default 20, page_offset integer default 0)`
 
 | | |
 |---|---|
-| **Caller** | The buyer or seller of the reservation or order |
-| **Input** | Exactly one of the two ids |
-| **Allowed** | Creates the chat while the deal is active; an existing chat is returned whatever the deal's state |
+| **Caller** | Admin |
+| **Input** | The range as in `business_dashboard` · `page_size`: 1–100 |
+| **Output** | `{ totals: { businesses, approved_businesses, total_orders, completed_count, estimated_revenue_sen }, rows: [{ business_id, business_name, owner_name, category, status, total_orders, completed_count, estimated_revenue_sen }] }`. Suspended businesses included; highest revenue first. Totals cover every business, whatever the page |
+| **Errors** | `FORBIDDEN` · `INVALID_INPUT` · `42501` |
+| **Side effects** | Audit `performance.list_viewed` with the range |
+
+## `admin_business_performance(business_id uuid, from_at timestamptz default null, to_at timestamptz default null)`
+
+| | |
+|---|---|
+| **Caller** | Admin |
+| **Output** | `{ business_id, business_name, owner_name, category, status, approved_at, orders_by_status, total_orders, completed_count, estimated_revenue_sen, top_products, stock, campaigns }`, counted as in `business_dashboard` |
+| **Errors** | `FORBIDDEN` · `NOT_FOUND` · `INVALID_INPUT` · `42501` |
+| **Side effects** | Audit `performance.viewed` with the business's name and the range |
+
+## Chat ([ADR 0004](decisions/0004-deal-chat.md), [ADR 0006](decisions/0006-buy-now.md))
+
+Text between a student and the seller of a personal item, or the buyer and seller of a confirmed business order. All callers must be verified students; anyone else who isn't a participant gets `NOT_FOUND`, so they can't tell whether a chat exists. When a chat **can send** is defined under `conversations` in the data dictionary. New messages arrive live through Supabase Realtime: subscribe to `INSERT` on `public.messages` filtered by `conversation_id`.
+
+`conversation_card`: `{ conversation_id, kind ('item' | 'order'), order_id, listing_id, listing_title, listing_photo, other_party_name, i_am_buyer, last_message, last_message_at, last_message_mine, unread_count, can_send, closed, created_at }`.
+
+## `open_conversation(listing_id uuid default null, order_id uuid default null, purchase_id uuid default null)`
+
+| | |
+|---|---|
+| **Caller** | `listing_id`: a student who doesn't own the personal listing · `purchase_id`, `order_id`: either side |
+| **Input** | Exactly one of the three ids |
+| **Allowed** | Creates the chat while the item is available or bought by that student, or the order is confirmed. An existing chat is returned whatever its state |
 | **Output** | `{ conversation_id, created }` |
-| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` · `INVALID_TRANSITION` (reservation not accepted or overdue; order not confirmed) · `42501` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` (not one id, or a business listing) · `NOT_FOUND` · `FORBIDDEN` (own listing) · `ITEM_UNAVAILABLE` (sold to someone else, closed, hidden) · `INVALID_TRANSITION` (order not confirmed) · `RATE_LIMITED` (20 new item chats a day) · `42501` |
 
 ## `send_message(conversation_id uuid, body text)`
 
@@ -442,7 +491,7 @@ Text between the buyer and seller of an accepted reservation or a confirmed busi
 | **Input** | `body`: 1–1,000 characters after trimming |
 | **Allowed** | While the chat can send. 20 messages a minute per student |
 | **Output** | `{ message_id, created_at }`; the sender's read marker moves to it |
-| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` · `INVALID_TRANSITION` ("This chat was closed." or read-only because the deal ended) · `RATE_LIMITED` · `42501` |
+| **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` · `INVALID_TRANSITION` ("This chat was closed." or read-only because the item is gone or the order ended) · `RATE_LIMITED` · `42501` |
 
 ## `my_conversations(page_size integer default 30, page_offset integer default 0)` · `get_conversation(conversation_id uuid)`
 
@@ -489,7 +538,7 @@ Text between the buyer and seller of an accepted reservation or a confirmed busi
 
 ## Transfer payments ([ADR 0005](decisions/0005-transfer-payments.md))
 
-A buyer may pay a seller's own bank account or QR code outside the app and upload a screenshot; the seller checks their bank and accepts or rejects it. CampusNiaga never holds or moves money, and records what the seller decided. The units stay held while a payment is open; a payment without proof 30 minutes after ordering or reserving expires and releases them.
+A buyer may pay a seller's own bank account or QR code outside the app and upload a screenshot; the seller checks their bank and accepts or rejects it. CampusNiaga never holds or moves money, and records what the seller decided. The units stay held while a payment is open; a payment without proof 30 minutes after ordering or buying expires and releases them. One with proof never expires.
 
 ## `set_payment_details(for_business boolean, bank_name text default null, account_name text default null, account_number text default null, qr_path text default null)`
 
@@ -513,7 +562,7 @@ A buyer may pay a seller's own bank account or QR code outside the app and uploa
 | | |
 |---|---|
 | **Caller** | The payment's buyer or seller |
-| **Output** | `{ payment_id, order_id, reservation_id, i_am_buyer, item_title, qty, deal_status, seller_name, amount_sen, status, due_at, proof_path, submitted_at, decided_at, reject_reason, pay_to }`. `pay_to` = `{ bank_name, account_name, account_number, qr_path }` for the buyer while the payment is `awaiting_proof` or `submitted`; otherwise `null` |
+| **Output** | `{ payment_id, order_id, purchase_id, i_am_buyer, item_title, qty, deal_status, seller_name, amount_sen, status, due_at, proof_path, submitted_at, decided_at, reject_reason, pay_to }`. `pay_to` = `{ bank_name, account_name, account_number, qr_path }` for the buyer while the payment is `awaiting_proof` or `submitted`; otherwise `null` |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` (missing, or not a party) · `42501` |
 | **Side effects** | Sweeps overdue transfer payments first |
 
@@ -526,7 +575,7 @@ A buyer may pay a seller's own bank account or QR code outside the app and uploa
 | **Allowed** | `awaiting_proof` → `submitted`, before `due_at` |
 | **Output** | `{ payment_id, status: 'submitted' }` |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `NOT_FOUND` · `FORBIDDEN` (the seller) · `INVALID_INPUT` (no such upload) · `INVALID_TRANSITION` (already sent, or the time has run out) · `42501` |
-| **Side effects** | Locks the deal's listing or campaign first. A reservation's hold becomes 7 days, for the seller to check. Notifies the seller (`payment_submitted`) |
+| **Side effects** | Locks the deal's listing or campaign first. From then on only the seller can release the units. Notifies the seller (`payment_submitted`) |
 
 ## `review_payment(payment_id uuid, accept boolean, reason text default null)`
 
@@ -537,6 +586,6 @@ A buyer may pay a seller's own bank account or QR code outside the app and uploa
 | **Allowed** | `submitted` → `accepted` / `rejected` |
 | **Output** | `{ payment_id, status, deal_status }` |
 | **Errors** | `NOT_VERIFIED_STUDENT` · `INVALID_INPUT` · `NOT_FOUND` · `FORBIDDEN` (the buyer, or a suspended business) · `INVALID_TRANSITION` (no proof yet, or already decided) · `42501` |
-| **Side effects** | Accept: the order becomes `confirmed`, or the reservation `accepted` (7 days to collect). Reject: the order is cancelled (`cancelled_by = 'seller'`) or the reservation declined, and the units go back on sale. Audited (`payment.accepted` / `payment.rejected`); notifies the buyer |
+| **Side effects** | Accept: the order becomes `confirmed`, or the purchase `awaiting_handover`. Reject: the order or purchase is cancelled (`cancelled_by = 'seller'`) and the units go back on sale. Audited (`payment.accepted` / `payment.rejected`); notifies the buyer |
 
-`can_read_payment_qr`, `can_upload_payment_proof`, `can_read_payment_proof` and `can_delete_payment_proof` are the Storage helpers for `payment-qr` and `payment-proofs`. `payment_details_for`, `cancel_order_hold`, `expire_unpaid_orders`, `expire_overdue_payments` and `lock_payment` are internal.
+`can_read_payment_qr`, `can_upload_payment_proof`, `can_read_payment_proof` and `can_delete_payment_proof` are the Storage helpers for `payment-qr` and `payment-proofs`. `payment_details_for`, `cancel_order_hold`, `expire_unpaid_orders`, `expire_overdue_payments`, `lock_payment`, `cancel_purchase_hold`, `expire_unpaid_purchases`, `lock_purchase` and `has_bought_item` are internal.

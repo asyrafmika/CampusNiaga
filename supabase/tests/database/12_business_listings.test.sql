@@ -1,5 +1,5 @@
 -- Business products (M3): upsert_listing in business mode, business
--- attribution and suspension in the feed, reservations refused for business
+-- attribution and suspension in the feed, Buy now refused for business
 -- products, get_storefront, update_storefront and the business-logos rules.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -74,11 +74,11 @@ select is((select business_name || '/' || business_id from public.search_listing
 select is((select coalesce(business_name, 'none') from public.search_listings('textbook')), 'none', 'a personal item has no business');
 select is((select business_name from public.get_listing(current_setting('test.product')::uuid)), 'Ali Bakes', 'the detail page names the business');
 
--- Reservations are for personal items only
-select is(pg_temp.error_reason($$ select public.request_reservation(current_setting('test.product')::uuid) $$), 'ITEM_UNAVAILABLE', 'a business product cannot be reserved');
-select is(public.request_reservation(current_setting('test.personal')::uuid) ->> 'status', 'requested', 'a personal item still can');
+-- Buy now is for personal items only
+select is(pg_temp.error_reason($$ select public.buy_item(current_setting('test.product')::uuid) $$), 'ITEM_UNAVAILABLE', 'a business product cannot be bought with Buy now');
+select is(public.buy_item(current_setting('test.personal')::uuid) ->> 'status', 'awaiting_handover', 'a personal item can');
 reset role;
-select is((select stock from public.listings where id = current_setting('test.product')::uuid), 4, 'a refused reservation leaves the stock alone');
+select is((select stock from public.listings where id = current_setting('test.product')::uuid), 4, 'a refused purchase leaves the stock alone');
 
 -- Suspension removes business products at once
 update public.businesses set status = 'suspended' where id = 'bbbbbbbb-0000-0000-0000-000000000011';

@@ -1,9 +1,9 @@
 -- Businesses (M2): what approval creates, business access (owns_business,
 -- get_my_access, get_my_business), rejection, set_business_status, the
--- status summary, and the reviewer's view of applicant profiles.
+-- status summary, and the administrator's view of applicant profiles.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(60);
+select plan(61);
 
 create function pg_temp.error_reason(statement text) returns text language plpgsql as $$
 declare reason text;
@@ -25,7 +25,7 @@ insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) value
   ('55555555-5555-5555-5555-555555555555', 'ben@gmail.com', now(), '{}');
 insert into public.staff_roles (user_id, role) values
   ('33333333-3333-3333-3333-333333333333', 'admin'),
-  ('88888888-8888-8888-8888-888888888888', 'reviewer');
+  ('88888888-8888-8888-8888-888888888888', 'admin');
 
 -- Ali's and Siti's applications are under review; Amin only has a draft.
 insert into public.business_applications (id, applicant_id, business_name, category, description, contact_details, collection_details, status, submitted_at) values
@@ -83,7 +83,7 @@ select is(public.get_my_access() ->> 'is_business_owner', 'false', 'another stud
 set local request.jwt.claims to '{"sub": "55555555-5555-5555-5555-555555555555", "role": "authenticated"}';
 select is(pg_temp.error_reason('select public.get_my_business()'), 'NOT_VERIFIED_STUDENT', 'a non-USM account cannot ask for a business');
 set local request.jwt.claims to '{"sub": "88888888-8888-8888-8888-888888888888", "role": "authenticated"}';
-select is((select count(*)::int from public.businesses), 1, 'a reviewer reads businesses');
+select is((select count(*)::int from public.businesses), 1, 'the reviewing administrator reads businesses');
 set local request.jwt.claims to '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}';
 select is((select count(*)::int from public.businesses), 1, 'an admin reads businesses');
 reset role;
@@ -143,11 +143,11 @@ set local role anon;
 select is(pg_temp.error_reason('select * from public.application_status_summary()'), '42501', 'signed-out visitors cannot see the summary');
 reset role;
 
--- Reviewers see applicants' names, nobody else's ---------------------------------------------------------
+-- Administrators see every profile; students only their own ---------------------------------------------------------
 set local role authenticated;
 set local request.jwt.claims to '{"sub": "88888888-8888-8888-8888-888888888888", "role": "authenticated"}';
-select results_eq($$ select name from public.profiles order by name $$, $$ values ('Ali'), ('Rina'), ('Siti') $$,
-  'a reviewer reads their own profile and those of submitted applicants, not of students with only a draft');
+select is((select count(*)::int from public.profiles), 6, 'an administrator reads every profile');
+select ok(not exists (select 1 from pg_policies where tablename = 'profiles' and policyname = 'Reviewers read the profiles of applicants'), 'the reviewers'' own rule is gone');
 set local request.jwt.claims to '{"sub": "22222222-2222-2222-2222-222222222222", "role": "authenticated"}';
 select results_eq($$ select name from public.profiles $$, $$ values ('Siti') $$, 'students still read only their own profile');
 reset role;
@@ -156,8 +156,8 @@ reset role;
 set local role authenticated;
 set local request.jwt.claims to '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}';
 select is(pg_temp.error_reason($$ select public.set_business_status(current_setting('test.business')::uuid, 'suspended') $$), 'FORBIDDEN', 'an owner cannot change their business status');
-set local request.jwt.claims to '{"sub": "88888888-8888-8888-8888-888888888888", "role": "authenticated"}';
-select is(pg_temp.error_reason($$ select public.set_business_status(current_setting('test.business')::uuid, 'suspended') $$), 'FORBIDDEN', 'a reviewer cannot suspend a business');
+set local request.jwt.claims to '{"sub": "22222222-2222-2222-2222-222222222222", "role": "authenticated"}';
+select is(pg_temp.error_reason($$ select public.set_business_status(current_setting('test.business')::uuid, 'suspended') $$), 'FORBIDDEN', 'another student cannot suspend a business');
 set local request.jwt.claims to '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}';
 select is(pg_temp.error_reason($$ select public.set_business_status(current_setting('test.business')::uuid, 'closed') $$), 'INVALID_INPUT', 'an unknown business status is refused');
 select is(pg_temp.error_reason($$ select public.set_business_status('99999999-9999-9999-9999-999999999999', 'suspended') $$), 'NOT_FOUND', 'suspending a missing business fails');

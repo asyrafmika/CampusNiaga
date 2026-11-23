@@ -8,6 +8,13 @@ enum PaymentMethod {
 
   final String wireName;
   final String label;
+
+  static PaymentMethod fromWire(Object? value) {
+    for (final m in values) {
+      if (m.wireName == value) return m;
+    }
+    throw FormatException('Unknown payment method: $value');
+  }
 }
 
 /// `deal_payments.status`.
@@ -35,7 +42,7 @@ enum PaymentStatus {
   }
 }
 
-/// The payment of an order or reservation, as My Orders and Bookings show it.
+/// The payment of an order or purchase, as My Orders and Purchases show it.
 class PaymentSummary {
   const PaymentSummary({
     required this.id,

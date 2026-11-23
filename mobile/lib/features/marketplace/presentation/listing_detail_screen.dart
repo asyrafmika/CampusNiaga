@@ -18,15 +18,19 @@ import '../domain/listing.dart';
 import 'marketplace_providers.dart';
 import 'widgets/listing_widgets.dart';
 
-/// Product detail: photos, price, details and seller; buyers reserve or
+/// Product detail: photos, price, details and seller; buyers chat, buy or
 /// report, owners manage the listing.
 class ListingDetailScreen extends ConsumerWidget {
   const ListingDetailScreen({super.key, required this.listingId});
 
   final String listingId;
 
-  static const Key reserveKey = Key('detail-reserve');
-  static const Key reservePickupKey = Key('reserve-pickup');
+  static const Key buyKey = Key('detail-buy');
+  static const Key chatKey = Key('detail-chat');
+  static const Key buyPickupKey = Key('buy-pickup');
+  static const Key confirmBuyKey = Key('buy-confirm');
+  static const Key confirmOwnerActionKey = Key('owner-action-confirm');
+  static Key ownerActionKey(OwnerAction action) => Key('owner-${action.name}');
   static const Key orderKey = Key('detail-order');
   static const Key storefrontKey = Key('detail-storefront');
   static const Key pickupMapKey = Key('detail-pickup-map');
@@ -104,7 +108,7 @@ class _Details extends StatelessWidget {
             icon: Icons.visibility_off_rounded,
             text:
                 'Hidden by an administrator. Other students can’t see or '
-                'reserve it.',
+                'buy it.',
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -359,7 +363,7 @@ class _Banner extends StatelessWidget {
   );
 }
 
-/// Buyer: reserve (when something is left) or the reason they can't.
+/// Buyer: chat (which holds nothing) and Buy now, or why they can't buy.
 class _BuyerBar extends StatelessWidget {
   const _BuyerBar({required this.listing});
 
@@ -381,38 +385,52 @@ class _BuyerBar extends StatelessWidget {
         ),
       );
     }
-    final canReserve =
+    final canBuy =
         listing.status == ListingStatus.available && listing.stock > 0;
-    return FilledButton(
-      key: ListingDetailScreen.reserveKey,
-      onPressed: canReserve
+    final buy = FilledButton(
+      key: ListingDetailScreen.buyKey,
+      onPressed: canBuy
           ? () => showModalBottomSheet<void>(
               context: context,
               isScrollControlled: true,
               showDragHandle: true,
-              builder: (_) => _ReserveSheet(listing: listing),
+              builder: (_) => _BuySheet(listing: listing),
             )
           : null,
       child: Text(switch (listing.status) {
-        ListingStatus.available => 'Reserve',
-        ListingStatus.reserved => 'Reserved by someone else',
+        ListingStatus.available => 'Buy now',
         ListingStatus.sold => 'Sold',
         _ => 'Not available',
       }),
     );
+    if (!canBuy) return buy;
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            key: ListingDetailScreen.chatKey,
+            onPressed: () => context.push(AppRoutes.chatForListing(listing.id)),
+            child: const Text('Chat', semanticsLabel: 'Chat with seller'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: buy),
+      ],
+    );
   }
 }
 
-class _ReserveSheet extends ConsumerStatefulWidget {
-  const _ReserveSheet({required this.listing});
+/// Quantity and payment, then Confirm purchase: only that buys the item.
+class _BuySheet extends ConsumerStatefulWidget {
+  const _BuySheet({required this.listing});
 
   final Listing listing;
 
   @override
-  ConsumerState<_ReserveSheet> createState() => _ReserveSheetState();
+  ConsumerState<_BuySheet> createState() => _BuySheetState();
 }
 
-class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
+class _BuySheetState extends ConsumerState<_BuySheet> {
   int _qty = 1;
   PaymentMethod _method = PaymentMethod.cash;
   bool _busy = false;
@@ -425,14 +443,11 @@ class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
     try {
       final paymentId = await ref
           .read(marketplaceActionsProvider)
-          .reserve(
-            listingId: widget.listing.id,
-            qty: _qty,
-            paymentMethod: _method,
-          );
-      navigator.pop();
+          .buy(listingId: widget.listing.id, qty: _qty, paymentMethod: _method);
+      // Only the sheet: it may have been closed while the call ran.
+      if (mounted) navigator.pop();
       if (paymentId != null) {
-        // Transfer: straight to where to pay; the item is held meanwhile.
+        // Transfer: straight to where to pay.
         unawaited(router.push(AppRoutes.payment(paymentId)));
         return;
       }
@@ -441,15 +456,17 @@ class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
         ..showSnackBar(
           const SnackBar(
             content: Text(
-              'Reserved! The seller has 48 hours to respond. '
-              'See it under Bookings.',
+              'Bought! Arrange pickup with the seller in the chat, under '
+              'Purchases.',
             ),
           ),
         );
     } on Object catch (e) {
-      if (!mounted) return;
-      setState(() => _busy = false);
-      showMessage(context, AppFailure.messageOf(e));
+      // Closed first, so the message isn't hidden behind the sheet.
+      if (mounted) navigator.pop();
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(AppFailure.messageOf(e))));
     }
   }
 
@@ -457,7 +474,7 @@ class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final listing = widget.listing;
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         20,
         0,
@@ -468,45 +485,24 @@ class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Reserve this item', style: theme.textTheme.titleLarge),
+          Text('Buy this item', style: theme.textTheme.titleLarge),
           const SizedBox(height: 4),
           Text(
             _method == PaymentMethod.transfer
-                ? 'The item is held for you for 30 minutes while you pay.'
-                : 'The item is held for you while the seller responds.',
+                ? 'It’s yours once you confirm. Send your receipt within 30 '
+                      'minutes or it goes back on sale.'
+                : 'It’s yours once you confirm, first come, first served. '
+                      'Pay cash when you collect.',
             style: theme.textTheme.bodyMedium,
           ),
           if (listing.stock > 1) ...[
             const SizedBox(height: 18),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Quantity',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-                IconButton.outlined(
-                  tooltip: 'Remove one',
-                  onPressed: _qty > 1 ? () => setState(() => _qty--) : null,
-                  icon: const Icon(Icons.remove_rounded),
-                ),
-                SizedBox(
-                  width: 44,
-                  child: Text(
-                    '$_qty',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.titleMedium,
-                  ),
-                ),
-                IconButton.outlined(
-                  tooltip: 'Add one',
-                  onPressed: _qty < listing.stock
-                      ? () => setState(() => _qty++)
-                      : null,
-                  icon: const Icon(Icons.add_rounded),
-                ),
-              ],
+            _QuantityRow(
+              qty: _qty,
+              max: listing.stock,
+              // Steps, not values: two taps can land before a rebuild.
+              onStep: (by) =>
+                  setState(() => _qty = (_qty + by).clamp(1, listing.stock)),
             ),
           ],
           const SizedBox(height: 16),
@@ -518,7 +514,7 @@ class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
           ),
           const SizedBox(height: 4),
           // Collection happens where the seller pinned it; a different time
-          // or place is agreed in the deal chat once the seller accepts.
+          // or place is agreed in the chat.
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -530,9 +526,9 @@ class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Pickup at ${listing.pickupArea}. Once the seller accepts, '
-                  'you can chat to agree on a time or another place.',
-                  key: ListingDetailScreen.reservePickupKey,
+                  'Pickup at ${listing.pickupArea}. You can chat with the '
+                  'seller to agree on a time or another place.',
+                  key: ListingDetailScreen.buyPickupKey,
                   style: theme.textTheme.bodySmall,
                 ),
               ),
@@ -553,6 +549,7 @@ class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
           ),
           const SizedBox(height: 16),
           FilledButton(
+            key: ListingDetailScreen.confirmBuyKey,
             onPressed: _busy ? null : _confirm,
             child: _busy
                 ? const SizedBox.square(
@@ -562,16 +559,51 @@ class _ReserveSheetState extends ConsumerState<_ReserveSheet> {
                       color: Colors.white,
                     ),
                   )
-                : Text(
-                    _method == PaymentMethod.transfer
-                        ? 'Reserve and pay'
-                        : 'Confirm reservation',
-                  ),
+                : const Text('Confirm purchase'),
           ),
         ],
       ),
     );
   }
+}
+
+class _QuantityRow extends StatelessWidget {
+  const _QuantityRow({
+    required this.qty,
+    required this.max,
+    required this.onStep,
+  });
+
+  final int qty;
+  final int max;
+  final ValueChanged<int> onStep;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      const Expanded(
+        child: Text('Quantity', style: TextStyle(fontWeight: FontWeight.w700)),
+      ),
+      IconButton.outlined(
+        tooltip: 'Remove one',
+        onPressed: qty > 1 ? () => onStep(-1) : null,
+        icon: const Icon(Icons.remove_rounded),
+      ),
+      SizedBox(
+        width: 44,
+        child: Text(
+          '$qty',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+      ),
+      IconButton.outlined(
+        tooltip: 'Add one',
+        onPressed: qty < max ? () => onStep(1) : null,
+        icon: const Icon(Icons.add_rounded),
+      ),
+    ],
+  );
 }
 
 /// Owner: the actions their listing's status allows.
@@ -593,19 +625,24 @@ class _OwnerBarState extends ConsumerState<_OwnerBar> {
       await context.push(AppRoutes.editListing(listing.id));
       return;
     }
+    // A personal draft is published from its payment step.
+    if (action == OwnerAction.publish && !listing.isBusiness) {
+      await context.push(AppRoutes.listingPayment(listing.id, publish: true));
+      return;
+    }
     final target = targetStatusOf(action)!;
-    if (action == OwnerAction.markSold || action == OwnerAction.close) {
+    if (action == OwnerAction.markSold || action == OwnerAction.delete) {
+      final delete = action == OwnerAction.delete;
       final ok = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text(
-            action == OwnerAction.markSold ? 'Mark as sold?' : 'Close listing?',
-          ),
+          title: Text(delete ? 'Delete this listing?' : 'Mark as sold?'),
           content: Text(
-            action == OwnerAction.markSold
-                ? 'Use this if it sold outside the app. Buyers can no longer '
-                      'reserve it.'
-                : 'It leaves the marketplace. You can re-open it later.',
+            delete
+                ? 'It’s removed from the marketplace and your listings for '
+                      'good. Purchases and orders already made carry on.'
+                : 'Use this if it sold outside the app. Buyers can no longer '
+                      'buy it.',
           ),
           actions: [
             TextButton(
@@ -613,24 +650,28 @@ class _OwnerBarState extends ConsumerState<_OwnerBar> {
               child: const Text('Not now'),
             ),
             TextButton(
+              key: ListingDetailScreen.confirmOwnerActionKey,
               onPressed: () => Navigator.pop(context, true),
-              child: Text(
-                action == OwnerAction.markSold ? 'Mark sold' : 'Close',
-              ),
+              child: Text(delete ? 'Delete' : 'Mark sold'),
             ),
           ],
         ),
       );
       if (ok != true) return;
     }
+    if (!mounted) return;
     setState(() => _busy = true);
     try {
       await ref
           .read(marketplaceActionsProvider)
           .setListingStatus(listing.id, target);
-      if (mounted) {
-        showMessage(context, 'Listing is now ${target.label.toLowerCase()}.');
+      if (!mounted) return;
+      if (action == OwnerAction.delete) {
+        showMessage(context, 'Listing deleted.');
+        context.pop();
+        return;
       }
+      showMessage(context, 'Listing is now ${target.label.toLowerCase()}.');
     } on Object catch (e) {
       if (mounted) showMessage(context, AppFailure.messageOf(e));
     } finally {
@@ -650,37 +691,75 @@ class _OwnerBarState extends ConsumerState<_OwnerBar> {
     }
     if (actions.isEmpty) {
       return OutlinedButton.icon(
-        onPressed: () => context.go(AppRoutes.reservations),
+        onPressed: () => context.go(AppRoutes.purchases),
         icon: const Icon(Icons.receipt_long_rounded),
         label: Text(
-          widget.listing.status == ListingStatus.sold
-              ? 'Sold. See reservations'
-              : 'Manage its reservations',
+          widget.listing.status == ListingStatus.deleted
+              ? 'Deleted. See purchases'
+              : 'Sold. See purchases',
         ),
       );
     }
-    final primary = actions.firstWhere(
-      (a) => a != OwnerAction.edit,
-      orElse: () => OwnerAction.edit,
+    // The main button: the status change, else Edit (restocking a sold-out
+    // product). Delete is never the main button, and looks destructive.
+    final main = actions.where(
+      (a) => a != OwnerAction.edit && a != OwnerAction.delete,
     );
-    final secondary = actions.where((a) => a != primary).toList();
-    return Row(
-      children: [
-        for (final action in secondary) ...[
-          Expanded(
-            child: OutlinedButton(
-              onPressed: _busy ? null : () => _run(action),
-              child: Text(_label(action)),
-            ),
+    final primary = main.isNotEmpty
+        ? main.first
+        : actions.contains(OwnerAction.edit)
+        ? OwnerAction.edit
+        : null;
+    final others = actions
+        .where((a) => a != primary && a != OwnerAction.delete)
+        .toList();
+    final error = Theme.of(context).colorScheme.error;
+    // Each item starts a gap, except the first.
+    final items = <Widget>[
+      // A bin icon, so three buttons still fit a small phone on one line.
+      if (actions.contains(OwnerAction.delete))
+        IconButton.outlined(
+          key: ListingDetailScreen.ownerActionKey(OwnerAction.delete),
+          tooltip: 'Delete listing',
+          color: error,
+          style: IconButton.styleFrom(
+            side: BorderSide(color: error.withValues(alpha: 0.5)),
+            minimumSize: const Size(52, 52),
           ),
-          const SizedBox(width: 10),
-        ],
+          onPressed: _busy ? null : () => _run(OwnerAction.delete),
+          icon: const Icon(Icons.delete_outline_rounded),
+        ),
+      if (widget.listing.status == ListingStatus.sold &&
+          !widget.listing.isBusiness)
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () => context.go(AppRoutes.purchases),
+            child: const Text('See purchases'),
+          ),
+        ),
+      for (final action in others)
+        Expanded(
+          child: OutlinedButton(
+            key: ListingDetailScreen.ownerActionKey(action),
+            onPressed: _busy ? null : () => _run(action),
+            child: Text(_label(action)),
+          ),
+        ),
+      if (primary != null)
         Expanded(
           child: FilledButton(
+            key: ListingDetailScreen.ownerActionKey(primary),
             onPressed: _busy ? null : () => _run(primary),
             child: Text(_label(primary)),
           ),
         ),
+    ];
+    return Row(
+      children: [
+        for (final (i, item) in items.indexed) ...[
+          if (i > 0) const SizedBox(width: 10),
+          item,
+        ],
       ],
     );
   }
@@ -688,8 +767,8 @@ class _OwnerBarState extends ConsumerState<_OwnerBar> {
   static String _label(OwnerAction action) => switch (action) {
     OwnerAction.edit => 'Edit',
     OwnerAction.publish => 'Publish',
-    OwnerAction.close => 'Close',
     OwnerAction.reopen => 'Re-open',
     OwnerAction.markSold => 'Sold',
+    OwnerAction.delete => 'Delete',
   };
 }

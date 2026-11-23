@@ -5,16 +5,17 @@ import { AuditLogPage } from '../features/audit/pages/AuditLogPage';
 import { LoginPage, RequireStaff } from '../features/auth';
 import { ModerationPage } from '../features/moderation';
 import { OverviewPage } from '../features/overview/pages/OverviewPage';
+import { BusinessPerformanceDetailPage, BusinessPerformancePage } from '../features/performance';
 import { UsersPage } from '../features/users/pages/UsersPage';
 import { AppShell } from './layout/AppShell';
 
-/** Every route except /login needs a staff role; admin pages need admin. */
+/** Every route except /login is for HDC administrators, the one staff role (ADR 0009). */
 export const routes = [
   { path: '/login', element: <LoginPage /> },
   {
     path: '/',
     element: (
-      <RequireStaff role="reviewer">
+      <RequireStaff>
         <AppShell />
       </RequireStaff>
     ),
@@ -22,30 +23,11 @@ export const routes = [
       { index: true, element: <OverviewPage /> },
       { path: 'applications', element: <ApplicationsPage /> },
       { path: 'applications/:applicationId', element: <ApplicationDetailPage /> },
-      {
-        path: 'moderation',
-        element: (
-          <RequireStaff role="admin">
-            <ModerationPage />
-          </RequireStaff>
-        ),
-      },
-      {
-        path: 'users',
-        element: (
-          <RequireStaff role="admin">
-            <UsersPage />
-          </RequireStaff>
-        ),
-      },
-      {
-        path: 'audit',
-        element: (
-          <RequireStaff role="admin">
-            <AuditLogPage />
-          </RequireStaff>
-        ),
-      },
+      { path: 'performance', element: <BusinessPerformancePage /> },
+      { path: 'performance/:businessId', element: <BusinessPerformanceDetailPage /> },
+      { path: 'moderation', element: <ModerationPage /> },
+      { path: 'users', element: <UsersPage /> },
+      { path: 'audit', element: <AuditLogPage /> },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },

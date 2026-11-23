@@ -1,22 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
-import { visibleNavItems } from './navigation';
+import { NAV_ITEMS } from './navigation';
 
-const access = { userId: 'u1', email: 'a@usm.my', isReviewer: false, isAdmin: false };
-
-describe('visibleNavItems', () => {
-  it('shows a reviewer only reviewer pages', () => {
-    const labels = visibleNavItems({ ...access, isReviewer: true }).map((i) => i.label);
-    expect(labels).toEqual(['Overview', 'Applications']);
-  });
-
-  it('shows an admin every page', () => {
-    const labels = visibleNavItems({ ...access, isAdmin: true }).map((i) => i.label);
-    expect(labels).toEqual(['Overview', 'Applications', 'Reports & Moderation', 'Users & Roles', 'Audit Log']);
+describe('NAV_ITEMS', () => {
+  it('lists every page for the HDC administrator', () => {
+    expect(NAV_ITEMS.map((i) => i.label)).toEqual([
+      'Overview',
+      'Applications',
+      'Business Performance',
+      'Reports & Moderation',
+      'Users & Roles',
+      'Audit Log',
+    ]);
   });
 
   it('has no pages waiting for a later phase', () => {
-    const later = visibleNavItems({ ...access, isAdmin: true }).filter((i) => i.comingIn !== undefined);
-    expect(later).toEqual([]);
+    expect(NAV_ITEMS.filter((i) => i.comingIn !== undefined)).toEqual([]);
   });
 });

@@ -38,7 +38,7 @@ import { documentName, type ApplicationDetail } from '../services/applicationsSe
 
 type Notice = { severity: 'success' | 'error'; text: string };
 
-/** Application Detail with Decision & Notes (reviewers and admins). */
+/** Application Detail with Decision & Notes (HDC administrators). */
 export function ApplicationDetailPage() {
   const { applicationId = '' } = useParams();
   const application = useApplication(applicationId);
@@ -208,10 +208,10 @@ function Detail({ application }: { application: ApplicationDetail }) {
             </Typography>
             {application.remarks !== null && (
               <Alert severity="warning" icon={false} sx={{ mb: 2, whiteSpace: 'pre-wrap' }}>
-                <strong>Latest reviewer note:</strong> {application.remarks}
+                <strong>Latest administrator note:</strong> {application.remarks}
               </Alert>
             )}
-            {ownApplication && <Alert severity="info">This is your own application. Another reviewer must decide.</Alert>}
+            {ownApplication && <Alert severity="info">This is your own application. Another administrator must decide.</Alert>}
             {!ownApplication && actions.length === 0 && (
               <Typography sx={{ color: 'text.secondary' }}>{waitingText(application)}</Typography>
             )}
@@ -245,19 +245,17 @@ function Detail({ application }: { application: ApplicationDetail }) {
                   color={business.status === 'approved' ? 'success' : 'error'}
                 />
               </Stack>
-              {access?.isAdmin === true && (
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  color={business.status === 'approved' ? 'error' : 'primary'}
-                  disabled={busy}
-                  onClick={() => {
-                    setPending(business.status === 'approved' ? 'suspended' : 'approved');
-                  }}
-                >
-                  {business.status === 'approved' ? 'Suspend business' : 'Reinstate business'}
-                </Button>
-              )}
+              <Button
+                fullWidth
+                variant="outlined"
+                color={business.status === 'approved' ? 'error' : 'primary'}
+                disabled={busy}
+                onClick={() => {
+                  setPending(business.status === 'approved' ? 'suspended' : 'approved');
+                }}
+              >
+                {business.status === 'approved' ? 'Suspend business' : 'Reinstate business'}
+              </Button>
             </Paper>
           )}
         </Grid>
@@ -299,7 +297,8 @@ function Detail({ application }: { application: ApplicationDetail }) {
   );
 }
 
-const ROLE_LABELS = { applicant: 'Applicant', reviewer: 'Reviewer', admin: 'Admin' } as const;
+// 'reviewer' only appears in history from before ADR 0009.
+const ROLE_LABELS = { applicant: 'Applicant', reviewer: 'Reviewer', admin: 'HDC Administrator' } as const;
 
 function Field({ label, value }: { label: string; value: string }) {
   return (

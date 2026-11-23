@@ -275,7 +275,6 @@ void main() {
         emailConfirmed: true,
         accountStatus: AccountStatus.active,
         isStudent: true,
-        isReviewer: false,
         isAdmin: false,
         isBusinessOwner: true,
         businessStatus: BusinessStatus.approved,

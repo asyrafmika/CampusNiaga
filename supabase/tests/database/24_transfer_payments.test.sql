@@ -1,13 +1,13 @@
 -- Transfer payments (ADR 0005): payment details (set_payment_details, their
--- privacy), choosing cash or transfer (request_reservation, place_order,
+-- privacy), choosing cash or transfer (buy_item, place_order,
 -- seller_accepts_transfer), the payment page (get_payment), proof
 -- (submit_payment_proof and its storage), the seller's decision
--- (review_payment), the guards on resolve_reservation / transition_order,
+-- (review_payment), the guards on purchases and transition_order,
 -- the 30-minute hold and its expiry (on the locked stock and by the read
 -- sweep), and who reads what.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(94);
+select * from no_plan();
 
 create function pg_temp.error_reason(statement text) returns text language plpgsql as $$
 declare reason text;
@@ -51,7 +51,7 @@ insert into public.campaigns (id, business_id, listing_id, title, price_sen, sta
 select has_table('public', 'payment_details', 'payment details have a table');
 select has_table('public', 'deal_payments', 'deal payments have a table');
 select hasnt_function('public', 'place_order', array['uuid', 'integer', 'uuid', 'text'], 'the cash-only place_order is gone');
-select hasnt_function('public', 'request_reservation', array['uuid', 'integer', 'text'], 'the cash-only request_reservation is gone');
+select hasnt_column('public', 'deal_payments', 'reservation_id', 'payments follow purchases, not the old holds');
 select ok(has_function_privilege('authenticated', 'public.place_order(uuid, integer, uuid, text, text)', 'execute'), 'signed-in users can call place_order');
 select ok(not has_function_privilege('anon', 'public.place_order(uuid, integer, uuid, text, text)', 'execute'), 'signed-out callers cannot');
 select ok(not has_function_privilege('anon', 'public.review_payment(uuid, boolean, text)', 'execute'), 'signed-out callers cannot review payments');
@@ -107,26 +107,26 @@ select ok(public.seller_accepts_transfer('cccccccc-0000-0000-0000-000000000001')
 select pg_temp.as_user('55555555-5555-5555-5555-555555555555');
 select is(pg_temp.error_reason($$ select public.seller_accepts_transfer('cccccccc-0000-0000-0000-000000000002') $$), 'NOT_VERIFIED_STUDENT', 'a non-USM account cannot ask');
 
--- Reserving by transfer -------------------------------------------------------------------------
+-- Buying by transfer -------------------------------------------------------------------------
 select pg_temp.as_user('22222222-2222-2222-2222-222222222222');
-select is(pg_temp.error_reason($$ select public.request_reservation('cccccccc-0000-0000-0000-000000000004', 1, null, 'transfer') $$),
+select is(pg_temp.error_reason($$ select public.buy_item('cccccccc-0000-0000-0000-000000000004', 1, 'transfer') $$),
   'INVALID_INPUT', 'transfer is refused when the seller has no payment details');
-select is(pg_temp.error_reason($$ select public.request_reservation('cccccccc-0000-0000-0000-000000000002', 1, null, 'card') $$),
+select is(pg_temp.error_reason($$ select public.buy_item('cccccccc-0000-0000-0000-000000000002', 1, 'card') $$),
   'INVALID_INPUT', 'only cash or transfer');
 do $$ begin
-  perform set_config('test.res', public.request_reservation('cccccccc-0000-0000-0000-000000000002', 1, 'After class', 'transfer')::text, true);
+  perform set_config('test.res', public.buy_item('cccccccc-0000-0000-0000-000000000002', 1, 'transfer')::text, true);
 end $$;
-select ok((current_setting('test.res')::jsonb ->> 'payment_id') is not null, 'a transfer reservation returns its payment');
-select is(public.request_reservation('cccccccc-0000-0000-0000-000000000004') ->> 'payment_id', null, 'a cash reservation has no payment');
+select ok((current_setting('test.res')::jsonb ->> 'payment_id') is not null, 'a transfer purchase returns its payment');
+select is(public.buy_item('cccccccc-0000-0000-0000-000000000004') ->> 'payment_id', null, 'a cash purchase has no payment');
 reset role;
-select is((select stock || '/' || status from public.listings where id = 'cccccccc-0000-0000-0000-000000000002'), '0/reserved',
-  'the unit is held for the buyer while they pay');
+select is((select stock || '/' || status from public.listings where id = 'cccccccc-0000-0000-0000-000000000002'), '0/sold',
+  'the unit is sold to the buyer while they pay');
 select ok((select dp.status = 'awaiting_proof' and dp.amount_sen = 3000
              and dp.due_at between now() + interval '29 minutes' and now() + interval '31 minutes'
-             and rv.expires_at = dp.due_at
-           from public.deal_payments as dp join public.reservations as rv on rv.id = dp.reservation_id
+             and pu.status = 'awaiting_payment'
+           from public.deal_payments as dp join public.purchases as pu on pu.id = dp.purchase_id
            where dp.id = (current_setting('test.res')::jsonb ->> 'payment_id')::uuid),
-  'the buyer has 30 minutes to send proof, and the hold ends with it');
+  'the purchase awaits payment, with 30 minutes to send proof');
 
 -- The payment page
 set local role authenticated;
@@ -141,10 +141,10 @@ select is(pg_temp.error_reason(format('select public.get_payment(%L)', current_s
   'a stranger can''t see the payment');
 select is((select count(*)::int from public.deal_payments), 0, 'or read it from the table');
 
--- Guards on the reservation
+-- Guards on the purchase
 select pg_temp.as_user('66666666-6666-6666-6666-666666666666');
-select is(pg_temp.error_reason(format('select public.resolve_reservation(%L, ''accept'')', current_setting('test.res')::jsonb ->> 'reservation_id')),
-  'INVALID_TRANSITION', 'the seller accepts a transfer reservation by checking its payment, not directly');
+select is(pg_temp.error_reason(format('select public.complete_purchase(%L)', current_setting('test.res')::jsonb ->> 'purchase_id')),
+  'INVALID_TRANSITION', 'the seller cannot complete a transfer sale before checking its payment');
 select is(pg_temp.error_reason(format('select public.review_payment(%L, true)', current_setting('test.res')::jsonb ->> 'payment_id')),
   'INVALID_TRANSITION', 'there is nothing to check before the proof arrives');
 
@@ -169,13 +169,20 @@ select is(public.submit_payment_proof((current_setting('test.res')::jsonb ->> 'p
 select is(pg_temp.error_reason(format('select public.submit_payment_proof(%L, %L)', current_setting('test.res')::jsonb ->> 'payment_id',
   '22222222-2222-2222-2222-222222222222/' || (current_setting('test.res')::jsonb ->> 'payment_id') || '/proof.png')),
   'INVALID_TRANSITION', 'proof is sent once');
-select is(pg_temp.error_reason(format('select public.resolve_reservation(%L, ''cancel'')', current_setting('test.res')::jsonb ->> 'reservation_id')),
+select is(pg_temp.error_reason(format('select public.cancel_purchase(%L)', current_setting('test.res')::jsonb ->> 'purchase_id')),
   'INVALID_TRANSITION', 'a buyer who has paid can''t cancel on their own');
 select throws_ok(format($$ insert into storage.objects (bucket_id, name) values ('payment-proofs', '22222222-2222-2222-2222-222222222222/%s/again.png') $$,
   current_setting('test.res')::jsonb ->> 'payment_id'), '42501', null, 'no more proof uploads once it is sent');
 reset role;
-select ok((select expires_at > now() + interval '6 days' from public.reservations where id = (current_setting('test.res')::jsonb ->> 'reservation_id')::uuid),
-  'once proof is sent, the hold waits for the seller (7 days)');
+-- Long overdue, but the buyer may have paid.
+update public.deal_payments set due_at = now() - interval '30 days' where id = (current_setting('test.res')::jsonb ->> 'payment_id')::uuid;
+set local role authenticated;
+select pg_temp.as_user('44444444-4444-4444-4444-444444444444');
+select lives_ok($$ select * from public.search_listings() $$, 'browsing sweeps overdue payments');
+reset role;
+select is((select pu.status || '/' || l.status from public.purchases as pu join public.listings as l on l.id = pu.listing_id
+           where pu.id = (current_setting('test.res')::jsonb ->> 'purchase_id')::uuid),
+  'awaiting_payment/sold', 'once proof is sent, it is never relisted automatically');
 set local role authenticated;
 select pg_temp.as_user('66666666-6666-6666-6666-666666666666');
 select is((select count(*)::int from storage.objects where bucket_id = 'payment-proofs'), 1, 'the seller can open the proof');
@@ -189,12 +196,12 @@ select is(pg_temp.error_reason(format('select public.review_payment(%L, true)', 
 select pg_temp.as_user('66666666-6666-6666-6666-666666666666');
 select is(pg_temp.error_reason(format('select public.review_payment(%L, false, ''  '')', current_setting('test.res')::jsonb ->> 'payment_id')),
   'INVALID_INPUT', 'rejecting needs a reason');
-select is(public.review_payment((current_setting('test.res')::jsonb ->> 'payment_id')::uuid, true) ->> 'deal_status', 'accepted',
-  'accepting the payment accepts the reservation');
+select is(public.review_payment((current_setting('test.res')::jsonb ->> 'payment_id')::uuid, true) ->> 'deal_status', 'awaiting_handover',
+  'accepting the payment leaves only the handover');
 select is(pg_temp.error_reason(format('select public.review_payment(%L, false, ''Not received'')', current_setting('test.res')::jsonb ->> 'payment_id')),
   'INVALID_TRANSITION', 'a decision is final');
-select is((select payment_status || '/' || status from public.my_reservations('selling') where id = (current_setting('test.res')::jsonb ->> 'reservation_id')::uuid),
-  'accepted/accepted', 'Bookings shows the payment');
+select is((select payment_status || '/' || status from public.my_purchases('selling') where id = (current_setting('test.res')::jsonb ->> 'purchase_id')::uuid),
+  'accepted/awaiting_handover', 'Purchases shows the payment');
 reset role;
 select is((select count(*)::int from public.audit_logs where action = 'payment.accepted' and target_id = current_setting('test.res')::jsonb ->> 'payment_id'), 1,
   'the decision is audited');
@@ -277,15 +284,14 @@ reset role;
 select is((select allocated_qty from public.campaigns where id = 'dddddddd-0000-0000-0000-000000000001'), 0, 'the expired pre-order''s places are free again');
 select is((select status from public.orders where id = (current_setting('test.pre')::jsonb ->> 'order_id')::uuid), 'cancelled', 'and the pre-order is cancelled');
 
--- Reservations: an unpaid hold expires through the read sweep ------------------------------------
+-- Purchases: an unpaid one expires through the read sweep ------------------------------------
 set local role authenticated;
 select pg_temp.as_user('44444444-4444-4444-4444-444444444444');
 do $$ begin
-  perform set_config('test.late', public.request_reservation('cccccccc-0000-0000-0000-000000000003', 1, null, 'transfer')::text, true);
+  perform set_config('test.late', public.buy_item('cccccccc-0000-0000-0000-000000000003', 1, 'transfer')::text, true);
 end $$;
 reset role;
 update public.deal_payments set due_at = now() - interval '1 minute' where id = (current_setting('test.late')::jsonb ->> 'payment_id')::uuid;
-update public.reservations set expires_at = now() - interval '1 minute' where id = (current_setting('test.late')::jsonb ->> 'reservation_id')::uuid;
 -- A proof file that slipped in (written directly) can't revive it.
 insert into storage.objects (bucket_id, name) values
   ('payment-proofs', '44444444-4444-4444-4444-444444444444/' || (current_setting('test.late')::jsonb ->> 'payment_id') || '/late.png');
@@ -293,8 +299,9 @@ set local role authenticated;
 select pg_temp.as_user('22222222-2222-2222-2222-222222222222');
 select lives_ok($$ select * from public.get_listing('cccccccc-0000-0000-0000-000000000003') $$, 'opening the listing runs the sweep');
 reset role;
-select is((select rv.status || '/' || dp.status from public.reservations as rv join public.deal_payments as dp on dp.reservation_id = rv.id
-           where rv.id = (current_setting('test.late')::jsonb ->> 'reservation_id')::uuid), 'expired/expired', 'the unpaid reservation expired');
+select is((select pu.status || '/' || pu.cancelled_by || '/' || dp.status from public.purchases as pu join public.deal_payments as dp on dp.purchase_id = pu.id
+           where pu.id = (current_setting('test.late')::jsonb ->> 'purchase_id')::uuid), 'cancelled/system/expired', 'the unpaid purchase was cancelled by the system');
+select is((select count(*)::int from public.notifications where type = 'purchase_payment_expired'), 2, 'the buyer and the seller are both told');
 select is((select stock || '/' || status from public.listings where id = 'cccccccc-0000-0000-0000-000000000003'), '1/available', 'and the notes are back on sale');
 set local role authenticated;
 select pg_temp.as_user('44444444-4444-4444-4444-444444444444');
@@ -305,13 +312,32 @@ select is(pg_temp.error_reason(format('select public.submit_payment_proof(%L, %L
 -- A buyer may back out before paying ------------------------------------------------------------
 select pg_temp.as_user('22222222-2222-2222-2222-222222222222');
 do $$ begin
-  perform set_config('test.backout', public.request_reservation('cccccccc-0000-0000-0000-000000000003', 1, null, 'transfer')::text, true);
+  perform set_config('test.backout', public.buy_item('cccccccc-0000-0000-0000-000000000003', 1, 'transfer')::text, true);
 end $$;
-select is(public.resolve_reservation((current_setting('test.backout')::jsonb ->> 'reservation_id')::uuid, 'cancel') ->> 'status', 'cancelled',
+select is(public.cancel_purchase((current_setting('test.backout')::jsonb ->> 'purchase_id')::uuid) ->> 'status', 'cancelled',
   'a buyer who hasn''t paid can cancel');
 reset role;
 select is((select status from public.deal_payments where id = (current_setting('test.backout')::jsonb ->> 'payment_id')::uuid), 'cancelled',
   'and the payment closes with it');
+
+-- A purchase's payment, rejected -----------------------------------------------------------------
+set local role authenticated;
+select pg_temp.as_user('44444444-4444-4444-4444-444444444444');
+do $$ begin
+  perform set_config('test.bad', public.buy_item('cccccccc-0000-0000-0000-000000000003', 1, 'transfer')::text, true);
+end $$;
+select lives_ok(format($$ insert into storage.objects (bucket_id, name) values ('payment-proofs', '44444444-4444-4444-4444-444444444444/%s/bad.png') $$,
+  current_setting('test.bad')::jsonb ->> 'payment_id'), 'a buyer uploads a receipt');
+select lives_ok(format('select public.submit_payment_proof(%L, %L)', current_setting('test.bad')::jsonb ->> 'payment_id',
+  '44444444-4444-4444-4444-444444444444/' || (current_setting('test.bad')::jsonb ->> 'payment_id') || '/bad.png'), 'and sends it');
+select pg_temp.as_user('66666666-6666-6666-6666-666666666666');
+select is(public.review_payment((current_setting('test.bad')::jsonb ->> 'payment_id')::uuid, false, 'Wrong amount') ->> 'deal_status', 'cancelled',
+  'rejecting the payment cancels the purchase');
+reset role;
+select is((select cancelled_by || '/' || cancel_reason from public.purchases where id = (current_setting('test.bad')::jsonb ->> 'purchase_id')::uuid),
+  'seller/Wrong amount', 'with the seller''s reason');
+select is((select stock || '/' || status from public.listings where id = 'cccccccc-0000-0000-0000-000000000003'), '1/available', 'and the item is back on sale');
+set local role authenticated;
 
 -- A business order paid by transfer, accepted ------------------------------------------------
 select pg_temp.as_user('44444444-4444-4444-4444-444444444444');

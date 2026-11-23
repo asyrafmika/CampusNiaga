@@ -48,7 +48,7 @@ class Listing {
   final bool hidden;
 
   /// A business product is ordered from its storefront; a personal item is
-  /// reserved.
+  /// bought with Buy now.
   final ListingMode mode;
   final String? businessId;
 
@@ -62,26 +62,38 @@ class Listing {
 
 /// What the owner may do with a listing right now, matching the transitions
 /// `set_listing_status` and `upsert_listing` allow.
-enum OwnerAction { edit, publish, close, reopen, markSold }
+enum OwnerAction { edit, publish, reopen, markSold, delete }
 
 List<OwnerAction> ownerActionsFor(Listing listing) => switch (listing.status) {
-  ListingStatus.draft => const [OwnerAction.edit, OwnerAction.publish],
+  ListingStatus.draft => const [
+    OwnerAction.edit,
+    OwnerAction.publish,
+    OwnerAction.delete,
+  ],
   ListingStatus.available => const [
     OwnerAction.edit,
     OwnerAction.markSold,
-    OwnerAction.close,
+    OwnerAction.delete,
   ],
-  ListingStatus.closed => const [OwnerAction.edit, OwnerAction.reopen],
+  // Closed before listings could be deleted instead (ADR 0008).
+  ListingStatus.closed => const [
+    OwnerAction.edit,
+    OwnerAction.reopen,
+    OwnerAction.delete,
+  ],
   // A business product that sold out is restocked by editing its quantity.
-  ListingStatus.sold when listing.isBusiness => const [OwnerAction.edit],
-  // A reserved listing changes through its reservations; a sold one is done.
-  ListingStatus.reserved || ListingStatus.sold => const [],
+  ListingStatus.sold when listing.isBusiness => const [
+    OwnerAction.edit,
+    OwnerAction.delete,
+  ],
+  ListingStatus.sold => const [OwnerAction.delete],
+  ListingStatus.deleted => const [],
 };
 
 /// The status an owner action moves a listing to.
 ListingStatus? targetStatusOf(OwnerAction action) => switch (action) {
   OwnerAction.publish || OwnerAction.reopen => ListingStatus.available,
-  OwnerAction.close => ListingStatus.closed,
+  OwnerAction.delete => ListingStatus.deleted,
   OwnerAction.markSold => ListingStatus.sold,
   OwnerAction.edit => null,
 };

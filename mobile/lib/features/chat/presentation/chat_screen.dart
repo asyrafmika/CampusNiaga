@@ -10,8 +10,8 @@ import '../domain/chat_models.dart';
 import 'chat_providers.dart';
 import 'widgets/chat_report_sheet.dart';
 
-/// A deal chat. Opened by id from Messages, or by its reservation or order
-/// from Bookings and My orders (the chat is created then if needed).
+/// A chat. Opened by id from Messages, or by its item, purchase or order
+/// from the listing, Purchases and My orders (created then if needed).
 class ChatScreen extends ConsumerWidget {
   const ChatScreen({super.key, this.conversationId, this.deal})
     : assert((conversationId == null) != (deal == null));
@@ -54,7 +54,7 @@ class _Chat extends ConsumerWidget {
         title: const Text('Close this chat?'),
         content: const Text(
           'Neither of you will be able to send messages here again. The '
-          'messages stay readable. Your booking or order is not affected.',
+          'messages stay readable. Your purchase or order is not affected.',
         ),
         actions: [
           TextButton(
@@ -125,7 +125,7 @@ class _Chat extends ConsumerWidget {
       ),
       body: Column(
         children: [
-          const _SafetyNote(),
+          _SafetyNote(kind: header?.kind),
           Expanded(child: _MessageList(conversationId: conversationId)),
           if (header?.readOnlyReason case final reason?)
             _ReadOnlyBar(reason: reason)
@@ -138,7 +138,9 @@ class _Chat extends ConsumerWidget {
 }
 
 class _SafetyNote extends StatelessWidget {
-  const _SafetyNote();
+  const _SafetyNote({required this.kind});
+
+  final ChatKind? kind;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -146,8 +148,9 @@ class _SafetyNote extends StatelessWidget {
     color: AppColors.primarySoft,
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     child: Text(
-      'Meet in a public place on campus. CampusNiaga never takes payment, '
-      'so don’t pay anyone before you collect.',
+      '${kind == ChatKind.item ? 'Chatting does not hold the item. ' : ''}'
+      'Meet in a public place on campus. CampusNiaga never takes payment, so '
+      'pay only in person or through the app’s payment page.',
       style: Theme.of(context).textTheme.bodySmall,
     ),
   );
@@ -166,7 +169,7 @@ class _MessageList extends ConsumerWidget {
       AsyncData(:final value) when value.isEmpty => const EmptyView(
         icon: Icons.waving_hand_outlined,
         title: 'Say hello',
-        message: 'Agree on a time and place to collect.',
+        message: 'Ask about the item, or agree on a time and place to collect.',
       ),
       AsyncData(:final value) => ListView.builder(
         reverse: true,

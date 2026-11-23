@@ -24,11 +24,11 @@ Documents go in the private `application-documents` bucket at `{applicant_id}/{a
 |---|---|---|---|---|
 | (new) | `draft` | applicant (student) | direct insert | `status = 'draft'`, `applicant_id = auth.uid()`, `is_student()` |
 | `draft` | `submitted` | applicant | `submit_business_application` | required fields valid, documents within limits |
-| `submitted` | `under_review` | reviewer | `review_business_application(action => 'start_review')` | sets `reviewer_id` |
-| `under_review` | `info_requested` | reviewer | `… 'request_info'` | non-empty note |
+| `submitted` | `under_review` | admin | `review_business_application(action => 'start_review')` | sets `reviewer_id` |
+| `under_review` | `info_requested` | admin | `… 'request_info'` | non-empty note |
 | `info_requested` | `submitted` | applicant | `submit_business_application` (resubmit) | edited while `info_requested` |
-| `under_review` | `approved` | reviewer | `… 'approve'` | approval effects (below) |
-| `under_review` | `rejected` | reviewer | `… 'reject'` | non-empty note |
+| `under_review` | `approved` | admin | `… 'approve'` | approval effects (below) |
+| `under_review` | `rejected` | admin | `… 'reject'` | non-empty note |
 
 - `approved` and `rejected` are terminal. Every other transition fails with `INVALID_TRANSITION`.
 - **One open application per student:** a student may have at most one non-draft application not in `{approved, rejected}`. `submit_business_application` checks this while holding a lock and fails with `ALREADY_EXISTS`. A partial unique index on `applicant_id`, covering the open non-draft statuses, backs it up.
@@ -42,10 +42,10 @@ Documents go in the private `application-documents` bucket at `{applicant_id}/{a
 - Update directly: only the content columns (column-level grant), and only while `draft` or `info_requested` (policy). Never `status`, `reviewer_id`, `remarks` or `applicant_id`.
 - Storage: upload or delete own files only while the application is editable; read own files.
 
-## Reviewer permissions
+## Administrator permissions (the HDC administrator reviews; ADR 0009)
 
 - Read applications in any non-draft status (drafts stay private), their history, and documents through short-lived signed URLs.
-- All decisions go through `review_business_application`; reviewers have no direct write grants.
+- All decisions go through `review_business_application`; administrators have no direct write grants.
 - The Status Summary counts applications per status with a SQL `count … group by`. This is M2 only; M5 has no application counts.
 
 ## Approval effects (inside `review_business_application`, action `approve`)
@@ -83,13 +83,13 @@ Each decision screen shows the prototype disclaimer.
 
 1. Contract first: the data dictionary entries; `submit_business_application`, `review_business_application` and `set_business_status` in `docs/api-contracts.md`.
 2. Migration: tables, history, indexes, RLS and column grants, storage policies, functions.
-3. pgTAP tests: every transition pair, permissions for applicant/reviewer/others, approval effects (`unit-testing`).
+3. pgTAP tests: every transition pair, permissions for applicant/administrator/others, approval effects (`unit-testing`).
 4. Mobile screens, then web screens (mirroring the transition table, not re-deriving it).
 5. Run the Phase 3 pass condition below.
 
 ## Phase 3 pass condition (must be automated)
 
-Submit → reviewer requests info → applicant edits and resubmits → reviewer approves. Then assert:
+Submit → administrator requests info → applicant edits and resubmits → administrator approves. Then assert:
 - the `businesses` row exists;
 - every step is in the history and audit log;
 - business-only functions (e.g. create campaign) fail with `FORBIDDEN` **before** approval and succeed after.
@@ -98,7 +98,7 @@ Submit → reviewer requests info → applicant edits and resubmits → reviewer
 
 - [ ] Every (from, to) pair is tested: allowed ones succeed, all others fail with `INVALID_TRANSITION`.
 - [ ] Applicants can't change status, history or reviewer columns (privilege tests).
-- [ ] Reviewers can't read drafts; students can't read others' applications or documents.
+- [ ] Administrators can't read drafts; students can't read others' applications or documents.
 - [ ] Approval creates the business and grants access immediately; suspension removes it; all of it is audited.
 - [ ] Reject and request-info require a note; history is append-only.
 - [ ] The disclaimer is shown on decision and status screens.

@@ -36,17 +36,17 @@ Today, students sell in WhatsApp and Telegram groups, where older posts get buri
 
 | | Module | What students and staff can do | Client |
 |---|---|---|---|
-| 🛍️ | **M1 Student Marketplace** | List items with photos, search with filters, reserve for campus pickup, report listings. A row lock stops double booking | Mobile |
-| 📝 | **M2 Business Registration & Approval** | Apply to run a business, upload documents, answer a reviewer's questions; reviewers approve, request changes or reject | Mobile + Web |
+| 🛍️ | **M1 Student Marketplace** | List items with photos, search with filters, chat with the seller, then Buy now for campus pickup ([ADR 0006](docs/decisions/0006-buy-now.md)), report listings. A row lock stops double selling | Mobile |
+| 📝 | **M2 Business Registration & Approval** | Apply to run a business, upload documents, answer the administrator's questions; HDC administrators approve, request changes or reject | Mobile + Web |
 | 🏪 | **M3 Storefront & Orders** | A storefront for each approved business, ready-stock products and capped pre-orders, orders from *pending* to *completed* | Mobile |
 | 💡 | **M4 Opportunity Discovery** | Request products you can't find, tap *Interested*, and see a ranked, explained list of possible business opportunities | Mobile + DB |
 | 📊 | **M5 Business Dashboard** | Orders by status, estimated revenue and profit (self-reported), top products, stock and pre-order capacity | Mobile |
 | 📍 | **Pickup pins** | Sellers and businesses can pin the pickup spot on an OpenStreetMap map; buyers see it on the listing and storefront and get directions | Mobile |
-| 💬 | **Deal chat** ([ADR 0004](docs/decisions/0004-deal-chat.md)) | Live chat between the buyer and seller of an accepted booking or confirmed order, read-only when the deal ends, with report and close | Mobile + Web |
+| 💬 | **Chat** ([ADR 0004](docs/decisions/0004-deal-chat.md), [0006](docs/decisions/0006-buy-now.md)) | Live chat with a seller about an item (it holds nothing), or inside a confirmed order, with report and close | Mobile + Web |
 | 💳 | **Pay by transfer** ([ADR 0005](docs/decisions/0005-transfer-payments.md)) | Sellers save a bank account or DuitNow QR. Buyers choose cash or transfer, pay outside the app and upload a receipt within 30 minutes while the item is held; the seller accepts (confirming the deal) or rejects it, and unpaid holds are released | Mobile |
-| 🛡️ | **Admin dashboard** | Reviewer queue and decisions, report moderation, staff roles, account suspension, audit log | Web |
+| 🛡️ | **Admin dashboard** | For the HDC administrator: application queue and decisions, student business performance ([ADR 0007](docs/decisions/0007-admin-business-performance.md)), report moderation, staff roles, account suspension, audit log | Web |
 
-**Deliberately out of scope:** payment gateways, wallets and any handling of money (transfers are paid outside the app), delivery, open-ended messaging (chat exists only inside an agreed deal), machine-learning recommendations and USM single sign-on.
+**Deliberately out of scope:** payment gateways, wallets and any handling of money (transfers are paid outside the app), delivery, open-ended messaging (chat is only about one item or order), machine-learning recommendations and USM single sign-on.
 
 ## 📸 Screenshots
 
@@ -56,7 +56,7 @@ Today, students sell in WhatsApp and Telegram groups, where older posts get buri
   <tr>
     <td align="center" width="25%"><img src="docs/images/mobile/sign_in.png" alt="Sign in screen" width="200"><br><sub><b>Sign in</b><br>USM student email only</sub></td>
     <td align="center" width="25%"><img src="docs/images/mobile/home.png" alt="Home feed" width="200"><br><sub><b>Home</b><br>Categories and new listings</sub></td>
-    <td align="center" width="25%"><img src="docs/images/mobile/listing.png" alt="Listing detail" width="200"><br><sub><b>Listing</b><br>Reserve for campus pickup</sub></td>
+    <td align="center" width="25%"><img src="docs/images/mobile/listing.png" alt="Listing detail" width="200"><br><sub><b>Listing</b><br>Campus pickup</sub></td>
     <td align="center" width="25%"><img src="docs/images/mobile/storefront.png" alt="Business storefront" width="200"><br><sub><b>Storefront</b><br>Products and pre-orders</sub></td>
   </tr>
   <tr>
@@ -66,19 +66,19 @@ Today, students sell in WhatsApp and Telegram groups, where older posts get buri
     <td align="center"><img src="docs/images/mobile/dashboard.png" alt="Business dashboard" width="200"><br><sub><b>Dashboard</b><br>Estimated, self-reported figures</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/images/mobile/chat.png" alt="Deal chat" width="200"><br><sub><b>Deal chat</b><br>Arrange pickup, live</sub></td>
+    <td align="center"><img src="docs/images/mobile/chat.png" alt="Deal chat" width="200"><br><sub><b>Chat</b><br>Arrange pickup, live</sub></td>
     <td align="center"><img src="docs/images/mobile/splash.png" alt="Splash screen" width="200"><br><sub><b>Splash</b><br>USM purple and gold</sub></td>
     <td></td>
     <td></td>
   </tr>
 </table>
 
-### 🖥️ Reviewer and admin dashboard
+### 🖥️ HDC administrator dashboard
 
 <table>
   <tr>
     <td align="center" width="50%"><img src="docs/images/admin/overview.png" alt="Admin overview"><br><sub><b>Overview</b>: applications by status, platform summary, recent activity</sub></td>
-    <td align="center" width="50%"><img src="docs/images/admin/applications.png" alt="Application queue"><br><sub><b>Applications</b>: the reviewer queue, oldest first</sub></td>
+    <td align="center" width="50%"><img src="docs/images/admin/applications.png" alt="Application queue"><br><sub><b>Applications</b>: the review queue, oldest first</sub></td>
   </tr>
   <tr>
     <td align="center" colspan="2"><img src="docs/images/admin/application_detail.png" alt="Application detail with decision panel" width="75%"><br><sub><b>Application detail</b>: business details, private documents, history and the decision panel</sub></td>
@@ -93,7 +93,7 @@ Today, students sell in WhatsApp and Telegram groups, where older posts get buri
 flowchart LR
   subgraph Clients
     M["📱 Flutter app<br/>students & student businesses"]
-    W["🖥️ React dashboard<br/>reviewers & admins"]
+    W["🖥️ React dashboard<br/>HDC administrators"]
   end
   subgraph Supabase["☁️ Supabase (Singapore)"]
     A["🔐 Auth<br/>email + password, confirmed email"]
@@ -113,7 +113,7 @@ flowchart LR
 | Part | Technology | Users |
 |---|---|---|
 | [`mobile/`](mobile/) | Flutter, Dart 3, Riverpod, go_router, supabase_flutter | USM students and approved student businesses |
-| [`admin/`](admin/) | React 19, TypeScript (strict), Vite, MUI, TanStack Query | University reviewers and system administrators |
+| [`admin/`](admin/) | React 19, TypeScript (strict), Vite, MUI, TanStack Query | HDC administrators (one staff role, [ADR 0009](docs/decisions/0009-single-admin-role.md)) |
 | [`supabase/`](supabase/) | PostgreSQL, Row Level Security, database functions, Auth, Storage | Trusted backend |
 
 **Design principles**
@@ -135,7 +135,7 @@ The backend is Supabase instead of the handoff's Firebase; [ADR 0003](docs/decis
 stateDiagram-v2
   [*] --> draft: student starts
   draft --> submitted: submit
-  submitted --> under_review: reviewer starts review
+  submitted --> under_review: administrator starts review
   under_review --> info_requested: request changes (note required)
   info_requested --> submitted: student edits and resubmits
   under_review --> approved: approve (creates the business)
@@ -190,7 +190,7 @@ stateDiagram-v2
 |---|---|---|
 | 🐘 Database (pgTAP) | 24 files against a fresh local Supabase in CI: every policy, privilege, function, transition and limit | **1,087 / 1,087** |
 | ⚡ Concurrency | Two real connections racing for the last unit and the last pre-order place | **2 / 2** |
-| 📱 Flutter | Unit and widget tests through the real router, with in-memory repositories | **253 / 253** |
+| 📱 Flutter | Unit and widget tests through the real router, with in-memory repositories | **267 / 267** |
 | 🖥️ React | Vitest + Testing Library | **70 / 70** |
 | 🧬 Mutation testing | Bugs planted on purpose to check that the tests catch them (Phases 3–6, the chat, pickup pins and transfer payments) | **215 of 217 caught** |
 
@@ -201,7 +201,7 @@ CI ([`ci.yml`](.github/workflows/ci.yml)) runs format checks, analysis, lint, ty
 | | How |
 |---|---|
 | 📱 **Android app** | Download the APK from the [latest release](https://github.com/asyrafmika/CampusNiaga/releases/latest) and open it on an Android phone. Sign in with a confirmed `@student.usm.my` account |
-| 🖥️ **Admin dashboard** | Open **[asyrafmika.github.io/CampusNiaga](https://asyrafmika.github.io/CampusNiaga/)** and sign in with a reviewer or admin account. Student accounts are signed out with a "staff only" message |
+| 🖥️ **Admin dashboard** | Open **[asyrafmika.github.io/CampusNiaga](https://asyrafmika.github.io/CampusNiaga/)** and sign in with an HDC administrator account. Student accounts are signed out with a "staff only" message |
 
 Releases and Pages are built by GitHub Actions: [`release-apk.yml`](.github/workflows/release-apk.yml) on each version tag and [`admin-pages.yml`](.github/workflows/admin-pages.yml) on each change to `admin/`.
 
@@ -210,7 +210,7 @@ Releases and Pages are built by GitHub Actions: [`release-apk.yml`](.github/work
 ```
 CampusNiaga/
 ├─ mobile/                 📱 Flutter student app (feature-first: core/, features/*)
-├─ admin/                  🖥️ React reviewer/admin dashboard
+├─ admin/                  🖥️ React HDC administrator dashboard
 ├─ supabase/
 │  ├─ migrations/          versioned SQL: tables, RLS, database functions, storage
 │  └─ tests/               pgTAP tests and two-connection race tests
@@ -223,13 +223,17 @@ CampusNiaga/
 | Phase | Scope | Status |
 |---|---|---|
 | 1 Foundation | Project setup, sign-in, USM student check, staff-only web access | ✅ Done |
-| 2 Marketplace | Listings, search, reservations, reports | ✅ Done |
+| 2 Marketplace | Listings, search, Buy now (first built as reservations), reports | ✅ Done |
 | 3 Approval | Business application and reviewer workflow (simulated) | ✅ Done |
 | 4 Business | Storefront, stock, pre-orders, orders | ✅ Done |
 | 5 Discovery | Product requests, interest, opportunity ranking | ✅ Done |
 | 6 Dashboard + QA | Seller analytics, final testing | ✅ Done (usability sessions to run: [kit](docs/qa/usability-test-kit.md)) |
 | + Deal chat | Buyer–seller chat inside an agreed deal ([ADR 0004](docs/decisions/0004-deal-chat.md), a scope change after the handoff) | ✅ Done |
 | + Pay by transfer | Bank or QR transfer with a receipt the seller checks ([ADR 0005](docs/decisions/0005-transfer-payments.md), a scope change after the handoff) | ✅ Done |
+| + Buy now | Chat, then buy directly, replacing reservations ([ADR 0006](docs/decisions/0006-buy-now.md), a scope change after the handoff) | ✅ Built, not yet deployed |
+| + Admin performance | Student business performance for admins ([ADR 0007](docs/decisions/0007-admin-business-performance.md), a scope change after the handoff) | ✅ Built, not yet deployed |
+| + Listing payment step, delete | Payment details entered with the listing; listings deleted instead of closed ([ADR 0008](docs/decisions/0008-listing-payment-and-delete.md)) | ✅ Built, not yet deployed |
+| + One staff role | The reviewer role merged into the HDC administrator ([ADR 0009](docs/decisions/0009-single-admin-role.md)) | ✅ Built, not yet deployed |
 
 <details>
 <summary><b>🔍 How each phase's pass condition is proven</b></summary>
@@ -242,20 +246,20 @@ The handoff's Phase 1 pass condition is that a USM student gets in, a non-USM em
 |---|---|---|
 | Database | `supabase/tests/database/04_phase1_pass_condition.test.sql` | The whole journey: sign up, held until the email is confirmed, then let in; a confirmed gmail account refused; the student can't grant itself a role or read staff data; a role given by an admin works on the next request and its removal does too, both audited |
 | Mobile | `mobile/test/app_navigation_test.dart` | A verified student reaches home; a non-USM account stops at "CampusNiaga is for USM students"; a suspended account stops at "Account suspended" |
-| Admin | `admin/src/features/auth/components/RequireStaff.test.tsx` | A student who signs in to the dashboard is signed out with a "staff only" message; a reviewer can't open admin pages |
+| Admin | `admin/src/features/auth/components/RequireStaff.test.tsx` | A student who signs in to the dashboard is signed out with a "staff only" message; an HDC administrator gets in |
 
 The rules are enforced by the database, so the database test is the one that matters most; the app tests check that each app shows the right screen for the answer it gets.
 
 ### Phase 2 check
 
-The handoff's Phase 2 pass condition is that a student publishes an item, a second student finds and reserves it, a simultaneous reservation cannot double-book it, and the seller marks it sold.
+The handoff's Phase 2 pass condition, read through [ADR 0006](docs/decisions/0006-buy-now.md), is that a student publishes an item, a second student finds and buys it, a simultaneous purchase cannot double-sell it, and the seller completes the sale.
 
 | Part | Test | What it proves |
 |---|---|---|
-| Database | `supabase/tests/database/08_phase2_pass_condition.test.sql` | The journey: Ali publishes a calculator with a photo; Siti finds it by searching and reserves it; Amin's request for the same item is refused (`ITEM_UNAVAILABLE`); Ali accepts, Siti then sees Ali's email, and Ali marks it collected, which sells it |
-| Database, two connections | `supabase/tests/concurrency/reservation_race.sh` | Two buyers reserve the last unit at the same moment on separate connections. The second waits for the first's row lock, then is refused; exactly one reservation exists |
-| Database | `05_listings`, `06_reservations`, `07_moderation` | Every rule on its own: who may list, reserve, resolve, report and moderate; stock never goes below zero; expiry returns units; contact details stay hidden until acceptance |
-| Mobile | `mobile/test/features/marketplace/` | The screens: browse, search and filter, reserve (with quantity), refused reservations show the reason, publish, the listing form, accept a request, report, profile |
+| Database | `supabase/tests/database/08_phase2_pass_condition.test.sql` | The journey: Ali publishes a calculator with a photo; Siti finds it by searching, asks about it (it stays available) and buys it, so it is sold at once; Amin's purchase is refused (`ITEM_UNAVAILABLE`); Ali arranges pickup in the same chat and completes the sale |
+| Database, two connections | `supabase/tests/concurrency/purchase_race.sh` | Two buyers buy the last unit at the same moment on separate connections. The second waits for the first's row lock, then is refused; exactly one purchase exists |
+| Database | `05_listings`, `06_purchases`, `07_moderation` | Every rule on its own: who may list, buy, complete, cancel, relist, report and moderate; stock never goes below zero; cash is never released automatically; the limits |
+| Mobile | `mobile/test/features/marketplace/` | The screens: browse, search and filter, chat, buy (with quantity), refused purchases show the reason, publish, the listing form, complete, relist and cancel, report, profile |
 | Admin | `admin/src/features/moderation/pages/ModerationPage.test.tsx` | Hide a listing, suspend a seller, dismiss a report |
 
 ### Phase 3 check
@@ -264,10 +268,10 @@ The handoff's Phase 3 pass condition is: submit → reviewer requests edits → 
 
 | Part | Test | What it proves |
 |---|---|---|
-| Database | `supabase/tests/database/11_phase3_pass_condition.test.sql` | The journey: Ali drafts an application with a document and submits it; the reviewer starts the review and asks for a price list; Ali reads the note, edits and resubmits with a reply; the reviewer approves. `get_my_business()` refuses Ali (`FORBIDDEN`) until approval and works straight after; the business row exists; the status history and the audit log both hold all six steps in order, with who did each |
+| Database | `supabase/tests/database/11_phase3_pass_condition.test.sql` | The journey: Ali drafts an application with a document and submits it; the administrator starts the review and asks for a price list; Ali reads the note, edits and resubmits with a reply; the administrator approves. `get_my_business()` refuses Ali (`FORBIDDEN`) until approval and works straight after; the business row exists; the status history and the audit log both hold all six steps in order, with who did each |
 | Database | `09_business_applications`, `10_businesses` | Every (status, action) pair: allowed moves succeed, every other one fails with `INVALID_TRANSITION`. Applicants can't change status, reviewer or dates; drafts stay private from staff; other students see nothing; documents follow the same rules; reject and request-info need a note; no second business; suspension removes business access at once and reinstating restores it; the status summary counts by status |
 | Mobile | `mobile/test/features/business/application/` | Apply, save a draft, upload a document, submit; respond to a request for changes and resubmit with a reply; the timeline; approved and rejected states; refused submissions show the reason |
-| Admin | `admin/src/features/applications/` | The queue and status summary; only the decisions the state machine allows; a note is required to request changes or reject; approval is confirmed with the disclaimer; reviewers can't decide their own application; admins suspend a business |
+| Admin | `admin/src/features/applications/` | The queue and status summary; only the decisions the state machine allows; a note is required to request changes or reject; approval is confirmed with the disclaimer; administrators can't decide their own application; they suspend a business |
 
 ### Phase 4 check
 
@@ -277,7 +281,7 @@ The handoff's Phase 4 pass condition is: an approved seller creates a storefront
 |---|---|---|
 | Database | `supabase/tests/database/14_phase4_pass_condition.test.sql` | The journey: before approval Ali can't list business products or set up a storefront; the reviewer approves; Ali sets up the storefront, lists a 2-unit brownie box and opens a capacity-3 pre-order. Siti takes both boxes and Amin is refused (`ITEM_UNAVAILABLE`); Siti pre-orders 2, Amin can't take 2 (`CAPACITY_FULL`) but takes the last place, and a fourth is refused. Siti cancels both: the boxes are back on sale and 2 places free up, and Amin gets them. Units ordered plus stock left always equal 2, and pre-ordered units always equal the allocation |
 | Database, two connections | `supabase/tests/concurrency/order_race.sh` | Two buyers order the last unit, then the last pre-order place, at the same moment on separate connections. Each time the second waits for the first's row lock and is refused; exactly one order each |
-| Database | `12_business_listings`, `13_campaigns_orders` | Every rule on its own: only approved businesses list business products, suspension removes them from the feed and the storefront at once, business products can't be reserved, every campaign and order limit (stock, capacity, per-order limit, dates), every (status, action) pair for orders, who may read campaigns and orders, contact emails only after confirmation |
+| Database | `12_business_listings`, `13_campaigns_orders` | Every rule on its own: only approved businesses list business products, suspension removes them from the feed and the storefront at once, business products can't be bought with Buy now, every campaign and order limit (stock, capacity, per-order limit, dates), every (status, action) pair for orders, who may read campaigns and orders, contact emails only after confirmation |
 | Mobile | `mobile/test/features/business/store/` | Order from stock or a pre-order (capped by what is left and the per-order limit), the storefront, a sold-out product, refused orders, cancel from My orders; the business confirms orders, opens and creates pre-orders, edits its storefront and adds business products |
 
 ### Phase 5 check
@@ -336,7 +340,7 @@ insert into public.staff_roles (user_id, role)
 select id, 'admin' from auth.users where email = 'your.email@student.usm.my';
 ```
 
-After that, grant reviewer and admin roles from the admin dashboard's **Users & Roles** page (step 5️⃣). Each change is written to the audit log.
+After that, grant the HDC administrator role from the admin dashboard's **Users & Roles** page (step 5️⃣). Each change is written to the audit log.
 
 ### 4️⃣ Run the mobile app
 
@@ -352,7 +356,7 @@ flutter run
 
 The first launch shows the onboarding slides, then **Sign in**. Use **Create an account** with your USM email and confirm it from your inbox. If you open the link on the phone, it signs you in straight away; otherwise, sign in after confirming.
 
-Once signed in, the bottom bar has **Home** (newest listings and categories), **Search** (words, filters, sorting), **Sell** (the listing form: up to 5 photos from the camera or gallery, resized on the phone), **Bookings** (your reservations, buying and selling) and **Profile** (My Listings, sign out). Buyers pay cash on pickup or by transfer to the seller (with a receipt the seller checks); the app never holds the money.
+Once signed in, the bottom bar has **Home** (newest listings and categories), **Search** (words, filters, sorting), **Sell** (the listing form: up to 5 photos from the camera or gallery, resized on the phone), **Purchases** (what you bought and sold with Buy now) and **Profile** (My Listings, sign out). Buyers pay cash on pickup or by transfer to the seller (with a receipt the seller checks); the app never holds the money.
 
 **Images:** put these in `mobile/assets/images/`; until then the app shows placeholders.
 
@@ -371,7 +375,7 @@ flutter test
 
 ### 5️⃣ Run the admin dashboard
 
-The web dashboard is for reviewers and admins. It uses the same Supabase project; its URL and publishable key are in `admin/src/shared/supabase/client.ts`.
+The web dashboard is for HDC administrators. It uses the same Supabase project; its URL and publishable key are in `admin/src/shared/supabase/client.ts`.
 
 ```bash
 cd admin

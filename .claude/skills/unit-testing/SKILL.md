@@ -62,7 +62,7 @@ Conventions:
   - A missing privilege reports `42501`.
   - A constraint violation reports `23514`.
   - An RLS-filtered read returns no rows, and an RLS-filtered update changes nothing. Check the data afterwards as the owner (`reset role`).
-- **Cover the matrix:** for each policy and function, test the allowed user plus another student, a reviewer, signed out (`set local role anon`), unconfirmed and suspended where relevant.
+- **Cover the matrix:** for each policy and function, test the allowed user plus another student, a role-less staff account, signed out (`set local role anon`), unconfirmed and suspended where relevant.
 - **Limits:** for stock and capacity, prove the limit holds by calling the function until it refuses (`CAPACITY_FULL`) and checking the totals never exceed it. Real parallel races need two connections, which pgTAP can't do in one transaction; row locks (`for update`) plus these sequential tests plus `check` constraints are the guarantee.
 - **Check the tests can fail:** when adding a security rule, temporarily break it (e.g. change a policy to `using (true)`) and confirm a test goes red, then restore it.
 
@@ -90,6 +90,6 @@ pgTAP files create their own users and rows inside their transaction. Nothing is
 ## Verification checklist
 
 - [ ] Every new policy, privilege and function has allowed and refused tests.
-- [ ] Limits (stock, capacity, one reservation) are tested.
+- [ ] Limits (stock, capacity, purchase limits) are tested.
 - [ ] `plan(N)` matches; no `skip` or `todo` left behind.
 - [ ] At least one deliberate break of a new rule was caught by the tests.

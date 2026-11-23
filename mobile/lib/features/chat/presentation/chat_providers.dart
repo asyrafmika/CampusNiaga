@@ -24,7 +24,7 @@ final conversationProvider = FutureProvider.autoDispose
       (ref, id) => ref.watch(chatRepositoryProvider).conversation(id),
     );
 
-/// The chat id for a reservation or order, created when needed.
+/// The chat id for an item, purchase or order, created when needed.
 final openConversationProvider = FutureProvider.autoDispose
     .family<String, ChatDeal>(
       (ref, deal) => ref.watch(chatRepositoryProvider).open(deal),

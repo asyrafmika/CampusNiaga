@@ -30,7 +30,7 @@ insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) value
   ('22222222-2222-2222-2222-222222222222', 'siti@student.usm.my', now(), '{"name": "Siti"}'),
   ('44444444-4444-4444-4444-444444444444', 'amin@student.usm.my', now(), '{"name": "Amin"}'),
   ('88888888-8888-8888-8888-888888888888', 'rina@campusniaga.test', now(), '{"name": "Rina"}');
-insert into public.staff_roles (user_id, role) values ('88888888-8888-8888-8888-888888888888', 'reviewer');
+insert into public.staff_roles (user_id, role) values ('88888888-8888-8888-8888-888888888888', 'admin');
 insert into public.business_applications (id, applicant_id, business_name, category, description, contact_details, collection_details, status, submitted_at) values
   ('aaaaaaaa-0000-0000-0000-000000000011', '11111111-1111-1111-1111-111111111111', 'Ali Bakes', 'Food & Beverage',
    'Homemade brownies and cookies, baked fresh every week.', '012-3456789', 'Tekun lobby, 6-8pm', 'under_review', now());
@@ -42,7 +42,7 @@ select is(pg_temp.error_reason($$ select public.upsert_listing(null, 'Brownie bo
   'FORBIDDEN', 'before approval Ali cannot list business products');
 select is(pg_temp.error_reason($$ select public.update_storefront('Brownies', 'Tekun lobby') $$), 'FORBIDDEN', 'or set up a storefront');
 
--- 2. The reviewer approves; Ali sets up the storefront, a product and a capacity-3 pre-order -------
+-- 2. The administrator approves; Ali sets up the storefront, a product and a capacity-3 pre-order -------
 select pg_temp.as_user('88888888-8888-8888-8888-888888888888');
 do $$ begin
   perform set_config('test.business', public.review_business_application('aaaaaaaa-0000-0000-0000-000000000011', 'approve') ->> 'business_id', true);

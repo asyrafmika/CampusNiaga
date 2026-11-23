@@ -28,7 +28,7 @@ class ApplicationDocumentsScreen extends ConsumerWidget {
         AsyncValue(hasValue: true) => const EmptyView(
           icon: Icons.lock_clock_outlined,
           title: 'Nothing to submit',
-          message: 'Your application is with the reviewers.',
+          message: 'Your application is with the HDC administrator.',
         ),
         AsyncError(:final error) => ErrorView(
           error: error,
@@ -111,8 +111,8 @@ class _DocumentsState extends ConsumerState<_Documents> {
     showMessage(
       context,
       _isResubmit
-          ? 'Resubmitted. The reviewer will look at it again.'
-          : 'Submitted! We’ll let you know when a reviewer decides.',
+          ? 'Resubmitted. The administrator will look at it again.'
+          : 'Submitted! We’ll let you know when an HDC administrator decides.',
     );
     context.pop(true);
   }
@@ -129,7 +129,7 @@ class _DocumentsState extends ConsumerState<_Documents> {
         const ApplicationStepHeader(step: 2),
         const SizedBox(height: 12),
         Text(
-          'Optional, but it helps the reviewer: a menu or price list, product '
+          'Optional, but it helps the administrator: a menu or price list, product '
           'photos, a food handling certificate. PDF, JPEG or PNG, up to 5 MB '
           'each, ${ApplicationRules.maxDocuments} at most.',
           style: theme.textTheme.bodyMedium,
@@ -193,7 +193,7 @@ class _DocumentsState extends ConsumerState<_Documents> {
         if (_isResubmit) ...[
           const SizedBox(height: 20),
           Text(
-            'Reply to the reviewer (optional)',
+            'Reply to the administrator (optional)',
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
             ),
@@ -220,7 +220,7 @@ class _DocumentsState extends ConsumerState<_Documents> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Once submitted, you can’t edit it unless a reviewer asks for '
+          'Once submitted, you can’t edit it unless the administrator asks for '
           'changes.',
           style: theme.textTheme.bodySmall,
           textAlign: TextAlign.center,

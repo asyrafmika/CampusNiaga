@@ -48,7 +48,9 @@ class _MyListingsScreenState extends ConsumerState<MyListingsScreen> {
               children: [
                 for (final status in <ListingStatus?>[
                   null,
-                  ...ListingStatus.values,
+                  ...ListingStatus.values.where(
+                    (s) => s != ListingStatus.deleted,
+                  ),
                 ])
                   Padding(
                     padding: const EdgeInsets.only(right: 8),

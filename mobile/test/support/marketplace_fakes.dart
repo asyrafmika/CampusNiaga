@@ -3,11 +3,11 @@ import 'package:mobile/core/domain/geo_point.dart';
 import 'package:mobile/core/domain/listing_enums.dart';
 import 'package:mobile/core/domain/payment.dart';
 import 'package:mobile/features/marketplace/data/listing_repository.dart';
-import 'package:mobile/features/marketplace/data/reservation_repository.dart';
+import 'package:mobile/features/marketplace/data/purchase_repository.dart';
 import 'package:mobile/features/marketplace/domain/listing.dart';
 import 'package:mobile/features/marketplace/domain/listing_input.dart';
 import 'package:mobile/features/marketplace/domain/listing_query.dart';
-import 'package:mobile/features/marketplace/domain/reservation.dart';
+import 'package:mobile/features/marketplace/domain/purchase.dart';
 
 const String meId = 'u1';
 const String sellerId = 'u2';
@@ -44,31 +44,47 @@ Listing aListing({
   createdAt: DateTime.utc(2026, 11, 16),
 );
 
-ReservationCard aReservation({
+PurchaseCard aPurchase({
   String id = 'r1',
   bool iAmBuyer = false,
-  ReservationStatus status = ReservationStatus.requested,
-  String? email,
+  PurchaseStatus? status,
   PaymentSummary? payment,
-}) => ReservationCard(
-  payment: payment,
-  id: id,
-  listingId: 'l1',
-  listingTitle: 'Casio FX-570 calculator',
-  listingPhoto: null,
-  pickupArea: 'Desasiswa Tekun',
-  priceSen: 2500,
-  qty: 1,
-  pickupNote: 'After 5pm',
-  status: status,
-  // Relative to now: a fixed date would make every reservation overdue once
-  // it passed (which hides the chat button).
-  expiresAt: DateTime.now().add(const Duration(days: 2)),
-  createdAt: DateTime.utc(2026, 11, 16),
-  iAmBuyer: iAmBuyer,
-  otherPartyName: iAmBuyer ? 'Ali' : 'Siti',
-  otherPartyEmail: email,
-);
+  String? cancelledBy,
+  String? cancelReason,
+  DateTime? relistFrom,
+}) {
+  final resolved =
+      status ??
+      (payment == null
+          ? PurchaseStatus.awaitingHandover
+          : PurchaseStatus.awaitingPayment);
+  return PurchaseCard(
+    payment: payment,
+    id: id,
+    listingId: 'l1',
+    listingTitle: 'Casio FX-570 calculator',
+    listingPhoto: null,
+    pickupArea: 'Desasiswa Tekun',
+    qty: 1,
+    unitPriceSen: 2500,
+    totalSen: 2500,
+    paymentMethod: payment == null
+        ? PaymentMethod.cash
+        : PaymentMethod.transfer,
+    status: resolved,
+    cancelledBy: cancelledBy,
+    cancelReason: cancelReason,
+    // Relative to now, as the database's is: 24 hours after a cash purchase.
+    relistFrom:
+        relistFrom ??
+        (payment == null && resolved == PurchaseStatus.awaitingHandover
+            ? DateTime.now().add(const Duration(hours: 20))
+            : null),
+    createdAt: DateTime.utc(2026, 11, 16),
+    iAmBuyer: iAmBuyer,
+    otherPartyName: iAmBuyer ? 'Ali' : 'Siti',
+  );
+}
 
 /// In-memory listings; records every call.
 class FakeListingRepository implements ListingRepository {
@@ -158,55 +174,66 @@ class FakeListingRepository implements ListingRepository {
       PhotoRequest('https://example.invalid/$path', const {});
 }
 
-/// In-memory reservations and reports; records every call.
-class FakeReservationRepository implements ReservationRepository {
-  FakeReservationRepository({
-    List<ReservationCard>? buying,
-    List<ReservationCard>? selling,
+/// In-memory purchases and reports; records every call.
+class FakePurchaseRepository implements PurchaseRepository {
+  FakePurchaseRepository({
+    List<PurchaseCard>? buying,
+    List<PurchaseCard>? selling,
   }) : buying = buying ?? [],
        selling = selling ?? [];
 
-  List<ReservationCard> buying;
-  List<ReservationCard> selling;
+  List<PurchaseCard> buying;
+  List<PurchaseCard> selling;
   final List<String> calls = [];
   AppFailure? failWith;
 
-  /// The payment id a transfer reservation returns.
+  /// The payment id a transfer purchase returns.
   String transferPaymentId = 'pay1';
 
+  /// Set to keep a purchase in flight until it completes.
+  Future<void>? buyGate;
+
+  Future<void> _record(String call) async {
+    calls.add(call);
+    if (failWith case final f?) throw f;
+  }
+
   @override
-  Future<String?> request({
+  Future<String?> buy({
     required String listingId,
     required int qty,
-    String? pickupNote,
     PaymentMethod paymentMethod = PaymentMethod.cash,
   }) async {
     final transfer = paymentMethod == PaymentMethod.transfer;
-    calls.add(
-      'request $listingId x$qty ${pickupNote ?? ''}'.trim() +
-          (transfer ? ' transfer' : ''),
-    );
-    if (failWith case final f?) throw f;
+    await _record('buy $listingId x$qty${transfer ? ' transfer' : ''}');
+    await buyGate;
     return transfer ? transferPaymentId : null;
   }
 
   @override
-  Future<void> resolve(String reservationId, ReservationAction action) async {
-    calls.add('resolve $reservationId ${action.wireName}');
-    if (failWith case final f?) throw f;
-  }
+  Future<void> complete(String purchaseId) => _record('complete $purchaseId');
 
   @override
-  Future<List<ReservationCard>> mine(ReservationSide side) async =>
-      side == ReservationSide.buying ? buying : selling;
+  Future<void> relist(String purchaseId) => _record('relist $purchaseId');
+
+  @override
+  Future<void> cancel(
+    String purchaseId, {
+    String? reason,
+    bool relist = true,
+  }) => _record(
+    'cancel $purchaseId${reason == null ? '' : ' "$reason"'}'
+    '${relist ? '' : ' delete'}',
+  );
+
+  @override
+  Future<List<PurchaseCard>> mine(PurchaseSide side) async =>
+      side == PurchaseSide.buying ? buying : selling;
 
   @override
   Future<void> reportListing({
     required String listingId,
     required ReportReason reason,
     required String details,
-  }) async {
-    calls.add('report $listingId ${reason.wireName} $details'.trim());
-    if (failWith case final f?) throw f;
-  }
+  }) => _record('report $listingId ${reason.wireName} $details'.trim());
 }

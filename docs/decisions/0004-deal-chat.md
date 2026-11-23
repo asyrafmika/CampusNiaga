@@ -2,6 +2,7 @@
 
 - **Status:** Accepted by the project owner (17 Nov 2026); to be confirmed with the FYP supervisor
 - **Date:** 17 Nov 2026
+- **Widened by:** [ADR 0006](0006-buy-now.md): chat about a personal item opens before buying. Order chats are as decided here
 - **Changes:** the handoff's and CLAUDE.md's "never build: chat or messaging" rule, for this one limited case
 
 ## Context

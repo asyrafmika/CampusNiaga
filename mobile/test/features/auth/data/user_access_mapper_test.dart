@@ -9,7 +9,6 @@ Map<String, Object?> response({Object? accountStatus = 'active'}) => {
   'email_confirmed': true,
   'account_status': accountStatus,
   'is_student': true,
-  'is_reviewer': false,
   'is_admin': true,
 };
 
@@ -22,7 +21,6 @@ void main() {
     expect(access.emailConfirmed, isTrue);
     expect(access.accountStatus, AccountStatus.active);
     expect(access.isStudent, isTrue);
-    expect(access.isReviewer, isFalse);
     expect(access.isAdmin, isTrue);
   });
 

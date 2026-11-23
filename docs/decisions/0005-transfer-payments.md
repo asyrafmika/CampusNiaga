@@ -2,6 +2,7 @@
 
 - **Status:** Accepted by the project owner (18 Nov 2026); to be confirmed with the FYP supervisor
 - **Date:** 18 Nov 2026
+- **Amended by:** [ADR 0006](0006-buy-now.md): reservations became purchases, and a sent receipt is never released automatically. [ADR 0008](0008-listing-payment-and-delete.md): a student enters their details on the listing's payment step, not in Profile
 - **Changes:** the handoff's and CLAUDE.md's "never build: in-app payments … or verification" rule, for this one limited case
 
 ## Context

@@ -27,6 +27,8 @@ export const ACTION_LABELS: Record<string, string> = {
   'business.reinstated': 'Business reinstated',
   'chat.closed': 'Chat closed by a participant',
   'chat.viewed': 'Reported chat viewed',
+  'performance.list_viewed': 'Business performance list viewed',
+  'performance.viewed': 'Business performance viewed',
 };
 
 function describe(metadata: unknown): string {

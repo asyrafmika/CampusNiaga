@@ -88,7 +88,7 @@ void main() {
         'submit a2',
       ]);
       // Back on Track Status.
-      expect(find.text('Waiting for a reviewer'), findsOneWidget);
+      expect(find.text('Waiting for an administrator'), findsOneWidget);
       expect(find.byKey(BusinessApplicationScreen.continueKey), findsNothing);
     },
   );
@@ -110,7 +110,7 @@ void main() {
   });
 
   testWidgets(
-    'Respond to Request: the reviewer’s note, edits, and a resubmission',
+    'Respond to Request: the administrator’s note, edits, and a resubmission',
     (tester) async {
       final applications = FakeBusinessApplicationRepository(
         application: anApplication(
@@ -131,14 +131,14 @@ void main() {
       await openBusiness(tester);
 
       expect(find.text('Changes requested'), findsWidgets);
-      expect(find.text('What the reviewer asked for'), findsOneWidget);
+      expect(find.text('What the administrator asked for'), findsOneWidget);
       expect(find.textContaining('Add your price list.'), findsWidgets);
 
       await tapVisible(
         tester,
         find.byKey(BusinessApplicationScreen.continueKey),
       );
-      expect(find.text('What the reviewer asked for'), findsOneWidget);
+      expect(find.text('What the administrator asked for'), findsOneWidget);
       expect(find.text('Save changes'), findsOneWidget);
 
       await tester.enterText(
@@ -156,7 +156,7 @@ void main() {
         'save a1 Ali Bakes',
         'submit a1 Price list added.',
       ]);
-      expect(find.text('Waiting for a reviewer'), findsOneWidget);
+      expect(find.text('Waiting for an administrator'), findsOneWidget);
     },
   );
 

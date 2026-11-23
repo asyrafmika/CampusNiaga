@@ -93,7 +93,7 @@ export function ModerationPage() {
     <Box>
       <Typography variant="h1">Reports &amp; Moderation</Typography>
       <Typography sx={{ color: 'text.secondary', mt: 0.5, mb: 3 }}>
-        Listings and deal chats students reported. Hide a listing, suspend the reported user, or dismiss the report.
+        Listings and chats students reported. Hide a listing, suspend the reported user, or dismiss the report.
         Every action is recorded in the audit log.
       </Typography>
 
@@ -339,7 +339,7 @@ function dialogText(action: PendingAction): { title: string; message: string; co
     case 'hide':
       return {
         title: 'Hide listing?',
-        message: `"${title}" leaves the marketplace and can't be reserved. Its seller still sees it and is notified. All open reports on it are closed.`,
+        message: `"${title}" leaves the marketplace and can't be bought. Its seller still sees it and is notified. All open reports on it are closed.`,
         confirm: 'Hide listing',
         danger: true,
       };

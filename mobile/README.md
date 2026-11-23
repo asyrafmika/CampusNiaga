@@ -28,7 +28,7 @@ lib/
 └─ features/
    ├─ onboarding/    first-launch slides
    ├─ auth/          sign in, sign up, access gate, profile
-   ├─ marketplace/   feed, search, listing detail and form, reservations (M1)
+   ├─ marketplace/   feed, search, listing detail and form, Buy now and purchases (M1)
    ├─ business/
    │  ├─ application/  apply, documents, track status (M2)
    │  └─ store/        storefront, orders, my store, pre-orders (M3)

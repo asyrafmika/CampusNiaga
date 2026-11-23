@@ -20,12 +20,12 @@ import {
 } from '@mui/material';
 import { useState } from 'react';
 
-import { useAccess, type StaffRole } from '../../auth';
+import { useAccess } from '../../auth';
 import { useSetAccountStatus } from '../../moderation';
 import { messageOf } from '../../../shared/lib/errors';
 import { formatDateTime, PAGE_SIZE } from '../../../shared/lib/format';
 import { ActionDialog } from '../../../shared/ui/ActionDialog';
-import { useSetStaffRole, useUsers } from '../hooks/useUsers';
+import { useSetAdminRole, useUsers } from '../hooks/useUsers';
 import type { UserRow } from '../services/usersService';
 
 export function UsersPage() {
@@ -34,19 +34,19 @@ export function UsersPage() {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
   const users = useUsers(page, search);
-  const setRole = useSetStaffRole();
+  const setRole = useSetAdminRole();
   const setStatus = useSetAccountStatus();
   const [statusTarget, setStatusTarget] = useState<UserRow | null>(null);
   const [notice, setNotice] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
 
-  const toggle = (user: UserRow, role: StaffRole, enabled: boolean) => {
+  const toggle = (user: UserRow, enabled: boolean) => {
     setRole.mutate(
-      { userId: user.id, role, enabled },
+      { userId: user.id, enabled },
       {
         onSuccess: () => {
           setNotice({
             severity: 'success',
-            text: `${user.email} ${enabled ? 'is now' : 'is no longer'} ${role === 'admin' ? 'an admin' : 'a reviewer'}.`,
+            text: `${user.email} ${enabled ? 'is now' : 'is no longer'} an HDC administrator.`,
           });
         },
         onError: (error) => {
@@ -79,7 +79,7 @@ export function UsersPage() {
     <Box>
       <Typography variant="h1">Users &amp; Roles</Typography>
       <Typography sx={{ color: 'text.secondary', mt: 0.5, mb: 3 }}>
-        Grant or remove reviewer and admin access, and suspend accounts. Every change is recorded in the audit log.
+        Grant or remove HDC administrator access, and suspend accounts. Every change is recorded in the audit log.
       </Typography>
 
       <Paper sx={{ p: 3 }}>
@@ -113,8 +113,7 @@ export function UsersPage() {
                 <TableCell>Email</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Joined</TableCell>
-                <TableCell align="center">Reviewer</TableCell>
-                <TableCell align="center">Admin</TableCell>
+                <TableCell align="center">HDC Administrator</TableCell>
                 <TableCell align="right">Account</TableCell>
               </TableRow>
             </TableHead>
@@ -139,22 +138,12 @@ export function UsersPage() {
                     <TableCell>{formatDateTime(user.createdAt)}</TableCell>
                     <TableCell align="center">
                       <Switch
-                        checked={user.isReviewer}
-                        disabled={setRole.isPending}
-                        onChange={(_e, checked) => {
-                          toggle(user, 'reviewer', checked);
-                        }}
-                        slotProps={{ input: { 'aria-label': `Reviewer role for ${user.email}` } }}
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      <Switch
                         checked={user.isAdmin}
                         disabled={setRole.isPending || (isMe && user.isAdmin)}
                         onChange={(_e, checked) => {
-                          toggle(user, 'admin', checked);
+                          toggle(user, checked);
                         }}
-                        slotProps={{ input: { 'aria-label': `Admin role for ${user.email}` } }}
+                        slotProps={{ input: { 'aria-label': `Administrator role for ${user.email}` } }}
                       />
                     </TableCell>
                     <TableCell align="right">

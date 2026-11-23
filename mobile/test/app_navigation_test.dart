@@ -66,7 +66,7 @@ void main() {
         .getTopLeft(find.descendant(of: bar, matching: find.text(label)))
         .dy;
     final home = top('Home');
-    for (final label in ['Search', 'Sell', 'Bookings', 'Profile']) {
+    for (final label in ['Search', 'Sell', 'Purchases', 'Profile']) {
       expect(top(label), home, reason: label);
     }
   });
@@ -241,7 +241,6 @@ void main() {
         emailConfirmed: true,
         accountStatus: AccountStatus.active,
         isStudent: false,
-        isReviewer: false,
         isAdmin: false,
       ),
     );
@@ -259,7 +258,6 @@ void main() {
         emailConfirmed: true,
         accountStatus: AccountStatus.suspended,
         isStudent: false,
-        isReviewer: false,
         isAdmin: false,
       ),
     );
