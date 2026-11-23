@@ -29,10 +29,12 @@ enum ApplicationStatus {
 }
 
 /// Who changed an application's status (`application_status_history`).
+/// `reviewer` only appears in history from before ADR 0009, when the
+/// reviewer role merged into the HDC administrator.
 enum ApplicationActor {
   applicant('applicant', 'You'),
   reviewer('reviewer', 'Reviewer'),
-  admin('admin', 'Administrator');
+  admin('admin', 'HDC administrator');
 
   const ApplicationActor(this.wireName, this.label);
 

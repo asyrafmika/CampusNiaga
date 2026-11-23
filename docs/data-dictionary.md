@@ -24,8 +24,7 @@ Roles are read from tables on every request, never from login tokens:
 | Role | Rule (database function) |
 |---|---|
 | Verified student | `is_student()`: email confirmed, address matches `app_config.student_email_domains` exactly or is in `app_config.test_allowlist`, and the profile is `active` |
-| Reviewer | `is_reviewer()`: a `staff_roles` row with `role = 'reviewer'` |
-| Admin | `is_admin()`: a `staff_roles` row with `role = 'admin'` |
+| HDC administrator | `is_admin()`: a `staff_roles` row with `role = 'admin'`. The one staff role ([ADR 0009](decisions/0009-single-admin-role.md)): administrators review business applications and run the platform. `is_staff()` means the same |
 | Approved business owner | `owns_business(business_id)`: a verified student who owns that `businesses` row and its `status` is `approved` (Phase 3 ✅) |
 
 ## Tables
@@ -52,7 +51,7 @@ Read: the owner, and admins.
 | Column | Type | Notes |
 |---|---|---|
 | `user_id` | uuid | Primary key together with `role` |
-| `role` | `reviewer` \| `admin` | |
+| `role` | `admin` | The HDC administrator, the only staff role. `reviewer` existed until [ADR 0009](decisions/0009-single-admin-role.md); the migration made every reviewer an administrator |
 | `granted_by` | uuid? | The admin who granted it |
 | `created_at` | timestamptz | |
 
@@ -72,7 +71,7 @@ A single row of settings. Read by admins only, because it holds the test allowli
 
 ### `audit_logs` (Phase 1 ✅)
 
-Append-only record of important actions, written only by database functions. Read: admins. Reviewers see an application's changes through `application_status_history` instead.
+Append-only record of important actions, written only by database functions. Read: admins.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -85,9 +84,9 @@ Append-only record of important actions, written only by database functions. Rea
 
 ### `listings` (Phase 2 ✅)
 
-A product, shared by personal sellers and approved businesses. Written only through `upsert_listing()` and `set_listing_status()`; orders (Phase 4) change `stock` and `status` of business listings. Owners and admins read the table directly; other students see listings through `search_listings()`, `get_listing()` and `get_storefront()`, which add the seller's name (and the business name for business products) and leave out drafts, hidden listings, suspended sellers and suspended businesses.
+A product, shared by personal sellers and approved businesses. Written only through `upsert_listing()` and `set_listing_status()`; purchases (personal) and orders (business) change `stock` and `status`. Owners and admins read the table directly; other students see listings through `search_listings()`, `get_listing()` and `get_storefront()`, which add the seller's name (and the business name for business products) and leave out drafts, hidden listings, suspended sellers and suspended businesses.
 
-**Personal items are reserved; business products are ordered.** A `personal` listing is bought through a reservation (M1); a `business` listing through an order (M3). Each function refuses the other kind.
+**Personal items are bought with Buy now; business products are ordered.** A `personal` listing is bought through a purchase (M1, [ADR 0006](decisions/0006-buy-now.md)); a `business` listing through an order (M3). Each function refuses the other kind.
 
 | Column | Type | Source | Notes |
 |---|---|---|---|
@@ -102,33 +101,39 @@ A product, shared by personal sellers and approved businesses. Written only thro
 | `category` | text | Input | One of `app_config.categories` |
 | `price_sen` | integer | Input | 0–10,000,000 |
 | `condition` | `new` \| `like_new` \| `good` \| `fair` | Input | |
-| `photo_paths` | text[] | Input | Up to 5 paths `{owner_id}/{listing_id}/{file}` in the `listing-photos` bucket (resized on the device before upload). At least 1 once the listing leaves `draft` |
-| `stock` | integer | Input (`quantity`, 1–999) + Server | Units still for sale. Reservations (personal) and ready-stock orders (business) take units out under a row lock when they are made; cancelled, declined or expired ones put them back. Never negative; at least 1 while `available`, 0 when `sold`. A business owner restocks by editing the quantity, which also makes a sold-out (`sold`) business listing `available` again |
+| `photo_paths` | text[] | Input | Up to 5 paths `{owner_id}/{listing_id}/{file}` in the `listing-photos` bucket (resized on the device before upload). At least 1 unless `draft` or `deleted` |
+| `stock` | integer | Input (`quantity`, 1–999) + Server | Units still for sale. Purchases (personal) and ready-stock orders (business) take units out under a row lock when they are made; cancelled ones put them back. Never negative; at least 1 while `available`, 0 when `sold`. A business owner restocks by editing the quantity, which also makes a sold-out (`sold`) business listing `available` again |
 | `pickup_area` | text | Input | Campus pickup location |
 | `pickup_lat`, `pickup_lng` | double precision? | Input | Optional map pin, in degrees (WGS 84): both or neither, inside Malaysia's bounding box (latitude 0.8–7.5, longitude 99.5–119.5). Shown to everyone who can see the listing ([pickup pins](#pickup-pins)) |
-| `status` | `draft` \| `available` \| `reserved` \| `sold` \| `closed` | Server | `draft` → `available` → `reserved` (no units left: every unit is held by requested or accepted reservations) → `sold` (all collected); `closed` when withdrawn (it can re-open); `available` → `sold` directly when sold outside the app. A cancelled or expired reservation returns it to `available` |
+| `status` | `draft` \| `available` \| `sold` \| `closed` \| `deleted` | Server | `draft` → `available` → `sold` (no units left: bought, ordered, or marked sold outside the app). Any status but `deleted` → `deleted` by the owner ([ADR 0008](decisions/0008-listing-payment-and-delete.md)): final, out of every list, kept for the purchases, orders, chats and reports that point at it, and still shown to its owner, admins and a student who bought it. `closed` is from before ADR 0008: such a listing can be re-opened or deleted, but nothing is closed any more. A cancelled purchase makes a sold listing `available` again and never revives a deleted one |
 | `hidden` | boolean | Server | Admin moderation; hidden listings are left out of feeds and M4 supply |
 | `created_at`, `updated_at` | timestamptz | Server | |
 
 Indexes: full-text (`search_vector`), feed (`status, category, price_sen` where not hidden), owner (`owner_id, status, created_at`).
 
-### `reservations` (Phase 2 ✅)
+### `purchases` (M1, [ADR 0006](decisions/0006-buy-now.md))
 
-Written only by `request_reservation()` and `resolve_reservation()`. The buyer and the seller read their own; admins read all. Only `personal` listings can be reserved (a trigger refuses business listings).
+A personal item bought with Buy now. Written only by `buy_item()`, `complete_purchase()`, `cancel_purchase()`, `relist_purchase()` and the payment functions. The buyer and the seller read their own; admins read all. Business listings are refused (they are ordered).
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | uuid | |
 | `listing_id`, `buyer_id`, `seller_id` | uuid | The buyer can't be the seller |
-| `qty` | integer | Units reserved, 1–999 and no more than the listing's stock at the time |
-| `pickup_note` | text? | Up to 200 characters. Optional; the app no longer asks for it (collection is at the listing's pickup area or pin, and other arrangements are made in the deal chat once the seller accepts), so it is null for new reservations |
-| `status` | `requested` \| `accepted` \| `declined` \| `cancelled` \| `collected` \| `expired` | `requested` → `accepted` (seller) → `collected` (seller). `requested` → `declined` (seller). `requested`/`accepted` → `cancelled` (either side) or `expired` |
-| `expires_at` | timestamptz? | Set while `requested` (48 hours to answer; 30 minutes for a transfer reservation's proof, then 7 days for the seller to check it) or `accepted` (7 days to collect); cleared otherwise |
+| `qty` | integer | 1–999 and no more than the stock at the time |
+| `unit_price_sen` | integer | The price at the moment of buying |
+| `total_sen` | bigint | `unit_price_sen × qty` (check constraint) |
+| `payment_method` | `cash` \| `transfer` | |
+| `status` | `awaiting_payment` \| `awaiting_handover` \| `completed` \| `cancelled` | Cash starts at `awaiting_handover`; transfer at `awaiting_payment` until the seller accepts the payment. `awaiting_handover` → `completed` (seller). Either awaiting status → `cancelled` |
+| `cancelled_by` | `buyer` \| `seller` \| `system`? | Only when cancelled. `system`: no receipt within 30 minutes. Empty for converted reservations that didn't record who cancelled |
+| `cancel_reason` | text? | 1–200 characters, only when cancelled. Required from a seller |
+| `completed_at` | timestamptz? | Set exactly when `completed` |
 | `created_at`, `updated_at` | timestamptz | |
 
-**Units are held from the moment of the request.** `request_reservation()` locks the listing row, checks `stock` and takes the units out in one transaction, so two buyers asking for the last unit at the same moment can't both get it: the second waits for the lock, then gets `ITEM_UNAVAILABLE`. Declining, cancelling or expiring returns the units; collecting keeps them gone, and the listing becomes `sold` when no stock and no active reservation remain. A buyer has at most one active (`requested` or `accepted`) reservation per listing (`ALREADY_EXISTS`, plus a partial unique index). A listing with active reservations can't be closed or marked sold.
+**Units are the buyer's from Confirm purchase.** `buy_item()` locks the listing row, checks `stock` and takes the units out in one transaction: first come, first served. A buyer has at most one unfinished purchase per listing (`ALREADY_EXISTS`, plus a partial unique index), 3 unfinished cash purchases and 10 purchases an hour (`RATE_LIMITED`). A seller may close a listing with purchases in progress; only the units still for sale are withdrawn.
 
-**Expiry is lazy:** overdue reservations become `expired` (and return their units) when a reservation on the same listing is requested or resolved, when the listing's status is changed, or when the buyer or seller opens My Reservations. There is no scheduled job. A transfer reservation also expires with its payment (see `deal_payments`), which read functions sweep.
+**What releases units:** the buyer cancels (not after sending a receipt); the seller cancels with a reason (relist, or delete the listing) or relists uncollected cash 24 hours after the purchase; the seller rejects a receipt; or a transfer has no receipt 30 minutes after buying. Only the last happens automatically: it is lazy, when the listing is next locked to change or a read function sweeps. Cash, and a transfer with a receipt, are never released automatically.
+
+The reservations that purchases replaced are kept as they were in `legacy.reservations`, a schema the API doesn't expose and no app role can use.
 
 ### `business_applications` (Phase 3 ✅)
 
@@ -145,8 +150,8 @@ A student's request to run a business on CampusNiaga (M2). The approval is a **s
 | `collection_details` | text | Client | Where and when buyers collect; up to 200, at least 5 to submit. Becomes the business's `pickup_details` |
 | `document_paths` | text[] | Client | Uploaded files `{applicant_id}/{application_id}/{file}` in `application-documents` (PDF, JPEG or PNG). Optional; up to `app_config.max_application_documents`, each one must exist to submit |
 | `status` | `draft` \| `submitted` \| `under_review` \| `info_requested` \| `approved` \| `rejected` | Client (`draft` on insert) / Server | See the state machine below |
-| `reviewer_id` | uuid? | Server | The staff member who last acted on it |
-| `remarks` | text? | Server | The latest reviewer note |
+| `reviewer_id` | uuid? | Server | The administrator who last acted on it (the column kept its name in ADR 0009) |
+| `remarks` | text? | Server | The administrator's latest note |
 | `submitted_at` | timestamptz? | Server | Last (re)submission; the review queue is ordered by it, oldest first |
 | `decided_at` | timestamptz? | Server | Set on approval or rejection |
 | `created_at`, `updated_at` | timestamptz | Server | |
@@ -157,14 +162,14 @@ A student's request to run a business on CampusNiaga (M2). The approval is a **s
 |---|---|---|---|
 | (new) | `draft` | Applicant (verified student) | Direct insert |
 | `draft` / `info_requested` | `submitted` | Applicant | `submit_business_application` |
-| `submitted` | `under_review` | Reviewer or admin | `review_business_application(…, 'start_review')` |
-| `under_review` | `info_requested` | Reviewer or admin | `… 'request_info'`, with a note |
-| `under_review` | `approved` | Reviewer or admin | `… 'approve'`; creates the business |
-| `under_review` | `rejected` | Reviewer or admin | `… 'reject'`, with a note |
+| `submitted` | `under_review` | Administrator | `review_business_application(…, 'start_review')` |
+| `under_review` | `info_requested` | Administrator | `… 'request_info'`, with a note |
+| `under_review` | `approved` | Administrator | `… 'approve'`; creates the business |
+| `under_review` | `rejected` | Administrator | `… 'reject'`, with a note |
 
 `approved` and `rejected` are final. The content columns can be changed only while `draft` or `info_requested`; `status`, `reviewer_id`, `remarks` and the dates never by the client (column privileges). A student has **at most one unfinished application** (any status except `approved` and `rejected`, drafts included) and at most one business, so a rejected applicant may apply again but an approved one doesn't need to. Staff can't review their own application.
 
-Read: the applicant; reviewers and admins once it has left `draft` (drafts stay private). Reviewers may also read the name and email of a student whose application they can see.
+Read: the applicant; administrators once it has left `draft` (drafts stay private).
 
 ### `application_status_history` (Phase 3 ✅)
 
@@ -176,13 +181,13 @@ Append-only, one row per status change, written in the same transaction as the c
 | `application_id` | uuid | |
 | `from_status`, `to_status` | text | Application statuses |
 | `actor_id` | uuid? | Who made the change |
-| `actor_role` | `applicant` \| `reviewer` \| `admin` | |
-| `note` | text? | The reviewer's note, or the applicant's reply when resubmitting |
+| `actor_role` | `applicant` \| `reviewer` \| `admin` | `reviewer` only on entries from before [ADR 0009](decisions/0009-single-admin-role.md); new staff entries are `admin` |
+| `note` | text? | The administrator's note, or the applicant's reply when resubmitting |
 | `created_at` | timestamptz | |
 
 ### `businesses` (Phase 3 ✅)
 
-Created only by `review_business_application(…, 'approve')`, in the same transaction as the approval. Read: the owner, reviewers and admins directly; other students see an approved business's storefront through `get_storefront()`. The owner changes the storefront (description, pickup details, map pin, logo) through `update_storefront()`. No client writes.
+Created only by `review_business_application(…, 'approve')`, in the same transaction as the approval. Read: the owner and administrators directly; other students see an approved business's storefront through `get_storefront()`. The owner changes the storefront (description, pickup details, map pin, logo) through `update_storefront()`. No client writes.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -219,7 +224,7 @@ A pre-order campaign for one business product. Written only by `upsert_campaign(
 
 ### `orders` (Phase 4 ✅)
 
-An order for a business product: ready stock (no campaign) or a pre-order (with a campaign). Written only by `place_order()` and `transition_order()`. Read: the buyer, the business owner (also while the business is suspended) and admins; the apps use `my_orders()`, which adds names and, once confirmed, contact emails.
+An order for a business product: ready stock (no campaign) or a pre-order (with a campaign). Written only by `place_order()` and `transition_order()`. Read (every column except `cost_sen`): the buyer, the business owner (also while the business is suspended) and admins; the apps use `my_orders()`, which adds names and, once confirmed, contact emails.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -234,7 +239,7 @@ An order for a business product: ready stock (no campaign) or a pre-order (with 
 | `buyer_note` | text? | The buyer's collection preference, up to 200 characters |
 | `collection_details` | text | Snapshot of where and when to collect: the campaign's `pickup_details` for a pre-order, otherwise the business's |
 | `cancelled_by` | `buyer` \| `seller` \| `system`? | Set exactly when `cancelled`. A seller cancelling a pending order is a rejection; `system` means a transfer payment's proof didn't arrive in time ([ADR 0005](decisions/0005-transfer-payments.md)) |
-| `cost_sen` | integer? | The seller's own cost for this order (0–100,000,000), for estimated profit. Written only by `set_order_cost()` (Phase 6); self-reported, never verified |
+| `cost_sen` | integer? | The seller's own cost for this order (0–100,000,000), for estimated profit. Written only by `set_order_cost()` (Phase 6); self-reported, never verified. Not selectable from the table by anyone: the seller gets it through `my_orders('selling')` and `business_dashboard` ([ADR 0007](decisions/0007-admin-business-performance.md)). A new column on this table needs its own select grant |
 | `completed_at` | timestamptz? | Set exactly when `completed`; M5 date filters and totals |
 | `created_at`, `updated_at` | timestamptz | |
 
@@ -308,7 +313,7 @@ Written only by `report_listing()` and `report_conversation()` (students) and th
 | `id` | uuid | |
 | `reporter_id` | uuid | The student who reported |
 | `listing_id` | uuid? | The reported listing (listing reports) |
-| `conversation_id` | uuid? | The reported deal chat (chat reports, [ADR 0004](decisions/0004-deal-chat.md)) |
+| `conversation_id` | uuid? | The reported chat (chat reports, [ADR 0004](decisions/0004-deal-chat.md)) |
 | `reported_user_id` | uuid? | The listing's owner at the time, or the other chat participant |
 | `reason` | `prohibited_item` \| `scam` \| `offensive` \| `misleading` \| `other` | `other` needs details |
 | `details` | text | Up to 500 characters |
@@ -319,25 +324,24 @@ Written only by `report_listing()` and `report_conversation()` (students) and th
 
 One open report per student per listing, and per chat. Students may send 10 reports a day. Chat reports use `scam`, `offensive` or `other`.
 
-### `conversations` (deal chat, [ADR 0004](decisions/0004-deal-chat.md))
+### `conversations` (chat, [ADR 0004](decisions/0004-deal-chat.md), [ADR 0006](decisions/0006-buy-now.md))
 
-One chat per accepted reservation or confirmed business order, between its buyer and seller. Written only by the chat functions; the two participants read it.
+An **item chat** (no `order_id`): one per personal listing and student, opened before buying and kept for the handover. An **order chat**: one per confirmed business order. Written only by the chat functions; the two participants read it.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | uuid | |
-| `reservation_id` | uuid? unique | Exactly one of `reservation_id` and `order_id` |
-| `order_id` | uuid? unique | |
+| `order_id` | uuid? unique | Null for an item chat, which is unique per `listing_id` and `buyer_id` |
 | `listing_id` | uuid | The item or product, for the chat's title |
-| `buyer_id`, `seller_id` | uuid | For an order, the seller is the business owner. Never equal |
+| `buyer_id`, `seller_id` | uuid | For an item chat, `buyer_id` is the student asking. For an order, the seller is the business owner. Never equal |
 | `buyer_last_read_id`, `seller_last_read_id` | bigint | The newest message each has seen (0 = none); unread = later messages from the other person |
 | `last_message_at` | timestamptz? | |
 | `closed_at`, `closed_by` | timestamptz?, uuid? | Set when a participant closes the chat (the block). Never reopened |
 | `created_at`, `updated_at` | timestamptz | |
 
-A chat **can send** while its deal is active (reservation `accepted` and not overdue; order `confirmed`, `preparing` or `ready_for_pickup` at an approved business), it isn't closed, and neither participant is suspended. Otherwise it is read-only; its history stays readable.
+A chat **can send** while it isn't closed, neither participant is suspended and: for an item chat, the item is `available` and not hidden, or the student bought it (any purchase that wasn't cancelled, or a cancelled one they had sent money for); for an order chat, the order is `confirmed`, `preparing` or `ready_for_pickup` at an approved business. Otherwise it is read-only; its history stays readable. A seller doesn't list an item chat until it has a message.
 
-### `messages` (deal chat)
+### `messages` (chat)
 
 Written only by `send_message()`; read by the chat's two participants (also through Supabase Realtime, which applies the same policy). Never edited or deleted, except with the chat or an account.
 
@@ -353,7 +357,7 @@ Students may send 20 messages a minute.
 
 ### `payment_details` (transfer payments, [ADR 0005](decisions/0005-transfer-payments.md))
 
-Where buyers pay a seller by transfer. One row per student and, optionally, one per approved business (used for its orders instead). Written only by `set_payment_details()`; only its owner reads the row. A buyer gets the details only through `get_payment()`, while their payment is open.
+Where buyers pay a seller by transfer. One row per student and, optionally, one per approved business (used for its orders instead). The app asks for a student's on the listing's payment step, and for a business's in My store ([ADR 0008](decisions/0008-listing-payment-and-delete.md)). Written only by `set_payment_details()`; only its owner reads the row. A buyer gets the details only through `get_payment()`, while their payment is open.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -370,24 +374,24 @@ At least an account number or a QR code. Saving neither removes the row.
 
 ### `deal_payments` (transfer payments)
 
-The payment of one transfer order or reservation (cash deals have none). Written only by the ordering, reserving and payment functions; the buyer and the seller read their own, admins read all.
+The payment of one transfer order or purchase (cash deals have none). Written only by the ordering, buying and payment functions; the buyer and the seller read their own, admins read all.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | uuid | |
-| `order_id` | uuid? unique | Exactly one of `order_id` and `reservation_id` |
-| `reservation_id` | uuid? unique | |
+| `order_id` | uuid? unique | Exactly one of `order_id` and `purchase_id` |
+| `purchase_id` | uuid? unique | |
 | `buyer_id`, `seller_id` | uuid | For an order, the seller is the business owner |
 | `business_id` | uuid? | Set for orders, so the business's own details are used |
-| `amount_sen` | bigint | The order's `total_sen`, or the listing price × quantity |
-| `status` | `awaiting_proof` \| `submitted` \| `accepted` \| `rejected` \| `expired` \| `cancelled` | `awaiting_proof` → `submitted` (buyer, before `due_at`) → `accepted` / `rejected` (seller). `awaiting_proof` → `expired` after `due_at`; `submitted` → `expired` if the seller never decides on a reservation (7 days). Either becomes `cancelled` when the deal is cancelled or declined |
-| `due_at` | timestamptz | 30 minutes after ordering or reserving |
+| `amount_sen` | bigint | The order's or purchase's `total_sen` |
+| `status` | `awaiting_proof` \| `submitted` \| `accepted` \| `rejected` \| `expired` \| `cancelled` | `awaiting_proof` → `submitted` (buyer, before `due_at`) → `accepted` / `rejected` (seller). `awaiting_proof` → `expired` after `due_at`. Either becomes `cancelled` when the deal is cancelled. A `submitted` payment never expires |
+| `due_at` | timestamptz | 30 minutes after ordering or buying |
 | `proof_path` | text? | `{buyer_id}/{payment_id}/{file}` in `payment-proofs`; set from `submitted` on |
 | `submitted_at`, `decided_at` | timestamptz? | `decided_at` exactly when `accepted` or `rejected` |
 | `reject_reason` | text? | 1–200 characters, exactly when `rejected` |
 | `created_at`, `updated_at` | timestamptz | |
 
-**The units stay held while a payment is open.** No proof by `due_at`: the order is cancelled (`cancelled_by = 'system'`) or the reservation expires, and the units go back on sale. Expiry is lazy: changing a listing's or campaign's stock expires its overdue payments first, and `search_listings`, `get_listing`, `get_storefront`, `my_orders`, `my_reservations` and `get_payment` sweep every overdue payment first, skipping rows another transaction holds. Accepting confirms the order or accepts the reservation; rejecting cancels or declines it. The app records what the seller decided; it never checks a payment itself.
+**The units stay held while a payment is open.** No proof by `due_at`: the order or purchase is cancelled (`cancelled_by = 'system'`) and the units go back on sale. Expiry is lazy: changing a listing's or campaign's stock expires its overdue payments first, and `search_listings`, `get_listing`, `get_storefront`, `my_orders`, `my_purchases` and `get_payment` sweep every overdue payment first, skipping rows another transaction holds. Accepting confirms the order or leaves the purchase awaiting handover; rejecting cancels it. The app records what the seller decided; it never checks a payment itself.
 
 ### `notifications` (Phase 2 ✅)
 
@@ -397,8 +401,8 @@ In-app notices written by database functions. The recipient reads their own and 
 |---|---|---|
 | `id` | bigint | |
 | `recipient_id` | uuid | |
-| `type` | text | `order_placed`, `order_confirmed`, `order_preparing`, `order_ready_for_pickup`, `order_completed`, `order_cancelled`, `reservation_requested`, `reservation_accepted`, `reservation_declined`, `reservation_cancelled`, `reservation_collected`, `reservation_expired`, `listing_hidden`, `listing_restored`, `application_under_review`, `application_info_requested`, `application_approved`, `application_rejected`, `business_suspended`, `business_reinstated`, `reservation_payment_expired`, `order_payment_expired`, `payment_submitted`, `payment_accepted`, `payment_rejected`; later phases add more |
-| `target` | text? | What it's about, e.g. `reservation:{id}`, `listing:{id}`, `application:{id}`, `business:{id}` or `order:{id}` |
+| `type` | text | `order_placed`, `order_confirmed`, `order_preparing`, `order_ready_for_pickup`, `order_completed`, `order_cancelled`, `purchase_created`, `purchase_completed`, `purchase_cancelled`, `purchase_payment_expired`, `listing_hidden`, `listing_restored`, `application_under_review`, `application_info_requested`, `application_approved`, `application_rejected`, `business_suspended`, `business_reinstated`, `order_payment_expired`, `payment_submitted`, `payment_accepted`, `payment_rejected`. Notices from before ADR 0006 keep their `reservation_*` types |
+| `target` | text? | What it's about, e.g. `purchase:{id}`, `listing:{id}`, `application:{id}`, `business:{id}` or `order:{id}` |
 | `title`, `body` | text | |
 | `read` | boolean | |
 | `created_at` | timestamptz | |
@@ -408,7 +412,7 @@ In-app notices written by database functions. The recipient reads their own and 
 | Bucket | Contents | Access |
 |---|---|---|
 | `listing-photos` (Phase 2) | Product photos: JPEG, PNG or WebP, up to 5 MB, under `{owner_id}/{listing_id}/` | Private bucket. A verified student uploads only into a folder of a listing they own (`can_upload_listing_photo`) and deletes only their own files; verified students and admins read, with their sign-in token |
-| `application-documents` (Phase 3) | Business application documents: PDF, JPEG or PNG, up to 5 MB, under `{applicant_id}/{application_id}/` | Private. The applicant uploads and deletes only while their application is `draft` or `info_requested`, up to `app_config.max_application_documents` files (`can_upload_application_document`); files are never overwritten. The applicant, and reviewers and admins once it is submitted, read through short-lived signed URLs (`can_read_application_document`) |
+| `application-documents` (Phase 3) | Business application documents: PDF, JPEG or PNG, up to 5 MB, under `{applicant_id}/{application_id}/` | Private. The applicant uploads and deletes only while their application is `draft` or `info_requested`, up to `app_config.max_application_documents` files (`can_upload_application_document`); files are never overwritten. The applicant, and administrators once it is submitted, read through short-lived signed URLs (`can_read_application_document`) |
 | `business-logos` (Phase 4) | Business logos: JPEG, PNG or WebP, up to 2 MB, under `{business_id}/` | Private bucket. The owner of an approved business uploads into its folder (`can_upload_business_logo`) and deletes its own files; verified students and staff read with their sign-in token |
 | `payment-qr` (ADR 0005) | Sellers' payment QR codes: JPEG, PNG or WebP, up to 2 MB, under `{owner_id}/` | Private. A verified student uploads into and deletes from their own folder only. Read by the owner, and by a buyer whose payment to that seller is open (`can_read_payment_qr`) |
 | `payment-proofs` (ADR 0005) | Buyers' payment screenshots: JPEG, PNG or WebP, up to 5 MB, under `{buyer_id}/{payment_id}/` | Private. The buyer uploads up to 3 files while the payment is `awaiting_proof` and before its deadline (`can_upload_payment_proof`), and deletes them until sending. Read by the buyer, the seller and admins (`can_read_payment_proof`) |

@@ -2,7 +2,7 @@
 -- direct-access rules and the listing-photos upload rule.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(84);
+select plan(85);
 
 -- Returns the reason (error DETAIL) an SQL statement fails with, or 'no error'.
 create function pg_temp.error_reason(statement text) returns text language plpgsql as $$
@@ -178,7 +178,7 @@ select is((select title from public.get_listing('aaaaaaaa-0000-0000-0000-0000000
 set local request.jwt.claims to '{"sub": "55555555-5555-5555-5555-555555555555", "role": "authenticated"}';
 select is(pg_temp.error_reason($$ select * from public.get_listing(current_setting('test.calc')::uuid) $$), 'NOT_VERIFIED_STUDENT', 'a non-USM account cannot open a listing');
 
--- Selling, closing, re-opening -----------------------------------------------------------------
+-- Selling, and re-opening an old closed listing -----------------------------------------------------------------
 set local request.jwt.claims to '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}';
 select is(public.set_listing_status(current_setting('test.calc')::uuid, 'sold') ->> 'status', 'sold', 'the owner marks a listing sold');
 reset role;
@@ -192,8 +192,14 @@ select is(pg_temp.error_reason($$ select public.upsert_listing(current_setting('
 select is((select count(*)::int from public.search_listings('calculator')), 0, 'a sold listing leaves the feed');
 
 set local request.jwt.claims to '{"sub": "22222222-2222-2222-2222-222222222222", "role": "authenticated"}';
-select is(public.set_listing_status('aaaaaaaa-0000-0000-0000-000000000002', 'closed') ->> 'status', 'closed', 'the owner closes a listing');
-select is(public.set_listing_status('aaaaaaaa-0000-0000-0000-000000000002', 'available') ->> 'status', 'available', 'the owner re-opens a closed listing');
+select is(pg_temp.error_reason($$ select public.set_listing_status('aaaaaaaa-0000-0000-0000-000000000002', 'closed') $$), 'INVALID_TRANSITION', 'listings are deleted, not closed (ADR 0008)');
+reset role;
+-- Closed before that change.
+update public.listings set status = 'closed' where id = 'aaaaaaaa-0000-0000-0000-000000000002';
+set local role authenticated;
+set local request.jwt.claims to '{"sub": "22222222-2222-2222-2222-222222222222", "role": "authenticated"}';
+select is(public.set_listing_status('aaaaaaaa-0000-0000-0000-000000000002', 'available') ->> 'status', 'available', 'the owner re-opens a listing closed earlier');
+select is(pg_temp.error_reason($$ select public.set_listing_status('aaaaaaaa-0000-0000-0000-000000000002', 'closed') $$), 'INVALID_TRANSITION', 'and cannot close it again');
 reset role;
 
 -- Rate limit --------------------------------------------------------------------------------------

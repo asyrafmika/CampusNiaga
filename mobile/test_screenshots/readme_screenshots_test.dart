@@ -43,7 +43,6 @@ const owner = UserAccess(
   emailConfirmed: true,
   accountStatus: AccountStatus.active,
   isStudent: true,
-  isReviewer: false,
   isAdmin: false,
   isBusinessOwner: true,
   businessStatus: BusinessStatus.approved,
@@ -323,7 +322,7 @@ void main() {
           ApplicationHistoryEntry(
             from: ApplicationStatus.underReview,
             to: ApplicationStatus.infoRequested,
-            actor: ApplicationActor.reviewer,
+            actor: ApplicationActor.admin,
             note:
                 'Please add your price list and a food handling '
                 'certificate.',
@@ -332,7 +331,7 @@ void main() {
           ApplicationHistoryEntry(
             from: ApplicationStatus.submitted,
             to: ApplicationStatus.underReview,
-            actor: ApplicationActor.reviewer,
+            actor: ApplicationActor.admin,
             createdAt: DateTime.utc(2026, 11, 16, 11),
           ),
           ApplicationHistoryEntry(

@@ -14,8 +14,8 @@ Read `CLAUDE.md` first. Its non-negotiables and data conventions apply here and 
 | Tier | Owns | Never does |
 |---|---|---|
 | `mobile/` (Flutter) | Student UX for M1–M5, validation for UX, reading permitted rows, calling database functions | Privileged writes, role/status/owner changes, stock or capacity arithmetic, ranking |
-| `admin/` (React) | Reviewer and admin UX for M2, moderation, user access, audit viewing | Writing approvals or roles to tables; it calls database functions |
-| `supabase/` functions | Every state change with authority: approvals, reservations, orders, allocation, roles, audit, M4 | UI concerns; trusting any client-supplied role, status, owner or price |
+| `admin/` (React) | HDC administrator UX for M2 review, moderation, user access, audit viewing | Writing approvals or roles to tables; it calls database functions |
+| `supabase/` functions | Every state change with authority: approvals, purchases, orders, allocation, roles, audit, M4 | UI concerns; trusting any client-supplied role, status, owner or price |
 | `supabase/` policies | Default deny; owner-scoped reads and non-privileged writes; role-scoped reads | Workflows (keep policies simple; put workflows in functions) |
 
 **Direct write vs database function:** a client may write a row directly only if all of these hold:
@@ -27,18 +27,18 @@ Everything else is a database function.
 
 Examples:
 - **Direct write:** editing your own profile name, saving a business-application draft, marking your own notification read.
-- **Database function:** creating or editing listings (validation, rate limits, derived search fields), reserving, ordering, approving, toggling interest, hiding listings.
+- **Database function:** creating or editing listings (validation, rate limits, derived search fields), buying, ordering, approving, toggling interest, hiding listings.
 
 ## Module-to-code map
 
 | Module | Mobile feature folder | Admin feature folder | Database |
 |---|---|---|---|
 | Auth / gate | `features/auth` | `features/auth` | `profiles`, `staff_roles`, `is_student()`, `get_my_access()` |
-| M1 | `features/marketplace` | `features/moderation` | `listings`, `reservations`, `reports` + functions |
+| M1 | `features/marketplace` | `features/moderation` | `listings`, `purchases`, `reports` + functions |
 | M2 | `features/business/application` | `features/applications` | `business_applications`, history, `businesses` + functions |
 | M3 | `features/business/store` | (none) | `campaigns`, `orders` + functions |
 | M4 | `features/discovery` | (none) | `product_requests`, `request_interests`, `opportunities` + ranking functions |
-| M5 | `features/dashboard` | (none) | Aggregate functions over the seller's orders |
+| M5 | `features/dashboard` | `features/performance` | Aggregate functions over the seller's orders |
 | Admin | (none) | `features/users`, `features/audit` | `set_staff_role()`, `audit_logs` |
 
 Don't create a module, table, screen or function that isn't traceable to the handoff. If a feature seems to need one, stop and ask the user.

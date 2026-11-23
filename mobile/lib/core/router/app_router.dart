@@ -30,8 +30,9 @@ import '../../features/discovery/presentation/request_form_screen.dart';
 import '../../features/marketplace/presentation/home_screen.dart';
 import '../../features/marketplace/presentation/listing_detail_screen.dart';
 import '../../features/marketplace/presentation/listing_form_screen.dart';
+import '../../features/marketplace/presentation/listing_payment_screen.dart';
 import '../../features/marketplace/presentation/my_listings_screen.dart';
-import '../../features/marketplace/presentation/my_reservations_screen.dart';
+import '../../features/marketplace/presentation/my_purchases_screen.dart';
 import '../../features/marketplace/presentation/report_listing_screen.dart';
 import '../../features/marketplace/presentation/search_screen.dart';
 import '../../features/onboarding/presentation/onboarding_controller.dart';
@@ -132,8 +133,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: AppRoutes.reservations,
-                builder: (context, state) => const MyReservationsScreen(),
+                path: AppRoutes.purchases,
+                builder: (context, state) => const MyPurchasesScreen(),
               ),
             ],
           ),
@@ -187,11 +188,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'open',
             builder: (context, state) {
               final query = state.uri.queryParameters;
-              final order = query['order'];
               return ChatScreen(
-                deal: order != null
-                    ? ChatDeal.order(order)
-                    : ChatDeal.reservation(query['reservation'] ?? ''),
+                deal: switch (query) {
+                  {'order': final id} => ChatDeal.order(id),
+                  {'purchase': final id} => ChatDeal.purchase(id),
+                  _ => ChatDeal.listing(query['listing'] ?? ''),
+                },
               );
             },
           ),
@@ -217,10 +219,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             PaymentScreen(paymentId: state.pathParameters['id']!),
       ),
       GoRoute(
-        path: AppRoutes.paymentDetails,
-        builder: (context, state) => const PaymentDetailsScreen(),
-      ),
-      GoRoute(
         path: '/listing/:id',
         builder: (context, state) =>
             ListingDetailScreen(listingId: state.pathParameters['id']!),
@@ -229,6 +227,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'edit',
             builder: (context, state) =>
                 ListingFormScreen(listingId: state.pathParameters['id']),
+          ),
+          GoRoute(
+            path: 'payment',
+            builder: (context, state) => ListingPaymentScreen(
+              listingId: state.pathParameters['id']!,
+              publish: state.uri.queryParameters['publish'] == '1',
+            ),
           ),
           GoRoute(
             path: 'report',
@@ -263,8 +268,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
               GoRoute(
                 path: 'payment-details',
-                builder: (context, state) =>
-                    const PaymentDetailsScreen(forBusiness: true),
+                builder: (context, state) => const PaymentDetailsScreen(),
               ),
               GoRoute(
                 path: 'campaigns/new',

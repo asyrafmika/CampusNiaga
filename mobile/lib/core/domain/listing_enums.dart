@@ -1,4 +1,4 @@
-// Listing and reservation values from docs/data-dictionary.md. `wireName`
+// Listing and purchase values from docs/data-dictionary.md. `wireName`
 // is exactly what the database stores.
 
 T _fromWire<T extends Enum>(
@@ -14,9 +14,9 @@ T _fromWire<T extends Enum>(
 enum ListingStatus {
   draft('draft', 'Draft'),
   available('available', 'Available'),
-  reserved('reserved', 'Reserved'),
   sold('sold', 'Sold'),
-  closed('closed', 'Closed');
+  closed('closed', 'Closed'),
+  deleted('deleted', 'Deleted');
 
   const ListingStatus(this.wireName, this.label);
 
@@ -27,7 +27,8 @@ enum ListingStatus {
       _fromWire(values, (s) => s.wireName, value, 'listing status');
 }
 
-/// Personal items are reserved; business products are ordered (Phase 4).
+/// Personal items are bought with Buy now (ADR 0006); business products are
+/// ordered (Phase 4).
 enum ListingMode {
   personal('personal'),
   business('business');
@@ -55,24 +56,22 @@ enum ListingCondition {
       _fromWire(values, (c) => c.wireName, value, 'listing condition');
 }
 
-enum ReservationStatus {
-  requested('requested', 'Requested'),
-  accepted('accepted', 'Accepted'),
-  declined('declined', 'Declined'),
-  cancelled('cancelled', 'Cancelled'),
-  collected('collected', 'Collected'),
-  expired('expired', 'Expired');
+enum PurchaseStatus {
+  awaitingPayment('awaiting_payment', 'Awaiting payment'),
+  awaitingHandover('awaiting_handover', 'Awaiting handover'),
+  completed('completed', 'Completed'),
+  cancelled('cancelled', 'Cancelled');
 
-  const ReservationStatus(this.wireName, this.label);
+  const PurchaseStatus(this.wireName, this.label);
 
   final String wireName;
   final String label;
 
-  /// Still holding units.
-  bool get isActive => this == requested || this == accepted;
+  /// Not finished yet.
+  bool get isActive => this == awaitingPayment || this == awaitingHandover;
 
-  static ReservationStatus fromWire(Object? value) =>
-      _fromWire(values, (s) => s.wireName, value, 'reservation status');
+  static PurchaseStatus fromWire(Object? value) =>
+      _fromWire(values, (s) => s.wireName, value, 'purchase status');
 }
 
 enum ReportReason {

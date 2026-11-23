@@ -22,7 +22,6 @@ const owner = UserAccess(
   emailConfirmed: true,
   accountStatus: AccountStatus.active,
   isStudent: true,
-  isReviewer: false,
   isAdmin: false,
   isBusinessOwner: true,
   businessStatus: BusinessStatus.approved,
@@ -71,7 +70,7 @@ void main() {
 
   group('buying', () {
     testWidgets(
-      'a business product names its business and is ordered, not reserved',
+      'a business product names its business and is ordered, not bought',
       (tester) async {
         final store = FakeStoreRepository();
         await pumpApp(
@@ -83,7 +82,7 @@ void main() {
         await openProduct(tester);
 
         expect(find.text('Ali Bakes'), findsOneWidget);
-        expect(find.byKey(ListingDetailScreen.reserveKey), findsNothing);
+        expect(find.byKey(ListingDetailScreen.buyKey), findsNothing);
         await tapVisible(tester, find.byKey(ListingDetailScreen.orderKey));
 
         expect(find.text('Buy from stock'), findsOneWidget);

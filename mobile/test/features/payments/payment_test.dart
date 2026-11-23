@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/app.dart';
 import 'package:mobile/core/domain/account_status.dart';
 import 'package:mobile/core/domain/app_failure.dart';
 import 'package:mobile/core/domain/business_enums.dart';
 import 'package:mobile/core/domain/listing_enums.dart';
 import 'package:mobile/core/domain/payment.dart';
+import 'package:mobile/core/router/app_router.dart';
+import 'package:mobile/core/router/app_routes.dart';
 import 'package:mobile/features/auth/domain/user_access.dart';
 import 'package:mobile/features/auth/presentation/profile_screen.dart';
 import 'package:mobile/features/business/store/data/store_mappers.dart';
 import 'package:mobile/features/business/store/domain/store_models.dart';
 import 'package:mobile/features/marketplace/data/marketplace_mappers.dart';
-import 'package:mobile/features/marketplace/domain/reservation.dart';
+import 'package:mobile/features/marketplace/domain/purchase.dart';
 import 'package:mobile/features/marketplace/presentation/listing_detail_screen.dart';
 import 'package:mobile/features/payments/data/payment_mappers.dart';
 import 'package:mobile/features/payments/domain/payment_models.dart';
@@ -30,7 +34,6 @@ const owner = UserAccess(
   emailConfirmed: true,
   accountStatus: AccountStatus.active,
   isStudent: true,
-  isReviewer: false,
   isAdmin: false,
   isBusinessOwner: true,
   businessStatus: BusinessStatus.approved,
@@ -151,35 +154,35 @@ void main() {
       );
     });
 
-    test('a transfer reservation is accepted through its payment', () {
-      final pending = aReservation(payment: _summary(PaymentStatus.submitted));
-      expect(actionsFor(pending), [ReservationAction.decline]);
-      expect(actionsFor(aReservation()), [
-        ReservationAction.accept,
-        ReservationAction.decline,
+    test('a transfer purchase moves on through its payment', () {
+      final now = DateTime.now();
+      final pending = aPurchase(payment: _summary(PaymentStatus.submitted));
+      expect(PurchaseRules.actionsFor(pending, now), [PurchaseAction.cancel]);
+      expect(PurchaseRules.actionsFor(aPurchase(), now), [
+        PurchaseAction.complete,
+        PurchaseAction.cancel,
       ]);
       expect(
-        actionsFor(
-          aReservation(
-            iAmBuyer: true,
-            payment: _summary(PaymentStatus.submitted),
-          ),
+        PurchaseRules.actionsFor(
+          aPurchase(iAmBuyer: true, payment: _summary(PaymentStatus.submitted)),
+          now,
         ),
         isEmpty,
         reason: 'a buyer who paid cannot cancel on their own',
       );
       expect(
-        actionsFor(
-          aReservation(
+        PurchaseRules.actionsFor(
+          aPurchase(
             iAmBuyer: true,
             payment: _summary(PaymentStatus.awaitingProof),
           ),
+          now,
         ),
-        [ReservationAction.cancel],
+        [PurchaseAction.cancel],
       );
       expect(
-        statusExplanation(
-          aReservation(
+        PurchaseRules.explanation(
+          aPurchase(
             iAmBuyer: true,
             payment: _summary(PaymentStatus.awaitingProof),
           ),
@@ -187,9 +190,11 @@ void main() {
         contains('send your proof'),
       );
       expect(
-        statusExplanation(
-          aReservation(
-            status: ReservationStatus.declined,
+        PurchaseRules.explanation(
+          aPurchase(
+            status: PurchaseStatus.cancelled,
+            cancelledBy: 'seller',
+            cancelReason: 'Not received',
             payment: _summary(PaymentStatus.rejected, reason: 'Not received'),
           ),
         ),
@@ -243,21 +248,23 @@ void main() {
       expect(p.rejectReason, 'Not received');
     });
 
-    test('order and reservation cards carry the payment', () {
-      final reservation = reservationFromRow({
+    test('order and purchase cards carry the payment', () {
+      final purchase = purchaseFromRow({
         'id': 'r1',
         'listing_id': 'l1',
         'listing_title': 'Calculator',
         'pickup_area': 'Tekun',
-        'price_sen': 2500,
+        'unit_price_sen': 2500,
+        'total_sen': 2500,
         'qty': 1,
-        'status': 'declined',
+        'payment_method': 'transfer',
+        'status': 'cancelled',
         'created_at': '2026-11-18T10:00:00Z',
         'i_am_buyer': true,
         'other_party_name': 'Siti',
         ...row,
       });
-      expect(reservation.payment?.status, PaymentStatus.rejected);
+      expect(purchase.payment?.status, PaymentStatus.rejected);
       final order = orderFromRow({
         'id': 'o1',
         'listing_id': 'p1',
@@ -284,7 +291,7 @@ void main() {
       final json = {
         'payment_id': 'pay1',
         'order_id': null,
-        'reservation_id': 'r1',
+        'purchase_id': 'r1',
         'i_am_buyer': true,
         'item_title': 'Calculator',
         'qty': 1,
@@ -302,6 +309,7 @@ void main() {
       final view = paymentViewFromJson(json);
       expect(view.payTo?.accountNumber, '1234567890');
       expect(view.payTo?.hasBank, isTrue);
+      expect(view.purchaseId, 'r1');
       expect(paymentViewFromJson({...json, 'pay_to': null}).payTo, isNull);
       expect(
         () => paymentViewFromJson({...json, 'status': 'paid'}),
@@ -379,33 +387,32 @@ void main() {
       expect(find.byType(PaymentScreen), findsNothing);
     });
 
-    testWidgets(
-      'reserving a personal item by transfer opens the payment page',
-      (tester) async {
-        final reservations = FakeReservationRepository();
-        await pumpApp(
-          tester,
-          () async => student,
-          reservations: reservations,
-          payments: FakePaymentRepository(acceptsTransferResult: true),
-        );
-        await tester.pumpAndSettle();
-        await tapVisible(tester, find.text('Casio FX-570 calculator').first);
-        await tapVisible(tester, find.byKey(ListingDetailScreen.reserveKey));
-        await tapVisible(
-          tester,
-          find.byKey(PaymentMethodPicker.optionKey(PaymentMethod.transfer)),
-        );
-        expect(
-          find.text('The item is held for you for 30 minutes while you pay.'),
-          findsOneWidget,
-        );
-        await tapVisible(tester, find.text('Reserve and pay'));
+    testWidgets('buying a personal item by transfer opens the payment page', (
+      tester,
+    ) async {
+      final purchases = FakePurchaseRepository();
+      await pumpApp(
+        tester,
+        () async => student,
+        purchases: purchases,
+        payments: FakePaymentRepository(acceptsTransferResult: true),
+      );
+      await tester.pumpAndSettle();
+      await tapVisible(tester, find.text('Casio FX-570 calculator').first);
+      await tapVisible(tester, find.byKey(ListingDetailScreen.buyKey));
+      await tapVisible(
+        tester,
+        find.byKey(PaymentMethodPicker.optionKey(PaymentMethod.transfer)),
+      );
+      expect(
+        find.textContaining('Send your receipt within 30 minutes'),
+        findsOneWidget,
+      );
+      await tapVisible(tester, find.byKey(ListingDetailScreen.confirmBuyKey));
 
-        expect(reservations.calls, ['request l1 x1 transfer']);
-        expect(find.byType(PaymentScreen), findsOneWidget);
-      },
-    );
+      expect(purchases.calls, ['buy l1 x1 transfer']);
+      expect(find.byType(PaymentScreen), findsOneWidget);
+    });
   });
 
   group('the payment page', () {
@@ -413,9 +420,9 @@ void main() {
       tester,
     ) async {
       final payments = FakePaymentRepository();
-      final reservations = FakeReservationRepository(
+      final purchases = FakePurchaseRepository(
         buying: [
-          aReservation(
+          aPurchase(
             iAmBuyer: true,
             payment: _summary(PaymentStatus.awaitingProof),
           ),
@@ -424,11 +431,11 @@ void main() {
       await pumpApp(
         tester,
         () async => student,
-        reservations: reservations,
+        purchases: purchases,
         payments: payments,
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Bookings'));
+      await tester.tap(find.text('Purchases'));
       await tester.pumpAndSettle();
       await tapVisible(tester, find.byKey(PaymentStrip.payNowKey('pay1')));
 
@@ -457,9 +464,9 @@ void main() {
           AppFailureReason.invalidTransition,
           'The 30 minutes to pay have run out, so the item went back on sale.',
         );
-      final reservations = FakeReservationRepository(
+      final purchases = FakePurchaseRepository(
         buying: [
-          aReservation(
+          aPurchase(
             iAmBuyer: true,
             payment: _summary(PaymentStatus.awaitingProof),
           ),
@@ -472,11 +479,11 @@ void main() {
       await pumpApp(
         tester,
         () async => student,
-        reservations: reservations,
+        purchases: purchases,
         payments: payments,
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Bookings'));
+      await tester.tap(find.text('Purchases'));
       await tester.pumpAndSettle();
       await tapVisible(tester, find.byKey(PaymentStrip.payNowKey('pay1')));
       await tapVisible(tester, find.byKey(PaymentScreen.chooseProofKey));
@@ -498,17 +505,17 @@ void main() {
           ),
         },
       );
-      final reservations = FakeReservationRepository(
-        selling: [aReservation(payment: _summary(PaymentStatus.submitted))],
+      final purchases = FakePurchaseRepository(
+        selling: [aPurchase(payment: _summary(PaymentStatus.submitted))],
       );
       await pumpApp(
         tester,
         () async => student,
-        reservations: reservations,
+        purchases: purchases,
         payments: payments,
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Bookings'));
+      await tester.tap(find.text('Purchases'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Selling'));
       await tester.pumpAndSettle();
@@ -601,11 +608,11 @@ void main() {
           ),
         },
       );
-      final reservations = FakeReservationRepository(
+      final purchases = FakePurchaseRepository(
         buying: [
-          aReservation(
+          aPurchase(
             iAmBuyer: true,
-            status: ReservationStatus.declined,
+            status: PurchaseStatus.cancelled,
             payment: _summary(PaymentStatus.rejected, reason: 'Wrong amount'),
           ),
         ],
@@ -613,11 +620,11 @@ void main() {
       await pumpApp(
         tester,
         () async => student,
-        reservations: reservations,
+        purchases: purchases,
         payments: payments,
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Bookings'));
+      await tester.tap(find.text('Purchases'));
       await tester.pumpAndSettle();
       expect(find.text('Payment rejected: Wrong amount'), findsOneWidget);
       await tapVisible(tester, find.text('Payment rejected: Wrong amount'));
@@ -662,35 +669,45 @@ void main() {
   });
 
   group('payment details', () {
+    // A published listing's payment step, as when editing it.
     Future<void> openDetails(WidgetTester tester) async {
+      await tester.pumpAndSettle();
+      ProviderScope.containerOf(tester.element(find.byType(CampusNiagaApp)))
+          .read(appRouterProvider)
+          .push(AppRoutes.listingPayment('l1'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('Profile has no payment details: they come with a listing', (
+      tester,
+    ) async {
+      await pumpApp(tester, () async => student);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Profile'));
       await tester.pumpAndSettle();
-      await tapVisible(tester, find.byKey(ProfileScreen.paymentDetailsKey));
-    }
+
+      expect(find.text('Payment details'), findsNothing);
+    });
 
     testWidgets('half a bank account is refused before saving', (tester) async {
       final payments = FakePaymentRepository();
       await pumpApp(tester, () async => student, payments: payments);
       await openDetails(tester);
 
+      await tester.enterText(find.byKey(PaymentDetailsForm.bankKey), 'Maybank');
       await tester.enterText(
-        find.byKey(PaymentDetailsScreen.bankKey),
-        'Maybank',
-      );
-      await tester.enterText(
-        find.byKey(PaymentDetailsScreen.numberKey),
+        find.byKey(PaymentDetailsForm.numberKey),
         '1234567890',
       );
-      await tapVisible(tester, find.byKey(PaymentDetailsScreen.saveKey));
+      await tapVisible(tester, find.byKey(PaymentDetailsForm.saveKey));
       expect(find.textContaining('together'), findsOneWidget);
+      // Let the message go, so it doesn't cover the button.
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.byKey(PaymentDetailsScreen.numberKey),
-        '12ab',
-      );
-      await tester.enterText(find.byKey(PaymentDetailsScreen.nameKey), 'Ali');
-      await tapVisible(tester, find.byKey(PaymentDetailsScreen.saveKey));
+      await tester.enterText(find.byKey(PaymentDetailsForm.numberKey), '12ab');
+      await tester.enterText(find.byKey(PaymentDetailsForm.nameKey), 'Ali');
+      await tapVisible(tester, find.byKey(PaymentDetailsForm.saveKey));
       expect(
         find.text('An account number has 6 to 20 digits.'),
         findsOneWidget,
@@ -704,30 +721,27 @@ void main() {
       await openDetails(tester);
 
       await tester.enterText(
-        find.byKey(PaymentDetailsScreen.bankKey),
+        find.byKey(PaymentDetailsForm.bankKey),
         ' Maybank ',
       );
+      await tester.enterText(find.byKey(PaymentDetailsForm.nameKey), 'Ali Abu');
       await tester.enterText(
-        find.byKey(PaymentDetailsScreen.nameKey),
-        'Ali Abu',
-      );
-      await tester.enterText(
-        find.byKey(PaymentDetailsScreen.numberKey),
+        find.byKey(PaymentDetailsForm.numberKey),
         '1234-5678 90',
       );
-      await tapVisible(tester, find.byKey(PaymentDetailsScreen.qrKey));
+      await tapVisible(tester, find.byKey(PaymentDetailsForm.qrKey));
       // The QR preview pushes Save below the part of the list that is built.
       await tester.scrollUntilVisible(
-        find.byKey(PaymentDetailsScreen.saveKey),
+        find.byKey(PaymentDetailsForm.saveKey),
         300,
         scrollable: find.byType(Scrollable).first,
       );
-      await tapVisible(tester, find.byKey(PaymentDetailsScreen.saveKey));
+      await tapVisible(tester, find.byKey(PaymentDetailsForm.saveKey));
 
       expect(payments.calls, [
         'details personal Maybank|Ali Abu|1234567890 qr:new',
       ]);
-      expect(find.text('Payment details saved.'), findsOneWidget);
+      expect(find.text('Changes saved.'), findsOneWidget);
     });
 
     testWidgets('clearing everything removes the saved details', (
@@ -741,11 +755,11 @@ void main() {
       await pumpApp(tester, () async => student, payments: payments);
       await openDetails(tester);
 
-      await tapVisible(tester, find.byKey(PaymentDetailsScreen.removeQrKey));
-      await tapVisible(tester, find.byKey(PaymentDetailsScreen.saveKey));
+      await tapVisible(tester, find.byKey(PaymentDetailsForm.removeQrKey));
+      await tapVisible(tester, find.byKey(PaymentDetailsForm.saveKey));
 
       expect(payments.calls, ['details personal || qr:none']);
-      expect(find.text('Payment details removed.'), findsOneWidget);
+      expect(find.text('Changes saved.'), findsOneWidget);
     });
   });
 }

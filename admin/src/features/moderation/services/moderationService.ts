@@ -16,7 +16,7 @@ export type ReportFilter = 'open' | 'closed';
 
 export type ReportRow = {
   id: string;
-  /** A listing report, or a deal chat report (ADR 0004). */
+  /** A listing report, or a chat report (ADRs 0004 and 0006). */
   kind: 'listing' | 'chat';
   reason: ReportReason;
   details: string;
@@ -144,7 +144,7 @@ export function parseReportedChat(json: unknown): ReportedChat {
 }
 
 /**
- * The messages of a reported deal chat (`get_reported_conversation`). Admins
+ * The messages of a reported chat (`get_reported_conversation`). Admins
  * see a chat only through a report about it, and each view is audited.
  */
 export async function getReportedChat(reportId: string): Promise<ReportedChat> {

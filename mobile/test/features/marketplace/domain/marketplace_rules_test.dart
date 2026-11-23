@@ -1,11 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/domain/app_failure.dart';
 import 'package:mobile/core/domain/listing_enums.dart';
+import 'package:mobile/core/domain/payment.dart';
 import 'package:mobile/core/utils/money.dart';
 import 'package:mobile/features/marketplace/domain/listing.dart';
 import 'package:mobile/features/marketplace/domain/listing_input.dart';
 import 'package:mobile/features/marketplace/domain/listing_query.dart';
-import 'package:mobile/features/marketplace/domain/reservation.dart';
+import 'package:mobile/features/marketplace/domain/purchase.dart';
 
 import '../../../support/marketplace_fakes.dart';
 
@@ -94,79 +95,180 @@ void main() {
       expect(ownerActionsFor(aListing(status: ListingStatus.draft)), [
         OwnerAction.edit,
         OwnerAction.publish,
+        OwnerAction.delete,
       ]);
       expect(ownerActionsFor(aListing()), [
         OwnerAction.edit,
         OwnerAction.markSold,
-        OwnerAction.close,
+        OwnerAction.delete,
       ]);
       expect(ownerActionsFor(aListing(status: ListingStatus.closed)), [
         OwnerAction.edit,
         OwnerAction.reopen,
+        OwnerAction.delete,
+      ]);
+      expect(ownerActionsFor(aListing(status: ListingStatus.sold)), [
+        OwnerAction.delete,
       ]);
       expect(
-        ownerActionsFor(aListing(status: ListingStatus.reserved)),
-        isEmpty,
+        ownerActionsFor(
+          aListing(status: ListingStatus.sold, businessId: 'b1', stock: 0),
+        ),
+        [OwnerAction.edit, OwnerAction.delete],
       );
-      expect(ownerActionsFor(aListing(status: ListingStatus.sold)), isEmpty);
+      expect(ownerActionsFor(aListing(status: ListingStatus.deleted)), isEmpty);
+      expect(
+        OwnerAction.values,
+        isNot(contains(predicate<OwnerAction>((a) => a.name == 'close'))),
+        reason: 'listings are deleted, not closed (ADR 0008)',
+      );
     });
 
     test('each action targets the right status', () {
       expect(targetStatusOf(OwnerAction.publish), ListingStatus.available);
       expect(targetStatusOf(OwnerAction.reopen), ListingStatus.available);
-      expect(targetStatusOf(OwnerAction.close), ListingStatus.closed);
+      expect(targetStatusOf(OwnerAction.delete), ListingStatus.deleted);
       expect(targetStatusOf(OwnerAction.markSold), ListingStatus.sold);
       expect(targetStatusOf(OwnerAction.edit), isNull);
     });
   });
 
-  group('actionsFor (reservations)', () {
-    test('the seller accepts or declines a request', () {
-      expect(actionsFor(aReservation()), [
-        ReservationAction.accept,
-        ReservationAction.decline,
+  group('PurchaseRules', () {
+    final now = DateTime.now();
+    PaymentSummary pay(PaymentStatus status) =>
+        PaymentSummary(id: 'pay1', status: status, dueAt: now);
+
+    test('the seller completes or cancels; relists cash after 24 hours', () {
+      expect(PurchaseRules.actionsFor(aPurchase(), now), [
+        PurchaseAction.complete,
+        PurchaseAction.cancel,
+      ]);
+      expect(PurchaseRules.actionsFor(aPurchase(relistFrom: now), now), [
+        PurchaseAction.complete,
+        PurchaseAction.relist,
+        PurchaseAction.cancel,
       ]);
     });
 
-    test('the seller collects or cancels an accepted one', () {
-      expect(actionsFor(aReservation(status: ReservationStatus.accepted)), [
-        ReservationAction.collect,
-        ReservationAction.cancel,
-      ]);
-    });
-
-    test('the buyer can only cancel, and only while active', () {
-      expect(actionsFor(aReservation(iAmBuyer: true)), [
-        ReservationAction.cancel,
-      ]);
+    test('a transfer is completed only after its payment, never relisted', () {
       expect(
-        actionsFor(
-          aReservation(iAmBuyer: true, status: ReservationStatus.accepted),
+        PurchaseRules.actionsFor(
+          aPurchase(payment: pay(PaymentStatus.submitted)),
+          now,
         ),
-        [ReservationAction.cancel],
+        [PurchaseAction.cancel],
+      );
+      expect(
+        PurchaseRules.actionsFor(
+          aPurchase(
+            status: PurchaseStatus.awaitingHandover,
+            payment: pay(PaymentStatus.accepted),
+          ),
+          now.add(const Duration(days: 30)),
+        ),
+        [PurchaseAction.complete, PurchaseAction.cancel],
       );
     });
 
-    test('finished reservations offer nothing', () {
-      for (final status in [
-        ReservationStatus.declined,
-        ReservationStatus.cancelled,
-        ReservationStatus.collected,
-        ReservationStatus.expired,
-      ]) {
-        expect(actionsFor(aReservation(status: status)), isEmpty);
+    test('the buyer can only cancel, until the receipt is sent', () {
+      for (final payment in [null, pay(PaymentStatus.awaitingProof)]) {
         expect(
-          actionsFor(aReservation(status: status, iAmBuyer: true)),
+          PurchaseRules.actionsFor(
+            aPurchase(iAmBuyer: true, payment: payment, relistFrom: now),
+            now,
+          ).where((a) => a != PurchaseAction.relist),
+          [PurchaseAction.cancel],
+        );
+      }
+      for (final status in [PaymentStatus.submitted, PaymentStatus.accepted]) {
+        expect(
+          PurchaseRules.actionsFor(
+            aPurchase(iAmBuyer: true, payment: pay(status)),
+            now,
+          ),
           isEmpty,
         );
       }
     });
 
-    test('only requested and accepted are active', () {
-      expect(ReservationStatus.values.where((s) => s.isActive), [
-        ReservationStatus.requested,
-        ReservationStatus.accepted,
+    test('a buyer is never offered Relist', () {
+      expect(
+        PurchaseRules.actionsFor(
+          aPurchase(iAmBuyer: true, relistFrom: now),
+          now,
+        ),
+        [PurchaseAction.cancel],
+      );
+    });
+
+    test('finished purchases offer nothing', () {
+      for (final status in [
+        PurchaseStatus.completed,
+        PurchaseStatus.cancelled,
+      ]) {
+        for (final buyer in [true, false]) {
+          expect(
+            PurchaseRules.actionsFor(
+              aPurchase(status: status, iAmBuyer: buyer),
+              now,
+            ),
+            isEmpty,
+          );
+        }
+      }
+    });
+
+    test('only the two awaiting statuses are active', () {
+      expect(PurchaseStatus.values.where((s) => s.isActive), [
+        PurchaseStatus.awaitingPayment,
+        PurchaseStatus.awaitingHandover,
       ]);
+    });
+
+    test('a seller cancels with a reason of up to 200 characters', () {
+      expect(PurchaseRules.cancelReason('  '), isNotNull);
+      expect(PurchaseRules.cancelReason('x' * 201), isNotNull);
+      expect(PurchaseRules.cancelReason('It broke'), isNull);
+    });
+
+    test('chat stays with the buyer, and for refunds after cancelling', () {
+      expect(aPurchase().canChat, isTrue);
+      expect(aPurchase(status: PurchaseStatus.completed).canChat, isTrue);
+      expect(aPurchase(status: PurchaseStatus.cancelled).canChat, isFalse);
+      for (final (status, chat) in [
+        (PaymentStatus.cancelled, true),
+        (PaymentStatus.rejected, true),
+        (PaymentStatus.accepted, true),
+        (PaymentStatus.expired, false),
+      ]) {
+        expect(
+          aPurchase(
+            status: PurchaseStatus.cancelled,
+            payment: pay(status),
+          ).canChat,
+          chat,
+          reason: status.name,
+        );
+      }
+    });
+
+    test('a cancellation says who and why', () {
+      String text(String? by, {bool buyer = true, String? reason}) =>
+          PurchaseRules.explanation(
+            aPurchase(
+              iAmBuyer: buyer,
+              status: PurchaseStatus.cancelled,
+              cancelledBy: by,
+              cancelReason: reason,
+            ),
+          );
+      expect(text('buyer'), 'You cancelled this purchase.');
+      expect(text('buyer', buyer: false), 'The buyer cancelled this purchase.');
+      expect(
+        text('seller', reason: 'It broke'),
+        'The seller cancelled: It broke',
+      );
+      expect(text(null), 'Cancelled this purchase.');
     });
   });
 
@@ -197,9 +299,9 @@ void main() {
       expect(ListingStatus.values.map((s) => s.wireName), [
         'draft',
         'available',
-        'reserved',
         'sold',
         'closed',
+        'deleted',
       ]);
       expect(ListingCondition.values.map((c) => c.wireName), [
         'new',
@@ -207,14 +309,13 @@ void main() {
         'good',
         'fair',
       ]);
-      expect(ReservationStatus.values.map((s) => s.wireName), [
-        'requested',
-        'accepted',
-        'declined',
+      expect(PurchaseStatus.values.map((s) => s.wireName), [
+        'awaiting_payment',
+        'awaiting_handover',
+        'completed',
         'cancelled',
-        'collected',
-        'expired',
       ]);
+      expect(PaymentMethod.values.map((m) => m.wireName), ['cash', 'transfer']);
       expect(ReportReason.values.map((r) => r.wireName), [
         'prohibited_item',
         'scam',
@@ -226,7 +327,9 @@ void main() {
 
     test('unknown values are rejected rather than guessed', () {
       expect(() => ListingStatus.fromWire('gone'), throwsFormatException);
-      expect(() => ReservationStatus.fromWire(null), throwsFormatException);
+      expect(() => ListingStatus.fromWire('reserved'), throwsFormatException);
+      expect(() => PaymentMethod.fromWire('card'), throwsFormatException);
+      expect(() => PurchaseStatus.fromWire(null), throwsFormatException);
     });
   });
 

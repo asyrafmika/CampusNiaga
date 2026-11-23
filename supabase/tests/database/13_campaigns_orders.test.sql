@@ -119,7 +119,7 @@ select pg_temp.as_user('66666666-6666-6666-6666-666666666666');
 select is(pg_temp.error_reason($$ select public.place_order('cccccccc-0000-0000-0000-000000000001', 1) $$), 'ITEM_UNAVAILABLE', 'a sold-out product cannot be ordered');
 
 -- Ordering: refused cases
-select is(pg_temp.error_reason($$ select public.place_order('cccccccc-0000-0000-0000-000000000004', 1) $$), 'ITEM_UNAVAILABLE', 'a personal item is reserved, not ordered');
+select is(pg_temp.error_reason($$ select public.place_order('cccccccc-0000-0000-0000-000000000004', 1) $$), 'ITEM_UNAVAILABLE', 'a personal item is bought with Buy now, not ordered');
 select is(pg_temp.error_reason($$ select public.place_order('cccccccc-0000-0000-0000-000000000003', 1) $$), 'NOT_FOUND', 'a draft product cannot be ordered');
 select is(pg_temp.error_reason($$ select public.place_order('99999999-9999-9999-9999-999999999999', 1) $$), 'NOT_FOUND', 'a missing product cannot be ordered');
 select is(pg_temp.error_reason($$ select public.place_order('cccccccc-0000-0000-0000-000000000002', 0) $$), 'INVALID_INPUT', 'a quantity of 0 is refused');

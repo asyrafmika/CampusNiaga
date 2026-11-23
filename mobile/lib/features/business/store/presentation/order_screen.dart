@@ -50,8 +50,8 @@ class OrderScreen extends ConsumerWidget {
     } else if (listing.value case final l? when !l.isBusiness) {
       body = const EmptyView(
         icon: Icons.handshake_outlined,
-        title: 'Reserve this item instead',
-        message: 'Personal items are reserved from their page, not ordered.',
+        title: 'Buy this item from its page',
+        message: 'Personal items use Buy now, not orders.',
       );
     } else if (listing.value == null || store?.value == null) {
       body = const LoadingView();

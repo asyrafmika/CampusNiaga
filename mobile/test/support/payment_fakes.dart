@@ -25,7 +25,7 @@ PaymentView aPayment({
   ),
 }) => PaymentView(
   id: id,
-  reservationId: 'r1',
+  purchaseId: 'r1',
   iAmBuyer: iAmBuyer,
   itemTitle: 'Casio FX-570 calculator',
   qty: 1,

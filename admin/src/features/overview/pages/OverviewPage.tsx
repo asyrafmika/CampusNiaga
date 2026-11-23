@@ -2,7 +2,6 @@ import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettin
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
-import RateReviewOutlinedIcon from '@mui/icons-material/RateReviewOutlined';
 import { Alert, Box, Button, Grid, List, ListItem, ListItemText, Paper, Skeleton, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router';
@@ -36,16 +35,13 @@ function AdminOverview() {
           Accounts and staff right now.
         </Typography>
         <Grid container spacing={2.5}>
-          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <Grid size={{ xs: 12, sm: 4 }}>
             <StatTile colour="pink" icon={<GroupOutlinedIcon fontSize="small" />} value={value(stats.data?.accounts)} label="Accounts" />
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-            <StatTile colour="orange" icon={<RateReviewOutlinedIcon fontSize="small" />} value={value(stats.data?.reviewers)} label="Reviewers" />
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <StatTile colour="green" icon={<AdminPanelSettingsOutlinedIcon fontSize="small" />} value={value(stats.data?.admins)} label="HDC Administrators" />
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-            <StatTile colour="green" icon={<AdminPanelSettingsOutlinedIcon fontSize="small" />} value={value(stats.data?.admins)} label="Admins" />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <Grid size={{ xs: 12, sm: 4 }}>
             <StatTile
               colour="purple"
               icon={<HistoryOutlinedIcon fontSize="small" />}
@@ -78,7 +74,7 @@ function AdminOverview() {
   );
 }
 
-/** Business applications at a glance, for every staff member. */
+/** Business applications at a glance. */
 function ApplicationsOverview() {
   return (
     <Paper sx={{ p: 3, mb: 3 }}>
@@ -108,7 +104,7 @@ export function OverviewPage() {
         Welcome back, {state.access.email}.
       </Typography>
       <ApplicationsOverview />
-      {state.access.isAdmin && <AdminOverview />}
+      <AdminOverview />
     </Box>
   );
 }

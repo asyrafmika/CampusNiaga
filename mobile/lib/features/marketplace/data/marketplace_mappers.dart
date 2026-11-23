@@ -1,10 +1,11 @@
 import '../../../core/domain/geo_point.dart';
 import '../../../core/domain/listing_enums.dart';
+import '../../../core/domain/payment.dart';
 import '../../payments/data/payment_mappers.dart';
 import '../domain/listing.dart';
-import '../domain/reservation.dart';
+import '../domain/purchase.dart';
 
-/// Maps rows from `listing_card`, `listings` and `reservation_card` (JSON from
+/// Maps rows from `listing_card`, `listings` and `purchase_card` (JSON from
 /// Supabase) into domain models. Unknown status values throw
 /// [FormatException], so a schema change is noticed instead of misread.
 
@@ -39,21 +40,23 @@ Listing listingFromRow(Map<String, dynamic> row) => Listing(
   businessName: row['business_name'] as String?,
 );
 
-ReservationCard reservationFromRow(Map<String, dynamic> row) => ReservationCard(
+PurchaseCard purchaseFromRow(Map<String, dynamic> row) => PurchaseCard(
   id: row['id'] as String,
   listingId: row['listing_id'] as String,
   listingTitle: row['listing_title'] as String,
   listingPhoto: row['listing_photo'] as String?,
   pickupArea: row['pickup_area'] as String,
-  priceSen: (row['price_sen'] as num).toInt(),
   qty: (row['qty'] as num).toInt(),
-  pickupNote: row['pickup_note'] as String?,
-  status: ReservationStatus.fromWire(row['status']),
-  expiresAt: _timeOrNull(row['expires_at']),
+  unitPriceSen: (row['unit_price_sen'] as num).toInt(),
+  totalSen: (row['total_sen'] as num).toInt(),
+  paymentMethod: PaymentMethod.fromWire(row['payment_method']),
+  status: PurchaseStatus.fromWire(row['status']),
+  cancelledBy: row['cancelled_by'] as String?,
+  cancelReason: row['cancel_reason'] as String?,
+  relistFrom: _timeOrNull(row['relist_from']),
   createdAt: _time(row['created_at']),
   iAmBuyer: row['i_am_buyer'] as bool,
   otherPartyName: row['other_party_name'] as String,
-  otherPartyEmail: row['other_party_email'] as String?,
   payment: paymentSummaryFromRow(row),
 );
 

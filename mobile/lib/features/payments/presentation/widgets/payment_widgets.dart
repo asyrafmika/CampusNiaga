@@ -110,7 +110,7 @@ class PaymentMethodPicker extends StatelessWidget {
   }
 }
 
-/// The payment part of an order or booking card: where it stands and, when
+/// The payment part of an order or purchase card: where it stands and, when
 /// it's this student's turn, the button to act.
 class PaymentStrip extends StatelessWidget {
   const PaymentStrip({

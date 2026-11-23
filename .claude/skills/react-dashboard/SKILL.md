@@ -1,11 +1,11 @@
 ---
 name: react-dashboard
-description: Implement or modify the CampusNiaga reviewer/admin web dashboard under admin/ (React, TypeScript, Vite, MUI, React Router, TanStack Query). Use when building pages, components, hooks, services, routing, tables, filters or forms for the application queue, application detail and decisions, status summary, moderation, user access, or audit log. Staff-only route protection is in authentication-authorization; the M2 workflow rules are in business-registration-workflow.
+description: Implement or modify the CampusNiaga HDC administrator web dashboard under admin/ (React, TypeScript, Vite, MUI, React Router, TanStack Query). Use when building pages, components, hooks, services, routing, tables, filters or forms for the application queue, application detail and decisions, status summary, moderation, user access, or audit log. Staff-only route protection is in authentication-authorization; the M2 workflow rules are in business-registration-workflow.
 ---
 
 # React dashboard: `admin/`
 
-The dashboard is web only and used by **reviewers** (M2 application review) and **admins** (role assignment, moderation, audit). Students never use it. Read `CLAUDE.md` for shared conventions.
+The dashboard is web only and used by **HDC administrators**, the one staff role ([ADR 0009](../../../docs/decisions/0009-single-admin-role.md)): M2 application review, business performance, role assignment, moderation, audit. Students never use it. Read `CLAUDE.md` for shared conventions.
 
 ## Folder structure (modular, feature-based)
 
@@ -21,7 +21,8 @@ admin/src/
 │  ├─ auth/                      LoginPage, AuthProvider, useAuth, RequireStaff
 │  ├─ applications/              queue, detail, decision dialog, status summary (M2)
 │  ├─ moderation/                reports list, hide listing, suspend account
-│  ├─ users/                     reviewer/admin role assignment
+│  ├─ users/                     administrator role assignment
+│  ├─ performance/               business performance (admins, ADR 0007)
 │  └─ audit/                     audit log viewer
 └─ shared/
    ├─ supabase/                  client.ts (createClient with generated Database types), rpc.ts (error details to reason)
@@ -77,7 +78,7 @@ Import another feature only through its `index.ts`. Never import from `shared/` 
 3. Service function, then a hook, then components, then the page and route.
 4. Tests: hooks/services with mocked service modules; components with React Testing Library (see `unit-testing`).
 5. Run `npm --prefix admin run typecheck && npm --prefix admin run lint && npm --prefix admin run test`.
-6. Manual check with `npm --prefix admin run dev` against the hosted project, logged in as a reviewer and an admin, plus a student account to confirm it's refused.
+6. Manual check with `npm --prefix admin run dev` against the hosted project, logged in as an administrator, plus a student account to confirm it's refused.
 
 ## Verification checklist
 

@@ -25,7 +25,7 @@ import { StatusSummary } from '../components/StatusSummary';
 import { useApplications } from '../hooks/useApplications';
 import { QUEUE_FILTER_LABELS, QUEUE_FILTERS, STATUS_LABELS, STATUS_TONES, type QueueFilter } from '../rules';
 
-/** Applications Queue (reviewers and admins): oldest submission first. */
+/** Applications Queue (HDC administrators): oldest submission first. */
 export function ApplicationsPage() {
   const [filter, setFilter] = useState<QueueFilter>('needs_review');
   const [page, setPage] = useState(0);

@@ -320,7 +320,7 @@ class _SellerPartState extends ConsumerState<_SellerPart> {
         title: const Text('Accept this payment?'),
         content: Text(
           'Only accept once ${formatRm(widget.payment.amountSen)} is in your '
-          'account. The buyer’s ${widget.payment.orderId != null ? 'order is confirmed' : 'booking is accepted'}.',
+          'account. The buyer’s ${widget.payment.orderId != null ? 'order is confirmed' : 'purchase then awaits handover'}.',
         ),
         actions: [
           TextButton(

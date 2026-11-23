@@ -78,7 +78,7 @@ class _NoApplication extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Apply once. After a reviewer approves your business, you '
+                'Apply once. After an HDC administrator approves your business, you '
                 'can sell as a business on campus.',
                 style: TextStyle(color: Color(0xD9FFFFFF)),
               ),
@@ -100,7 +100,7 @@ class _NoApplication extends StatelessWidget {
         ),
         const _Step(
           number: 3,
-          title: 'A reviewer checks it',
+          title: 'An HDC administrator checks it',
           text: 'They approve it, or tell you what to change.',
         ),
         const SizedBox(height: 16),
@@ -183,7 +183,7 @@ class _ApplicationStatusView extends ConsumerWidget {
             note: remarks,
             title: status == ApplicationStatus.rejected
                 ? 'Why it wasn’t approved'
-                : 'What the reviewer asked for',
+                : 'What the administrator asked for',
           ),
           const SizedBox(height: 16),
         ],
@@ -239,19 +239,19 @@ class _StatusCard extends StatelessWidget {
       ),
       ApplicationStatus.submitted => (
         Icons.schedule_rounded,
-        'Waiting for a reviewer',
+        'Waiting for an administrator',
         'Your application is in the queue. You can’t edit it while it’s '
-            'with the reviewers.',
+            'with the administrator.',
       ),
       ApplicationStatus.underReview => (
         Icons.manage_search_rounded,
         'Being reviewed',
-        'A reviewer is looking at your application now.',
+        'An administrator is looking at your application now.',
       ),
       ApplicationStatus.infoRequested => (
         Icons.rate_review_rounded,
         'Changes requested',
-        'The reviewer needs something more before deciding.',
+        'The administrator needs something more before deciding.',
       ),
       ApplicationStatus.approved => (
         Icons.verified_rounded,

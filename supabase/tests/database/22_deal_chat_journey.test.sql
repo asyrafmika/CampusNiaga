@@ -1,9 +1,10 @@
--- Deal chat journey (ADR 0004) through the real marketplace and order
--- functions: no chat while a reservation or order waits for the seller; a
--- live chat once they agree; read-only when the deal ends.
+-- Chat journey (ADRs 0004 and 0006) through the real marketplace and order
+-- functions: a student asks about an item before buying it and the same chat
+-- carries the handover; an order's chat waits for the business and is
+-- read-only when the order ends.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(15);
 
 create function pg_temp.error_reason(statement text) returns text language plpgsql as $$
 declare reason text;
@@ -42,28 +43,29 @@ do $$ begin
   perform public.set_listing_status(current_setting('test.product')::uuid, 'available');
 end $$;
 
--- A reservation: requested, accepted, collected.
+-- An item: asked about, bought, handed over.
 select pg_temp.as_user('22222222-2222-2222-2222-222222222222');
 do $$ begin
-  perform set_config('test.reservation', public.request_reservation(current_setting('test.item')::uuid, 1, 'After class') ->> 'reservation_id', true);
+  perform set_config('test.chat', public.open_conversation(listing_id => current_setting('test.item')::uuid) ->> 'conversation_id', true);
 end $$;
-select is(pg_temp.error_reason($$ select public.open_conversation(current_setting('test.reservation')::uuid) $$), 'INVALID_TRANSITION', 'Siti cannot chat while her request waits');
+select ok((public.send_message(current_setting('test.chat')::uuid, 'Do all the keys work?') ->> 'message_id') is not null, 'Siti asks before buying');
+select is((select status from public.get_listing(current_setting('test.item')::uuid)), 'available', 'asking does not hold the item');
 select pg_temp.as_user('11111111-1111-1111-1111-111111111111');
-select is(public.resolve_reservation(current_setting('test.reservation')::uuid, 'accept') ->> 'status', 'accepted', 'Ali accepts');
-do $$ begin
-  perform set_config('test.chat', public.open_conversation(current_setting('test.reservation')::uuid) ->> 'conversation_id', true);
-end $$;
-select ok((public.send_message(current_setting('test.chat')::uuid, 'Hi Siti, 5pm at Tekun?') ->> 'message_id') is not null, 'Ali opens the chat and suggests a time');
+select is((select kind || '/' || unread_count || '/' || last_message from public.my_conversations() where conversation_id = current_setting('test.chat')::uuid),
+  'item/1/Do all the keys work?', 'Ali sees one unread question');
+select ok((public.send_message(current_setting('test.chat')::uuid, 'Yes, all of them.') ->> 'message_id') is not null, 'Ali replies');
 select pg_temp.as_user('22222222-2222-2222-2222-222222222222');
-select is((select unread_count || '/' || last_message from public.my_conversations() where conversation_id = current_setting('test.chat')::uuid),
-  '1/Hi Siti, 5pm at Tekun?', 'Siti sees one unread message from Ali');
-select ok((public.send_message(current_setting('test.chat')::uuid, 'See you then!') ->> 'message_id') is not null, 'Siti replies');
+do $$ begin
+  perform set_config('test.purchase', public.buy_item(current_setting('test.item')::uuid) ->> 'purchase_id', true);
+end $$;
+select is((select status from public.get_listing(current_setting('test.item')::uuid)), 'sold', 'Siti buys it, so it is sold');
+select is((select can_send from public.get_conversation(current_setting('test.chat')::uuid)), true, 'her chat stays open to arrange pickup');
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111');
+select is(public.open_conversation(purchase_id => current_setting('test.purchase')::uuid) ->> 'conversation_id', current_setting('test.chat'), 'Ali reaches the same chat from the sale');
+select ok((public.send_message(current_setting('test.chat')::uuid, '5pm at Tekun?') ->> 'message_id') is not null, 'and suggests a time');
+select is(public.complete_purchase(current_setting('test.purchase')::uuid) ->> 'status', 'completed', 'Ali completes the sale');
 select is((select string_agg(body, ' | ' order by id) from public.messages where conversation_id = current_setting('test.chat')::uuid),
-  'Hi Siti, 5pm at Tekun? | See you then!', 'both messages are in the chat, in order');
-select pg_temp.as_user('11111111-1111-1111-1111-111111111111');
-select is(public.resolve_reservation(current_setting('test.reservation')::uuid, 'collect') ->> 'listing_status', 'sold', 'Ali marks it collected');
-select is(pg_temp.error_reason($$ select public.send_message(current_setting('test.chat')::uuid, 'Thanks!') $$), 'INVALID_TRANSITION', 'the chat is read-only after collection');
-select is((select can_send from public.get_conversation(current_setting('test.chat')::uuid)), false, 'and says so');
+  'Do all the keys work? | Yes, all of them. | 5pm at Tekun?', 'the messages are in the chat, in order');
 
 -- A business order: pending, confirmed, completed.
 select pg_temp.as_user('22222222-2222-2222-2222-222222222222');

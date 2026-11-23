@@ -12,33 +12,33 @@ import '../domain/payment_models.dart';
 import 'payment_providers.dart';
 import 'widgets/payment_widgets.dart';
 
-/// Where buyers who pay by transfer send money: a bank account, a QR code,
-/// or both. One set for the student; a business may have its own.
+/// A business's own payment details, from My store (ADR 0008). A student's
+/// personal details are entered on the listing's payment step instead.
 class PaymentDetailsScreen extends ConsumerWidget {
-  const PaymentDetailsScreen({super.key, this.forBusiness = false});
-
-  final bool forBusiness;
-
-  static const Key bankKey = Key('pay-details-bank');
-  static const Key nameKey = Key('pay-details-name');
-  static const Key numberKey = Key('pay-details-number');
-  static const Key qrKey = Key('pay-details-qr');
-  static const Key removeQrKey = Key('pay-details-remove-qr');
-  static const Key saveKey = Key('pay-details-save');
+  const PaymentDetailsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final saved = ref.watch(myPaymentDetailsProvider);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          forBusiness ? 'Business payment details' : 'Payment details',
-        ),
-      ),
+      appBar: AppBar(title: const Text('Business payment details')),
       body: switch (saved) {
-        AsyncData(:final value) => _DetailsForm(
-          forBusiness: forBusiness,
-          initial: forBusiness ? value.business : value.personal,
+        AsyncData(:final value) => PaymentDetailsForm(
+          forBusiness: true,
+          initial: value.business,
+          intro:
+              'Used for your business’s orders. Without them, buyers pay '
+              'to your personal details.',
+          submitLabel: 'Save',
+          onDone: (outcome) async {
+            showMessage(
+              context,
+              outcome == DetailsOutcome.removed
+                  ? 'Payment details removed.'
+                  : 'Payment details saved.',
+            );
+            context.pop();
+          },
         ),
         AsyncError(:final error) => ErrorView(
           error: error,
@@ -50,17 +50,46 @@ class PaymentDetailsScreen extends ConsumerWidget {
   }
 }
 
-class _DetailsForm extends ConsumerStatefulWidget {
-  const _DetailsForm({required this.forBusiness, this.initial});
+/// What saving the form did.
+enum DetailsOutcome { saved, removed, unchanged }
+
+/// Bank account and/or QR code, saved through `set_payment_details`. The
+/// caller says what happens next ([onDone]); a failure is shown here.
+class PaymentDetailsForm extends ConsumerStatefulWidget {
+  const PaymentDetailsForm({
+    super.key,
+    required this.forBusiness,
+    required this.initial,
+    required this.intro,
+    required this.submitLabel,
+    required this.onDone,
+    this.secondary,
+  });
 
   final bool forBusiness;
   final PaymentDetails? initial;
+  final String intro;
+  final String submitLabel;
+
+  /// Runs after the details are saved (or left as they were); its failures
+  /// are shown too.
+  final Future<void> Function(DetailsOutcome outcome) onDone;
+
+  /// Another way out, under the main button.
+  final Widget? secondary;
+
+  static const Key bankKey = Key('pay-details-bank');
+  static const Key nameKey = Key('pay-details-name');
+  static const Key numberKey = Key('pay-details-number');
+  static const Key qrKey = Key('pay-details-qr');
+  static const Key removeQrKey = Key('pay-details-remove-qr');
+  static const Key saveKey = Key('pay-details-save');
 
   @override
-  ConsumerState<_DetailsForm> createState() => _DetailsFormState();
+  ConsumerState<PaymentDetailsForm> createState() => _PaymentDetailsFormState();
 }
 
-class _DetailsFormState extends ConsumerState<_DetailsForm> {
+class _PaymentDetailsFormState extends ConsumerState<PaymentDetailsForm> {
   final _form = GlobalKey<FormState>();
   late final _bank = TextEditingController(text: widget.initial?.bankName);
   late final _name = TextEditingController(text: widget.initial?.accountName);
@@ -90,7 +119,19 @@ class _DetailsFormState extends ConsumerState<_DetailsForm> {
     }
   }
 
-  Future<void> _save() async {
+  String _trimmed(TextEditingController c) => c.text.trim();
+
+  bool get _unchanged {
+    final before = widget.initial;
+    return _newQr == null &&
+        _qrPath == before?.qrPath &&
+        _trimmed(_bank) == (before?.bankName ?? '') &&
+        _trimmed(_name) == (before?.accountName ?? '') &&
+        PaymentRules.normaliseAccountNumber(_trimmed(_number)) ==
+            (before?.accountNumber ?? '');
+  }
+
+  Future<void> _submit() async {
     if (!_form.currentState!.validate()) return;
     final problem = PaymentRules.together(
       bankName: _bank.text,
@@ -101,33 +142,32 @@ class _DetailsFormState extends ConsumerState<_DetailsForm> {
       showMessage(context, problem);
       return;
     }
-    final removing =
-        _number.text.trim().isEmpty && _qrPath == null && _newQr == null;
     setState(() => _busy = true);
     try {
-      await ref
-          .read(paymentActionsProvider)
-          .saveDetails(
-            forBusiness: widget.forBusiness,
-            bankName: _bank.text,
-            accountName: _name.text,
-            accountNumber: PaymentRules.normaliseAccountNumber(
-              _number.text.trim(),
-            ),
-            keptQrPath: _newQr == null ? _qrPath : null,
-            newQr: _newQr,
-            previousQrPath: widget.initial?.qrPath,
-          );
-      if (!mounted) return;
-      showMessage(
-        context,
-        removing ? 'Payment details removed.' : 'Payment details saved.',
-      );
-      context.pop();
+      var outcome = DetailsOutcome.unchanged;
+      if (!_unchanged) {
+        await ref
+            .read(paymentActionsProvider)
+            .saveDetails(
+              forBusiness: widget.forBusiness,
+              bankName: _bank.text,
+              accountName: _name.text,
+              accountNumber: PaymentRules.normaliseAccountNumber(
+                _trimmed(_number),
+              ),
+              keptQrPath: _newQr == null ? _qrPath : null,
+              newQr: _newQr,
+              previousQrPath: widget.initial?.qrPath,
+            );
+        outcome = _trimmed(_number).isEmpty && _qrPath == null && _newQr == null
+            ? DetailsOutcome.removed
+            : DetailsOutcome.saved;
+      }
+      await widget.onDone(outcome);
     } on Object catch (e) {
-      if (!mounted) return;
-      setState(() => _busy = false);
-      showMessage(context, AppFailure.messageOf(e));
+      if (mounted) showMessage(context, AppFailure.messageOf(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -140,19 +180,12 @@ class _DetailsFormState extends ConsumerState<_DetailsForm> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
-          Text(
-            widget.forBusiness
-                ? 'Used for your business’s orders. Without them, buyers pay '
-                      'to your personal details.'
-                : 'Buyers can then choose to pay you by bank transfer or QR. '
-                      'Without details, they pay cash on pickup.',
-            style: theme.textTheme.bodyMedium,
-          ),
+          Text(widget.intro, style: theme.textTheme.bodyMedium),
           const SizedBox(height: 16),
           Text('Bank account', style: theme.textTheme.titleSmall),
           const SizedBox(height: 8),
           TextFormField(
-            key: PaymentDetailsScreen.bankKey,
+            key: PaymentDetailsForm.bankKey,
             controller: _bank,
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(
@@ -163,7 +196,7 @@ class _DetailsFormState extends ConsumerState<_DetailsForm> {
           ),
           const SizedBox(height: 12),
           TextFormField(
-            key: PaymentDetailsScreen.nameKey,
+            key: PaymentDetailsForm.nameKey,
             controller: _name,
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(
@@ -173,7 +206,7 @@ class _DetailsFormState extends ConsumerState<_DetailsForm> {
           ),
           const SizedBox(height: 12),
           TextFormField(
-            key: PaymentDetailsScreen.numberKey,
+            key: PaymentDetailsForm.numberKey,
             controller: _number,
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(labelText: 'Account number'),
@@ -205,14 +238,14 @@ class _DetailsFormState extends ConsumerState<_DetailsForm> {
           Wrap(
             children: [
               TextButton.icon(
-                key: PaymentDetailsScreen.qrKey,
+                key: PaymentDetailsForm.qrKey,
                 onPressed: _busy ? null : _pickQr,
                 icon: const Icon(Icons.qr_code_2_rounded),
                 label: Text(hasQr ? 'Change QR code' : 'Add QR code'),
               ),
               if (hasQr)
                 TextButton.icon(
-                  key: PaymentDetailsScreen.removeQrKey,
+                  key: PaymentDetailsForm.removeQrKey,
                   onPressed: _busy
                       ? null
                       : () => setState(() {
@@ -234,14 +267,15 @@ class _DetailsFormState extends ConsumerState<_DetailsForm> {
             child: const Text(
               'Only a buyer with an open transfer payment to you sees these. '
               'Check your own bank before accepting any payment: CampusNiaga '
-              'doesn’t handle money. Clear everything and save to remove them.',
+              'doesn’t handle money. Leave everything empty to take cash '
+              'only.',
               style: TextStyle(height: 1.35),
             ),
           ),
           const SizedBox(height: 20),
           FilledButton(
-            key: PaymentDetailsScreen.saveKey,
-            onPressed: _busy ? null : _save,
+            key: PaymentDetailsForm.saveKey,
+            onPressed: _busy ? null : _submit,
             child: _busy
                 ? const SizedBox.square(
                     dimension: 22,
@@ -250,8 +284,12 @@ class _DetailsFormState extends ConsumerState<_DetailsForm> {
                       color: Colors.white,
                     ),
                   )
-                : const Text('Save'),
+                : Text(widget.submitLabel),
           ),
+          if (widget.secondary case final secondary?) ...[
+            const SizedBox(height: 8),
+            secondary,
+          ],
         ],
       ),
     );

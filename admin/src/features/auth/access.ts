@@ -1,26 +1,20 @@
-/** What the signed-in user may do, from `get_my_access()` (docs/api-contracts.md). */
+/**
+ * What the signed-in user may do, from `get_my_access()` (docs/api-contracts.md).
+ * There is one staff role, the HDC administrator (ADR 0009).
+ */
 export type StaffAccess = {
   userId: string;
   email: string;
-  isReviewer: boolean;
   isAdmin: boolean;
 };
 
-export type StaffRole = 'reviewer' | 'admin';
-
+/** Only HDC administrators use the dashboard. */
 export function isStaff(access: StaffAccess): boolean {
-  return access.isReviewer || access.isAdmin;
-}
-
-/** True if [access] satisfies [required]. Admins can do everything reviewers can. */
-export function hasRole(access: StaffAccess, required: StaffRole): boolean {
-  return required === 'admin' ? access.isAdmin : isStaff(access);
+  return access.isAdmin;
 }
 
 export function roleLabel(access: StaffAccess): string {
-  if (access.isAdmin) return 'Admin';
-  if (access.isReviewer) return 'Reviewer';
-  return 'No staff role';
+  return access.isAdmin ? 'HDC Administrator' : 'No staff role';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -33,13 +27,11 @@ export function parseAccess(json: unknown): StaffAccess {
     isRecord(json) &&
     typeof json['user_id'] === 'string' &&
     typeof json['email'] === 'string' &&
-    typeof json['is_reviewer'] === 'boolean' &&
     typeof json['is_admin'] === 'boolean'
   ) {
     return {
       userId: json['user_id'],
       email: json['email'],
-      isReviewer: json['is_reviewer'],
       isAdmin: json['is_admin'],
     };
   }

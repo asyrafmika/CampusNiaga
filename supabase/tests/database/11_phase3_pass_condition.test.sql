@@ -1,6 +1,6 @@
 -- Phase 3 pass condition, as one journey: a student submits a business
--- application, a reviewer requests information, the student edits and
--- resubmits, and the reviewer approves. Business features are refused before
+-- application, the HDC administrator requests information, the student edits
+-- and resubmits, and the administrator approves. Business features are refused before
 -- approval and available after, and every step is in the history and the
 -- audit log.
 begin;
@@ -21,7 +21,7 @@ $$;
 insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) values
   ('11111111-1111-1111-1111-111111111111', 'ali@student.usm.my', now(), '{"name": "Ali"}'),
   ('88888888-8888-8888-8888-888888888888', 'rina@campusniaga.test', now(), '{"name": "Rina"}');
-insert into public.staff_roles (user_id, role) values ('88888888-8888-8888-8888-888888888888', 'reviewer');
+insert into public.staff_roles (user_id, role) values ('88888888-8888-8888-8888-888888888888', 'admin');
 
 -- 1. Ali drafts an application and uploads a document --------------------------------------
 set local role authenticated;
@@ -86,11 +86,11 @@ select results_eq(
   $$ select from_status || '>' || to_status || ' by ' || actor_role || coalesce(': ' || note, '')
      from public.application_status_history where application_id = current_setting('test.app')::uuid order by id $$,
   $$ values ('draft>submitted by applicant'),
-            ('submitted>under_review by reviewer'),
-            ('under_review>info_requested by reviewer: Please add your price list to the description.'),
+            ('submitted>under_review by admin'),
+            ('under_review>info_requested by admin: Please add your price list to the description.'),
             ('info_requested>submitted by applicant: Price list added.'),
-            ('submitted>under_review by reviewer'),
-            ('under_review>approved by reviewer') $$,
+            ('submitted>under_review by admin'),
+            ('under_review>approved by admin') $$,
   'the history has every step, in order, with who did it'
 );
 select results_eq(

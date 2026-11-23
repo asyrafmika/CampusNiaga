@@ -6,7 +6,7 @@ import 'package:mobile/features/chat/domain/chat_models.dart';
 
 ConversationCard aConversation({
   String id = 'c1',
-  ChatKind kind = ChatKind.reservation,
+  ChatKind kind = ChatKind.item,
   String title = 'Casio FX-570 calculator',
   String other = 'Siti',
   bool iAmBuyer = true,
@@ -62,7 +62,11 @@ class FakeChatRepository implements ChatRepository {
 
   @override
   Future<String> open(ChatDeal deal) async {
-    calls.add('open ${deal.reservationId ?? 'order ${deal.orderId}'}');
+    calls.add(switch (deal) {
+      ChatDeal(:final listingId?) => 'open item $listingId',
+      ChatDeal(:final purchaseId?) => 'open purchase $purchaseId',
+      _ => 'open order ${deal.orderId}',
+    });
     return chats.first.id;
   }
 

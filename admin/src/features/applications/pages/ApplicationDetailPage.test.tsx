@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   reviewApplication: vi.fn<(id: string, action: ReviewAction, note: string) => Promise<void>>(),
   setBusinessStatus: vi.fn<(id: string, status: BusinessStatus, note: string) => Promise<void>>(),
   documentUrl: vi.fn<(path: string) => Promise<string>>(),
-  access: { userId: 'rina', email: 'rina@campusniaga.test', isReviewer: true, isAdmin: false },
+  access: { userId: 'rina', email: 'rina@campusniaga.test', isAdmin: true },
 }));
 
 vi.mock('../services/applicationsService', async (importOriginal) => {
@@ -59,7 +59,7 @@ const renderDetail = () => renderAt(<ApplicationDetailPage />, { path: '/applica
 describe('ApplicationDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.access = { userId: 'rina', email: 'rina@campusniaga.test', isReviewer: true, isAdmin: false };
+    mocks.access = { userId: 'rina', email: 'rina@campusniaga.test', isAdmin: true };
     mocks.getApplication.mockResolvedValue(detail());
     mocks.reviewApplication.mockResolvedValue();
     mocks.setBusinessStatus.mockResolvedValue();
@@ -141,7 +141,7 @@ describe('ApplicationDetailPage', () => {
     expect(await screen.findByText('This application is approved, so it can’t be moved to rejected.')).toBeInTheDocument();
   });
 
-  it('a reviewer cannot decide their own application', async () => {
+  it('an administrator cannot decide their own application', async () => {
     mocks.access = { ...mocks.access, userId: 'ali' };
     renderDetail();
 
@@ -149,7 +149,7 @@ describe('ApplicationDetailPage', () => {
     expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
   });
 
-  it('a decided application shows no decisions and the reviewer’s note', async () => {
+  it('a decided application shows no decisions and the administrator’s note', async () => {
     mocks.getApplication.mockResolvedValue(
       detail({ status: 'rejected', remarks: 'Needs a supplier agreement.', decidedAt: '2026-11-17T03:00:00Z' }),
     );
@@ -171,20 +171,15 @@ describe('ApplicationDetailPage', () => {
     open.mockRestore();
   });
 
-  it('admins can suspend an approved business; reviewers cannot', async () => {
+  it('an administrator can suspend an approved business', async () => {
     const approved = detail({
       status: 'approved',
       decidedAt: '2026-11-17T03:00:00Z',
       business: { id: 'b1', name: 'Ali Bakes', status: 'approved' },
     });
     mocks.getApplication.mockResolvedValue(approved);
-    const { unmount } = renderDetail();
-    expect(await screen.findByText('Active')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Suspend business' })).not.toBeInTheDocument();
-    unmount();
-
-    mocks.access = { ...mocks.access, isAdmin: true };
     renderDetail();
+    expect(await screen.findByText('Active')).toBeInTheDocument();
     await userEvent.click(await screen.findByRole('button', { name: 'Suspend business' }));
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Suspend' }));
 

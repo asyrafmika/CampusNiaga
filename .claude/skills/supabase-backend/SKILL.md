@@ -23,7 +23,7 @@ supabase/
 ## Anatomy of a privileged database function
 
 ```sql
-create function public.request_reservation(listing_id uuid, pickup_note text)
+create function public.buy_item(listing_id uuid, qty integer)
 returns jsonb
 language plpgsql
 volatile
@@ -36,21 +36,21 @@ begin
   if not public.is_student() then                              -- 1. who is calling
     perform public.raise_app_error('NOT_VERIFIED_STUDENT', 'Verify your USM email first.');
   end if;
-  if pickup_note is not null and char_length(pickup_note) > 200 then   -- 2. input
-    perform public.raise_app_error('INVALID_INPUT', 'Pickup note is too long.');
+  if qty is null or qty not between 1 and 999 then             -- 2. input
+    perform public.raise_app_error('INVALID_INPUT', 'Buy between 1 and 999 units.');
   end if;
-  select * into listing from public.listings where id = listing_id for update;  -- 3. lock
+  select * into listing from public.listings as l where l.id = buy_item.listing_id for update;  -- 3. lock
   if not found then perform public.raise_app_error('NOT_FOUND', 'Listing not found.'); end if;
-  if listing.status <> 'available' or listing.hidden then
+  if listing.status <> 'available' or listing.hidden or listing.stock < qty then
     perform public.raise_app_error('ITEM_UNAVAILABLE', 'This item is no longer available.');
   end if;
   -- 4. change + audit in the same transaction ...
-  return jsonb_build_object('reservation_id', ...);            -- 5. small result
+  return jsonb_build_object('purchase_id', ...);               -- 5. small result
 end;
 $$;
 
-revoke execute on function public.request_reservation(uuid, text) from public, anon;
-grant execute on function public.request_reservation(uuid, text) to authenticated;
+revoke execute on function public.buy_item(uuid, integer) from public, anon;
+grant execute on function public.buy_item(uuid, integer) to authenticated;
 ```
 
 - Never accept `owner_id`, `status`, `role`, `business_id`, `total_sen` or `allocated_qty` as input. Derive them from `auth.uid()` and stored rows.
@@ -63,8 +63,8 @@ A function body is one transaction. Lock the rows you check with `select … for
 
 | Operation | Lock and check | Fail with |
 |---|---|---|
-| Request reservation | listing `available`, not own, not hidden; no active reservation | `ITEM_UNAVAILABLE`, `ALREADY_EXISTS` |
-| Accept reservation | listing + reservation; set listing `reserved` | `INVALID_TRANSITION` |
+| Buy now | listing `available`, not own, not hidden, `stock >= qty`; no unfinished purchase of it; then decrement (`sold` at 0) | `ITEM_UNAVAILABLE`, `ALREADY_EXISTS` |
+| Cancel/relist purchase | listing + purchase + payment; release quantity | `INVALID_TRANSITION` |
 | Ready-stock order | listing `stock >= qty`, then decrement | `ITEM_UNAVAILABLE` |
 | Pre-order | campaign `open`, within dates, `allocated_qty + qty <= capacity`, per-order limit | `CAPACITY_FULL`, `INVALID_TRANSITION` |
 | Cancel/reject order | order + campaign or listing; release quantity | `INVALID_TRANSITION` |
@@ -72,8 +72,8 @@ A function body is one transaction. Lock the rows you check with `select … for
 - Also add `check` constraints as a last line of defence (`stock >= 0`, `allocated_qty <= capacity`).
 - State machines: a `status` check constraint plus an explicit allowed-transition check in the function (`if (old, new) not in (...) then INVALID_TRANSITION`).
 - Orders snapshot `unit_price_sen` and `total_sen = unit_price_sen * qty` at creation.
-- Hidden listings are excluded from feeds, reservations, orders and M4 supply.
-- Reservation expiry is lazy: treat `requested`/`accepted` past `expires_at` as `expired` when read or acted on, and store it then.
+- Hidden listings are excluded from feeds, purchases, orders and M4 supply.
+- Expiry is lazy and only for transfers with no receipt: cancel them when the stock is next locked or a read sweeps. Never release cash, or a transfer with a receipt, automatically (ADR 0006).
 
 ## Row Level Security patterns
 

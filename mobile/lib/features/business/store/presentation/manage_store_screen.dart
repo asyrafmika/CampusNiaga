@@ -51,7 +51,7 @@ class ManageStoreScreen extends ConsumerWidget {
           icon: Icons.storefront_outlined,
           title: 'No business yet',
           message:
-              'Apply from Profile → My business. Once a reviewer '
+              'Apply from Profile → My business. Once an HDC administrator '
               'approves it, your store opens here.',
         ),
         AsyncError(:final error) => ErrorView(

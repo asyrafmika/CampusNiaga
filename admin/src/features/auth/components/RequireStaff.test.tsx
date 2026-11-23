@@ -13,11 +13,11 @@ const mocks = vi.hoisted(
 vi.mock('../hooks/useAccess', () => ({ useAccess: () => mocks.state }));
 vi.mock('../services/authService', () => ({ signOut: mocks.signOut }));
 
-const person = { userId: 'u1', email: 'a@usm.my', isReviewer: false, isAdmin: false };
+const person = { userId: 'u1', email: 'a@usm.my', isAdmin: false };
 
-function renderGuard(role: 'reviewer' | 'admin') {
+function renderGuard() {
   return renderAt(
-    <RequireStaff role={role}>
+    <RequireStaff>
       <p>secret page</p>
     </RequireStaff>,
   );
@@ -30,20 +30,20 @@ describe('RequireStaff', () => {
 
   it('shows a spinner while access is checked', () => {
     mocks.state = { status: 'loading' };
-    renderGuard('reviewer');
+    renderGuard();
     expect(screen.getByLabelText('Checking access')).toBeInTheDocument();
     expect(screen.queryByText('secret page')).not.toBeInTheDocument();
   });
 
   it('sends signed-out visitors to the login page', () => {
     mocks.state = { status: 'signedOut' };
-    renderGuard('reviewer');
+    renderGuard();
     expect(screen.getByText('page: /login')).toBeInTheDocument();
   });
 
   it('signs out a student and explains the dashboard is staff-only', async () => {
     mocks.state = { status: 'ready', access: person };
-    renderGuard('reviewer');
+    renderGuard();
     await waitFor(() => {
       expect(screen.getByText('page: /login?reason=staff-only')).toBeInTheDocument();
     });
@@ -51,29 +51,16 @@ describe('RequireStaff', () => {
     expect(screen.queryByText('secret page')).not.toBeInTheDocument();
   });
 
-  it('lets a reviewer into reviewer pages', () => {
-    mocks.state = { status: 'ready', access: { ...person, isReviewer: true } };
-    renderGuard('reviewer');
-    expect(screen.getByText('secret page')).toBeInTheDocument();
-  });
-
-  it('keeps a reviewer out of admin pages without signing them out', () => {
-    mocks.state = { status: 'ready', access: { ...person, isReviewer: true } };
-    renderGuard('admin');
-    expect(screen.getByText('This page is for administrators only.')).toBeInTheDocument();
-    expect(screen.queryByText('secret page')).not.toBeInTheDocument();
-    expect(mocks.signOut).not.toHaveBeenCalled();
-  });
-
-  it('lets an admin into admin pages', () => {
+  it('lets an HDC administrator in', () => {
     mocks.state = { status: 'ready', access: { ...person, isAdmin: true } };
-    renderGuard('admin');
+    renderGuard();
     expect(screen.getByText('secret page')).toBeInTheDocument();
+    expect(mocks.signOut).not.toHaveBeenCalled();
   });
 
   it('offers a retry when the access check fails', () => {
     mocks.state = { status: 'error', error: new Error('offline'), retry: vi.fn() };
-    renderGuard('reviewer');
+    renderGuard();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 });

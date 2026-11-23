@@ -6,11 +6,11 @@ import '../../../core/domain/listing_enums.dart';
 import '../../../core/domain/payment.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/listing_repository.dart';
-import '../data/reservation_repository.dart';
+import '../data/purchase_repository.dart';
 import '../domain/listing.dart';
 import '../domain/listing_input.dart';
 import '../domain/listing_query.dart';
-import '../domain/reservation.dart';
+import '../domain/purchase.dart';
 
 /// The signed-in user's id, to tell their own listings apart.
 final currentUserIdProvider = Provider<String?>(
@@ -89,9 +89,9 @@ final myListingsProvider = FutureProvider.autoDispose<List<Listing>>(
   (ref) => ref.watch(listingRepositoryProvider).mine(),
 );
 
-final myReservationsProvider = FutureProvider.autoDispose
-    .family<List<ReservationCard>, ReservationSide>(
-      (ref, side) => ref.watch(reservationRepositoryProvider).mine(side),
+final myPurchasesProvider = FutureProvider.autoDispose
+    .family<List<PurchaseCard>, PurchaseSide>(
+      (ref, side) => ref.watch(purchaseRepositoryProvider).mine(side),
     );
 
 /// Every change a user makes in the marketplace. Each method calls the
@@ -103,8 +103,7 @@ class MarketplaceActions {
   final Ref _ref;
 
   ListingRepository get _listings => _ref.read(listingRepositoryProvider);
-  ReservationRepository get _reservations =>
-      _ref.read(reservationRepositoryProvider);
+  PurchaseRepository get _purchases => _ref.read(purchaseRepositoryProvider);
 
   /// Saves the form, then publishes if asked. Returns the listing's id.
   Future<String> saveListing({
@@ -134,42 +133,58 @@ class MarketplaceActions {
     _refreshListing(id);
   }
 
-  /// Returns the payment's id when paying by transfer.
-  Future<String?> reserve({
+  /// Buy now: returns the payment's id when paying by transfer. Refreshes
+  /// when refused too, because someone else may have just bought it.
+  Future<String?> buy({
     required String listingId,
     required int qty,
-    String? pickupNote,
     PaymentMethod paymentMethod = PaymentMethod.cash,
   }) async {
-    final paymentId = await _reservations.request(
-      listingId: listingId,
-      qty: qty,
-      pickupNote: pickupNote,
-      paymentMethod: paymentMethod,
-    );
-    _refreshListing(listingId);
-    _ref.invalidate(myReservationsProvider);
-    return paymentId;
+    try {
+      return await _purchases.buy(
+        listingId: listingId,
+        qty: qty,
+        paymentMethod: paymentMethod,
+      );
+    } finally {
+      _refreshListing(listingId);
+      _ref.invalidate(myPurchasesProvider);
+    }
   }
 
-  Future<void> resolveReservation(
-    ReservationCard reservation,
-    ReservationAction action,
-  ) async {
-    await _reservations.resolve(reservation.id, action);
-    _refreshListing(reservation.listingId);
-    _ref.invalidate(myReservationsProvider);
+  Future<void> completePurchase(PurchaseCard purchase) async {
+    await _purchases.complete(purchase.id);
+    _refreshPurchase(purchase);
+  }
+
+  Future<void> relistPurchase(PurchaseCard purchase) async {
+    await _purchases.relist(purchase.id);
+    _refreshPurchase(purchase);
+  }
+
+  Future<void> cancelPurchase(
+    PurchaseCard purchase, {
+    String? reason,
+    bool relist = true,
+  }) async {
+    await _purchases.cancel(purchase.id, reason: reason, relist: relist);
+    _refreshPurchase(purchase);
   }
 
   Future<void> reportListing({
     required String listingId,
     required ReportReason reason,
     required String details,
-  }) => _reservations.reportListing(
+  }) => _purchases.reportListing(
     listingId: listingId,
     reason: reason,
     details: details,
   );
+
+  void _refreshPurchase(PurchaseCard purchase) {
+    _refreshListing(purchase.listingId);
+    _ref.invalidate(myPurchasesProvider);
+  }
 
   void _refreshListing(String id) {
     _ref

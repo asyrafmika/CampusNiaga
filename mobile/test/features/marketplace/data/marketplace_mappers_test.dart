@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/domain/listing_enums.dart';
+import 'package:mobile/core/domain/payment.dart';
 import 'package:mobile/features/marketplace/data/marketplace_mappers.dart';
 
 void main() {
@@ -50,44 +51,44 @@ void main() {
     expect(listing.hidden, isTrue);
   });
 
-  test('maps a reservation_card row', () {
-    final r = reservationFromRow({
-      'id': 'r1',
-      'listing_id': 'l1',
-      'listing_title': 'Lamp',
-      'listing_photo': null,
-      'pickup_area': 'Aman',
-      'price_sen': 1500,
-      'qty': 2,
-      'pickup_note': null,
-      'status': 'accepted',
-      'expires_at': '2026-11-23T08:00:00Z',
-      'created_at': '2026-11-16T08:00:00Z',
-      'updated_at': '2026-11-16T09:00:00Z',
-      'i_am_buyer': true,
-      'other_party_name': 'Ali',
-      'other_party_email': 'ali@student.usm.my',
-    });
-    expect(r.status, ReservationStatus.accepted);
-    expect(r.totalSen, 3000);
-    expect(r.otherPartyEmail, 'ali@student.usm.my');
-    expect(r.expiresAt, DateTime.utc(2026, 11, 23, 8));
+  final row = <String, dynamic>{
+    'id': 'r1',
+    'listing_id': 'l1',
+    'listing_title': 'Lamp',
+    'listing_photo': null,
+    'pickup_area': 'Aman',
+    'qty': 2,
+    'unit_price_sen': 1500,
+    'total_sen': 3000,
+    'payment_method': 'cash',
+    'status': 'awaiting_handover',
+    'cancelled_by': null,
+    'cancel_reason': null,
+    'relist_from': '2026-11-17T08:00:00Z',
+    'created_at': '2026-11-16T08:00:00Z',
+    'updated_at': '2026-11-16T09:00:00Z',
+    'completed_at': null,
+    'i_am_buyer': true,
+    'other_party_name': 'Ali',
+  };
+
+  test('maps a purchase_card row', () {
+    final p = purchaseFromRow(row);
+    expect(p.status, PurchaseStatus.awaitingHandover);
+    expect(p.paymentMethod, PaymentMethod.cash);
+    expect(p.unitPriceSen, 1500);
+    expect(p.totalSen, 3000);
+    expect(p.relistFrom, DateTime.utc(2026, 11, 17, 8));
+    expect(p.payment, isNull);
   });
 
-  test('an unknown status is an error, not a guess', () {
+  test('an unknown status or method is an error, not a guess', () {
     expect(
-      () => reservationFromRow({
-        'id': 'r1',
-        'listing_id': 'l1',
-        'listing_title': 'Lamp',
-        'pickup_area': 'Aman',
-        'price_sen': 1,
-        'qty': 1,
-        'status': 'refunded',
-        'created_at': '2026-11-16T08:00:00Z',
-        'i_am_buyer': true,
-        'other_party_name': 'Ali',
-      }),
+      () => purchaseFromRow({...row, 'status': 'refunded'}),
+      throwsFormatException,
+    );
+    expect(
+      () => purchaseFromRow({...row, 'payment_method': 'card'}),
       throwsFormatException,
     );
   });

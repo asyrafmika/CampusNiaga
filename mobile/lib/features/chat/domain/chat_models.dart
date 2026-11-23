@@ -1,10 +1,10 @@
-/// The deal chat (ADR 0004): text between the buyer and seller of an
-/// accepted reservation or a confirmed business order.
+/// Chat (ADRs 0004 and 0006): text between a student and the seller of an
+/// item, or the buyer and seller of a confirmed business order.
 library;
 
 /// What a chat belongs to.
 enum ChatKind {
-  reservation('reservation', 'Booking'),
+  item('item', 'Item'),
   order('order', 'Order');
 
   const ChatKind(this.wireName, this.label);
@@ -18,22 +18,31 @@ enum ChatKind {
   );
 }
 
-/// The deal a chat is opened for: exactly one of the two ids.
+/// What a chat is opened for: exactly one of the three ids.
 class ChatDeal {
-  const ChatDeal.reservation(String this.reservationId) : orderId = null;
-  const ChatDeal.order(String this.orderId) : reservationId = null;
+  const ChatDeal.listing(String this.listingId)
+    : orderId = null,
+      purchaseId = null;
+  const ChatDeal.order(String this.orderId)
+    : listingId = null,
+      purchaseId = null;
+  const ChatDeal.purchase(String this.purchaseId)
+    : listingId = null,
+      orderId = null;
 
-  final String? reservationId;
+  final String? listingId;
   final String? orderId;
+  final String? purchaseId;
 
   @override
   bool operator ==(Object other) =>
       other is ChatDeal &&
-      other.reservationId == reservationId &&
-      other.orderId == orderId;
+      other.listingId == listingId &&
+      other.orderId == orderId &&
+      other.purchaseId == purchaseId;
 
   @override
-  int get hashCode => Object.hash(reservationId, orderId);
+  int get hashCode => Object.hash(listingId, orderId, purchaseId);
 }
 
 /// One row of the chat list (`conversation_card`).
@@ -67,7 +76,8 @@ class ConversationCard {
   final bool lastMessageMine;
   final int unreadCount;
 
-  /// False once the deal has ended or the chat was closed: read-only.
+  /// False once the item is gone, the order has ended or the chat was
+  /// closed: read-only.
   final bool canSend;
   final bool closed;
   final DateTime createdAt;
@@ -86,8 +96,11 @@ class ConversationCard {
   String? get readOnlyReason {
     if (closed) return 'This chat was closed.';
     if (!canSend) {
-      return 'This ${kind == ChatKind.order ? 'order' : 'booking'} has '
-          'ended, so the chat is read-only.';
+      return switch (kind) {
+        ChatKind.order => 'This order has ended, so the chat is read-only.',
+        ChatKind.item =>
+          'This item is no longer available, so the chat is read-only.',
+      };
     }
     return null;
   }

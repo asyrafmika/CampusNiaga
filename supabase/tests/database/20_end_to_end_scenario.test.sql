@@ -1,6 +1,6 @@
 -- QA scenario test: the handoff's minimal scenario fixture (section 9) through
 -- every module in one run. 2 students, 1 applicant, 1 approved business
--- seller, 1 reviewer, 1 admin; 2 personal listings, 2 business products, a
+-- seller, 2 administrators (one reviews); 2 personal listings, 2 business products, a
 -- capacity-3 pre-order, 3 similar requests ("brownie", "brownies",
 -- "chocolate brownie") and a competing listing. It checks distinct-user
 -- counting, the approval gate, stock conflicts and status transitions,
@@ -24,17 +24,17 @@ create function pg_temp.as_user(id text) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', id, 'role', 'authenticated')::text, true);
 $$;
 
--- The people. The reviewer and the admin use staff addresses, not USM ones.
+-- The people. The administrators use staff addresses, not USM ones.
 insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) values
   ('22222222-2222-2222-2222-222222222222', 'siti@student.usm.my', now(), '{"name": "Siti"}'),   -- student 1
   ('44444444-4444-4444-4444-444444444444', 'amin@student.usm.my', now(), '{"name": "Amin"}'),   -- student 2
   ('11111111-1111-1111-1111-111111111111', 'ali@student.usm.my', now(), '{"name": "Ali"}'),     -- applicant
   ('77777777-7777-7777-7777-777777777777', 'nina@student.usm.my', now(), '{"name": "Nina"}'),   -- business seller
-  ('88888888-8888-8888-8888-888888888888', 'rina@campusniaga.test', now(), '{"name": "Rina"}'), -- reviewer
+  ('88888888-8888-8888-8888-888888888888', 'rina@campusniaga.test', now(), '{"name": "Rina"}'), -- reviews applications
   ('33333333-3333-3333-3333-333333333333', 'admin@campusniaga.test', now(), '{"name": "Admin"}'),
   ('55555555-5555-5555-5555-555555555555', 'ben@gmail.com', now(), '{}');                       -- not a USM student
 insert into public.staff_roles (user_id, role) values
-  ('88888888-8888-8888-8888-888888888888', 'reviewer'),
+  ('88888888-8888-8888-8888-888888888888', 'admin'),
   ('33333333-3333-3333-3333-333333333333', 'admin');
 
 -- Access ------------------------------------------------------------------------------------------------
@@ -44,7 +44,7 @@ select is(public.get_my_access() ->> 'is_student', 'true', 'a USM student is let
 select pg_temp.as_user('55555555-5555-5555-5555-555555555555');
 select is(public.get_my_access() ->> 'is_student', 'false', 'a gmail account is not');
 
--- Casual flow: personal listing -> reservation -> collection -> sold ---------------------------------------
+-- Casual flow: personal listing -> Buy now -> sold -> handover ---------------------------------------
 select pg_temp.as_user('22222222-2222-2222-2222-222222222222');
 do $$ begin
   perform set_config('test.calc', public.upsert_listing(null, 'Casio FX-570 calculator', 'One semester old.', 'Stationery', 2500, 'good', 1, '{}', 'Tekun') ->> 'listing_id', true);
@@ -61,16 +61,16 @@ do $$ begin
 end $$;
 select is((select seller_name from public.search_listings('calculator')), 'Siti', 'Amin finds Siti''s calculator by searching');
 do $$ begin
-  perform set_config('test.res', public.request_reservation(current_setting('test.calc')::uuid, 1, 'After class') ->> 'reservation_id', true);
+  perform set_config('test.res', public.buy_item(current_setting('test.calc')::uuid) ->> 'purchase_id', true);
 end $$;
 select pg_temp.as_user('11111111-1111-1111-1111-111111111111');
-select is(pg_temp.error_reason($$ select public.request_reservation(current_setting('test.calc')::uuid) $$), 'ITEM_UNAVAILABLE', 'a second buyer cannot double-book the calculator');
-select is(pg_temp.error_reason($$ select public.request_reservation(current_setting('test.lamp')::uuid, 1) $$), 'no error', 'Ali reserves the lamp');
+select is(pg_temp.error_reason($$ select public.buy_item(current_setting('test.calc')::uuid) $$), 'ITEM_UNAVAILABLE', 'a second buyer cannot buy the same calculator');
+select is(pg_temp.error_reason($$ select public.buy_item(current_setting('test.lamp')::uuid, 1) $$), 'no error', 'Ali buys the lamp');
 select pg_temp.as_user('22222222-2222-2222-2222-222222222222');
-select is(public.resolve_reservation(current_setting('test.res')::uuid, 'accept') ->> 'status', 'accepted', 'Siti accepts Amin''s reservation');
-select is(public.resolve_reservation(current_setting('test.res')::uuid, 'collect') ->> 'listing_status', 'sold', 'and marks it collected: sold');
+select is(public.open_conversation(purchase_id => current_setting('test.res')::uuid) ->> 'created', 'true', 'Siti opens the chat to arrange the handover with Amin');
+select is(public.complete_purchase(current_setting('test.res')::uuid) ->> 'status', 'completed', 'and completes the sale');
 select pg_temp.as_user('44444444-4444-4444-4444-444444444444');
-select is(pg_temp.error_reason($$ select public.request_reservation(current_setting('test.calc')::uuid) $$), 'ITEM_UNAVAILABLE', 'a sold item takes no more reservations');
+select is(pg_temp.error_reason($$ select public.buy_item(current_setting('test.calc')::uuid) $$), 'ITEM_UNAVAILABLE', 'a sold item takes no more purchases');
 
 -- Business flow: apply -> request edits -> resubmit -> approve -> storefront -> orders -> dashboard ---------------
 select pg_temp.as_user('77777777-7777-7777-7777-777777777777');
@@ -98,7 +98,7 @@ end $$;
 select pg_temp.as_user('88888888-8888-8888-8888-888888888888');
 select lives_ok($$ select public.review_business_application(current_setting('test.ali_app')::uuid, 'start_review');
                    select public.review_business_application(current_setting('test.ali_app')::uuid, 'request_info', 'Add your prices.') $$,
-  'the reviewer asks the applicant (Ali) for edits');
+  'the administrator asks the applicant (Ali) for edits');
 select pg_temp.as_user('11111111-1111-1111-1111-111111111111');
 select lives_ok($$ update public.business_applications set description = 'Printed notes (RM 2) and planners (RM 8) for students.';
                    select public.submit_business_application(current_setting('test.ali_app')::uuid, 'Prices added.') $$,
@@ -108,7 +108,7 @@ select lives_ok($$ select public.review_business_application(current_setting('te
                    select public.review_business_application(current_setting('test.ali_app')::uuid, 'approve');
                    select public.review_business_application(current_setting('test.nina_app')::uuid, 'start_review');
                    select public.review_business_application(current_setting('test.nina_app')::uuid, 'approve') $$,
-  'the reviewer approves both businesses');
+  'the administrator approves both businesses');
 select pg_temp.as_user('33333333-3333-3333-3333-333333333333');
 select is((select count(*)::int from public.audit_logs where target_type = 'business_application'), 9,
   'the admin sees every application step in the audit log');
@@ -136,7 +136,7 @@ end $$;
 select pg_temp.as_user('22222222-2222-2222-2222-222222222222');
 select is((select count(*)::int from jsonb_array_elements(public.get_storefront(current_setting('test.nina_biz')::uuid) -> 'listings')), 2,
   'students see Nina''s storefront with her 2 products');
-select is(pg_temp.error_reason($$ select public.request_reservation(current_setting('test.brownie')::uuid) $$), 'ITEM_UNAVAILABLE', 'business products are ordered, not reserved');
+select is(pg_temp.error_reason($$ select public.buy_item(current_setting('test.brownie')::uuid) $$), 'ITEM_UNAVAILABLE', 'business products are ordered, not bought with Buy now');
 
 -- Stock conflict on ready stock, and the capped pre-order
 do $$ begin

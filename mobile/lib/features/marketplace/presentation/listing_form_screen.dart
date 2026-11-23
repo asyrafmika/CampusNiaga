@@ -114,6 +114,10 @@ class _ListingFormState extends ConsumerState<_ListingForm> {
   bool get _isDraftOrNew =>
       _existing == null || _existing.status == ListingStatus.draft;
 
+  /// A personal listing goes on to its payment step; a business product
+  /// uses the business's payment details (ADR 0008).
+  bool get _hasPaymentStep => !widget.business;
+
   @override
   void dispose() {
     for (final c in [_title, _description, _price, _quantity, _pickup]) {
@@ -158,6 +162,8 @@ class _ListingFormState extends ConsumerState<_ListingForm> {
     }
   }
 
+  /// [publish]: for a personal listing, go on to the payment step, which
+  /// publishes it.
   Future<void> _save({required bool publish}) async {
     final valid = _form.currentState!.validate();
     final photoProblem = publish
@@ -186,10 +192,18 @@ class _ListingFormState extends ConsumerState<_ListingForm> {
             ),
             keptPhotos: [for (final p in _photos) ?p.path],
             newPhotos: [for (final p in _photos) ?p.photo],
-            publish: publish && _isDraftOrNew,
+            publish: publish && _isDraftOrNew && !_hasPaymentStep,
             mode: widget.business ? ListingMode.business : ListingMode.personal,
           );
       if (!mounted) return;
+      // Next: payment (publishing a draft, or editing a published listing).
+      // The form is done, so Back from the step returns to where it began.
+      if (_hasPaymentStep && (publish || !_isDraftOrNew)) {
+        context.pushReplacement(
+          AppRoutes.listingPayment(id, publish: publish && _isDraftOrNew),
+        );
+        return;
+      }
       showMessage(
         context,
         publish && _isDraftOrNew
@@ -383,7 +397,7 @@ class _ListingFormState extends ConsumerState<_ListingForm> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Publish'),
+                    : Text(_hasPaymentStep ? 'Next: payment' : 'Publish'),
               ),
               const SizedBox(height: 12),
               OutlinedButton(
@@ -395,7 +409,7 @@ class _ListingFormState extends ConsumerState<_ListingForm> {
               FilledButton(
                 key: const Key('form-save'),
                 onPressed: _busy ? null : () => _save(publish: false),
-                child: const Text('Save changes'),
+                child: Text(_hasPaymentStep ? 'Next: payment' : 'Save changes'),
               ),
           ],
         ),

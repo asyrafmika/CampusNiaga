@@ -36,23 +36,27 @@ ChatMessage messageFromRow(Map<String, dynamic> row) => ChatMessage(
   createdAt: DateTime.parse(row['created_at'] as String),
 );
 
-/// Deal chats, through their database functions; messages are read under
+/// Chats, through their database functions; messages are read under
 /// Row Level Security and arrive live through Supabase Realtime.
 class ChatRepository {
   ChatRepository(this._client);
 
   static const int pageSize = 30;
 
-  /// The newest messages a chat loads; deal chats are short.
+  /// The newest messages a chat loads; chats are short.
   static const int messageLimit = 200;
 
   final SupabaseClient _client;
 
-  /// The chat for [deal], created if the deal is active.
+  /// The chat for [deal], created if it may be.
   Future<String> open(ChatDeal deal) => guardSupabase(() async {
     final Object? result = await _client.rpc<Object?>(
       'open_conversation',
-      params: {'reservation_id': deal.reservationId, 'order_id': deal.orderId},
+      params: {
+        'listing_id': deal.listingId,
+        'order_id': deal.orderId,
+        'purchase_id': deal.purchaseId,
+      },
     );
     return (result! as Map)['conversation_id'] as String;
   });

@@ -46,7 +46,7 @@ where id in ('a1111111-1111-1111-1111-111111111111', 'b2222222-2222-2222-2222-22
 set local role authenticated;
 set local request.jwt.claims to '{"sub": "a1111111-1111-1111-1111-111111111111", "role": "authenticated"}';
 select is(public.get_my_access() ->> 'is_student', 'true', 'after confirming, the USM student gets in');
-select is(public.get_my_access() ->> 'is_reviewer', 'false', 'the student is not a reviewer');
+select ok(not (public.get_my_access() ? 'is_reviewer'), 'there is no reviewer role to report (ADR 0009)');
 select is(public.get_my_access() ->> 'is_admin', 'false', 'the student is not an admin');
 
 -- 4. The student can't open staff features --------------------------------------
@@ -71,7 +71,7 @@ set local request.jwt.claims to '{"sub": "b2222222-2222-2222-2222-222222222222",
 select is(public.get_my_access() ->> 'email_confirmed', 'true', 'the gmail account has confirmed its email');
 select is(public.get_my_access() ->> 'is_student', 'false', 'a confirmed non-USM email is still refused');
 select is(
-  pg_temp.error_reason($$ select public.set_staff_role('b2222222-2222-2222-2222-222222222222', 'reviewer', true) $$),
+  pg_temp.error_reason($$ select public.set_staff_role('b2222222-2222-2222-2222-222222222222', 'admin', true) $$),
   'FORBIDDEN',
   'the non-USM account cannot give itself a staff role'
 );
@@ -79,19 +79,19 @@ select is(
 -- 6. Staff access comes only from an admin, and changes take effect live --------
 set local request.jwt.claims to '{"sub": "c3333333-3333-3333-3333-333333333333", "role": "authenticated"}';
 select is(
-  public.set_staff_role('a1111111-1111-1111-1111-111111111111', 'reviewer', true) ->> 'changed',
+  public.set_staff_role('a1111111-1111-1111-1111-111111111111', 'admin', true) ->> 'changed',
   'true',
-  'an admin makes the student a reviewer'
+  'an admin makes the student an admin'
 );
 
 set local request.jwt.claims to '{"sub": "a1111111-1111-1111-1111-111111111111", "role": "authenticated"}';
-select is(public.get_my_access() ->> 'is_reviewer', 'true', 'the reviewer role works on the next request, without signing in again');
-select is(public.get_my_access() ->> 'is_admin', 'false', 'being a reviewer does not make the student an admin');
+select is(public.get_my_access() ->> 'is_admin', 'true', 'the role works on the next request, without signing in again');
+select is((select count(*)::int from public.audit_logs) > 0, true, 'and opens the audit log');
 
 set local request.jwt.claims to '{"sub": "c3333333-3333-3333-3333-333333333333", "role": "authenticated"}';
 select lives_ok(
-  $$ select public.set_staff_role('a1111111-1111-1111-1111-111111111111', 'reviewer', false) $$,
-  'the admin removes the reviewer role'
+  $$ select public.set_staff_role('a1111111-1111-1111-1111-111111111111', 'admin', false) $$,
+  'the first admin removes the role again'
 );
 select results_eq(
   $$ select action from public.audit_logs where target_id = 'a1111111-1111-1111-1111-111111111111' order by id $$,
@@ -100,7 +100,7 @@ select results_eq(
 );
 
 set local request.jwt.claims to '{"sub": "a1111111-1111-1111-1111-111111111111", "role": "authenticated"}';
-select is(public.get_my_access() ->> 'is_reviewer', 'false', 'the removed role stops working on the next request');
+select is(public.get_my_access() ->> 'is_admin', 'false', 'the removed role stops working on the next request');
 reset role;
 
 select * from finish();

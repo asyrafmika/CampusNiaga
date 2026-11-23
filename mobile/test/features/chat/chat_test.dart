@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/app.dart';
 import 'package:mobile/core/domain/app_failure.dart';
 import 'package:mobile/core/domain/business_enums.dart';
-import 'package:mobile/core/domain/listing_enums.dart';
 import 'package:mobile/core/router/app_router.dart';
 import 'package:mobile/core/router/app_routes.dart';
 import 'package:mobile/core/utils/dates.dart';
@@ -12,7 +11,7 @@ import 'package:mobile/features/auth/presentation/profile_screen.dart';
 import 'package:mobile/features/business/store/domain/store_models.dart';
 import 'package:mobile/features/chat/data/chat_repository.dart';
 import 'package:mobile/features/chat/domain/chat_models.dart';
-import 'package:mobile/features/marketplace/domain/reservation.dart';
+import 'package:mobile/features/marketplace/presentation/my_purchases_screen.dart';
 
 import '../../support/app_harness.dart';
 import '../../support/chat_fakes.dart';
@@ -49,7 +48,7 @@ void main() {
       );
       expect(
         aConversation(canSend: false).readOnlyReason,
-        'This booking has ended, so the chat is read-only.',
+        'This item is no longer available, so the chat is read-only.',
       );
       expect(
         aConversation(kind: ChatKind.order, canSend: false).readOnlyReason,
@@ -59,31 +58,10 @@ void main() {
       expect(aConversation(iAmBuyer: false).otherPartyRole, 'Buyer');
     });
 
-    test('a reservation can chat while accepted and not overdue', () {
-      final now = DateTime.utc(2026, 11, 16, 12);
-      ReservationCard card(ReservationStatus status, DateTime? until) =>
-          ReservationCard(
-            id: 'r1',
-            listingId: 'l1',
-            listingTitle: 'x',
-            listingPhoto: null,
-            pickupArea: 'Tekun',
-            priceSen: 100,
-            qty: 1,
-            pickupNote: null,
-            status: status,
-            expiresAt: until,
-            createdAt: now,
-            iAmBuyer: true,
-            otherPartyName: 'Ali',
-            otherPartyEmail: null,
-          );
-      final later = now.add(const Duration(hours: 1));
-      final earlier = now.subtract(const Duration(hours: 1));
-      expect(card(ReservationStatus.accepted, later).canChatAt(now), isTrue);
-      expect(card(ReservationStatus.accepted, earlier).canChatAt(now), isFalse);
-      expect(card(ReservationStatus.requested, later).canChatAt(now), isFalse);
-      expect(card(ReservationStatus.collected, null).canChatAt(now), isFalse);
+    test('a chat is for exactly one item, purchase or order', () {
+      expect(const ChatDeal.listing('x'), const ChatDeal.listing('x'));
+      expect(const ChatDeal.listing('x'), isNot(const ChatDeal.order('x')));
+      expect(const ChatDeal.listing('x'), isNot(const ChatDeal.purchase('x')));
     });
 
     test('an order can chat from confirmation until it ends', () {
@@ -114,7 +92,6 @@ void main() {
       final card = conversationFromRow({
         'conversation_id': 'c1',
         'kind': 'order',
-        'reservation_id': null,
         'order_id': 'o1',
         'listing_id': 'l1',
         'listing_title': 'Brownie box',
@@ -164,32 +141,25 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('an accepted booking opens its chat; the buyer sends a '
-        'message', (tester) async {
+    testWidgets('a purchase opens its chat; the buyer sends a message', (
+      tester,
+    ) async {
       final chat = FakeChatRepository();
       await pumpApp(
         tester,
         () async => student,
         chat: chat,
-        reservations: FakeReservationRepository(
-          buying: [
-            aReservation(
-              iAmBuyer: true,
-              status: ReservationStatus.accepted,
-              email: 'siti@student.usm.my',
-            ),
-          ],
-        ),
+        purchases: FakePurchaseRepository(buying: [aPurchase(iAmBuyer: true)]),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Bookings'));
+      await tester.tap(find.text('Purchases'));
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byKey(const Key('reservation-chat-r1')));
-      await tester.tap(find.byKey(const Key('reservation-chat-r1')));
+      await tester.ensureVisible(find.byKey(PurchaseTile.chatKey('r1')));
+      await tester.tap(find.byKey(PurchaseTile.chatKey('r1')));
       await tester.pumpAndSettle();
 
-      expect(chat.calls.first, 'open r1');
+      expect(chat.calls.first, 'open purchase r1');
       expect(find.text('Hi, is it still there?'), findsOneWidget);
       expect(find.text('Seller · Casio FX-570 calculator'), findsOneWidget);
       expect(find.textContaining('never takes payment'), findsOneWidget);
@@ -199,19 +169,19 @@ void main() {
       expect(find.text('Can I collect at 5pm?'), findsOneWidget);
     });
 
-    testWidgets('a requested booking has no chat yet', (tester) async {
+    testWidgets('an order chat says nothing about holding an item', (
+      tester,
+    ) async {
       await pumpApp(
         tester,
         () async => student,
-        reservations: FakeReservationRepository(
-          buying: [aReservation(iAmBuyer: true)],
-        ),
+        chat: FakeChatRepository(chats: [aConversation(kind: ChatKind.order)]),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Bookings'));
-      await tester.pumpAndSettle();
+      await go(tester, AppRoutes.chat('c1'));
 
-      expect(find.byKey(const Key('reservation-chat-r1')), findsNothing);
+      expect(find.textContaining('does not hold'), findsNothing);
+      expect(find.textContaining('never takes payment'), findsOneWidget);
     });
 
     testWidgets('a message from the other person arrives live and is '
@@ -253,7 +223,9 @@ void main() {
       await go(tester, AppRoutes.chat('c1'));
 
       expect(
-        find.text('This booking has ended, so the chat is read-only.'),
+        find.text(
+          'This item is no longer available, so the chat is read-only.',
+        ),
         findsOneWidget,
       );
       expect(find.byKey(const Key('chat-input')), findsNothing);
@@ -266,7 +238,7 @@ void main() {
       final chat = FakeChatRepository()
         ..failSendWith = const AppFailure(
           AppFailureReason.invalidTransition,
-          'This chat is read-only because the booking has ended.',
+          'This chat is read-only because the item is no longer available.',
         );
       await pumpApp(tester, () async => student, chat: chat);
       await tester.pumpAndSettle();
@@ -276,7 +248,9 @@ void main() {
       await send(tester, 'Hello?');
 
       expect(
-        find.text('This chat is read-only because the booking has ended.'),
+        find.text(
+          'This chat is read-only because the item is no longer available.',
+        ),
         findsOneWidget,
       );
       expect(find.byKey(const Key('chat-input')), findsNothing);
@@ -370,7 +344,7 @@ void main() {
       expect(find.text('Are you there?'), findsOneWidget);
       expect(find.text('You: Thanks!'), findsOneWidget);
       expect(find.text('Order · Brownie box · Ended'), findsOneWidget);
-      expect(find.text('Booking · Casio FX-570 calculator'), findsOneWidget);
+      expect(find.text('Item · Casio FX-570 calculator'), findsOneWidget);
     });
 
     testWidgets('no chats yet', (tester) async {

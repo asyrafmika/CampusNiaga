@@ -7,7 +7,7 @@ import '../domain/payment_models.dart';
 DateTime? _timeOrNull(Object? value) =>
     value == null ? null : DateTime.parse(value as String);
 
-/// The payment columns of `order_card` / `reservation_card`; `null` for a
+/// The payment columns of `order_card` / `purchase_card`; `null` for a
 /// cash deal.
 PaymentSummary? paymentSummaryFromRow(Map<String, dynamic> row) {
   final id = row['payment_id'] as String?;
@@ -49,7 +49,7 @@ PaymentView paymentViewFromJson(Object? json) {
   return PaymentView(
     id: row['payment_id'] as String,
     orderId: row['order_id'] as String?,
-    reservationId: row['reservation_id'] as String?,
+    purchaseId: row['purchase_id'] as String?,
     iAmBuyer: row['i_am_buyer'] as bool,
     itemTitle: row['item_title'] as String,
     qty: (row['qty'] as num).toInt(),

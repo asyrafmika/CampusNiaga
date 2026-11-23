@@ -222,7 +222,8 @@ class EstimatedNotice extends StatelessWidget {
           child: Text(
             'Estimated / self-reported. Revenue adds up the orders you marked '
             'completed and costs are what you entered. CampusNiaga doesn’t '
-            'take or verify payments.',
+            'take or verify payments. Administrators can see your orders, '
+            'revenue, products and stock, but never your costs or profit.',
             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
         ),

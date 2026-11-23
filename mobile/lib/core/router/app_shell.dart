@@ -5,7 +5,7 @@ import '../theme/app_colors.dart';
 import 'app_routes.dart';
 
 /// The signed-in app's frame: the tab's page above a bottom navigation bar
-/// with Home, Search, Sell, Bookings (reservations) and Profile. Sell opens
+/// with Home, Search, Sell, Purchases and Profile. Sell opens
 /// the listing form on top instead of switching tab. Labels are one short
 /// word so they fit a bar slot (about 80 dp) on one line.
 class AppShell extends StatelessWidget {
@@ -68,7 +68,7 @@ class AppShell extends StatelessWidget {
               Icons.receipt_long_rounded,
               color: AppColors.primary,
             ),
-            label: 'Bookings',
+            label: 'Purchases',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),

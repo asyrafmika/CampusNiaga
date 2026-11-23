@@ -13,7 +13,6 @@ UserAccess userAccessFromJson(Object? json) {
     'email_confirmed': final bool emailConfirmed,
     'account_status': final String accountStatus,
     'is_student': final bool isStudent,
-    'is_reviewer': final bool isReviewer,
     'is_admin': final bool isAdmin,
   }) {
     return UserAccess(
@@ -22,7 +21,6 @@ UserAccess userAccessFromJson(Object? json) {
       emailConfirmed: emailConfirmed,
       accountStatus: AccountStatus.fromWire(accountStatus),
       isStudent: isStudent,
-      isReviewer: isReviewer,
       isAdmin: isAdmin,
       isBusinessOwner: switch (json['is_business_owner']) {
         final bool owner => owner,

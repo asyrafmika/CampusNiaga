@@ -18,8 +18,9 @@ exception when others then
 end;
 $$;
 
--- Ali applies; Siti and Amin are other students; Rina reviews; Sam is a
--- student who is also a reviewer; Ben uses gmail; there is one admin.
+-- Ali applies; Siti and Amin are other students; Rina is the HDC
+-- administrator who reviews; Sam is a student who is also an administrator;
+-- Ben uses gmail; there is one more admin.
 insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) values
   ('11111111-1111-1111-1111-111111111111', 'ali@student.usm.my', now(), '{"name": "Ali"}'),
   ('22222222-2222-2222-2222-222222222222', 'siti@student.usm.my', now(), '{"name": "Siti"}'),
@@ -30,8 +31,8 @@ insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) value
   ('55555555-5555-5555-5555-555555555555', 'ben@gmail.com', now(), '{}');
 insert into public.staff_roles (user_id, role) values
   ('33333333-3333-3333-3333-333333333333', 'admin'),
-  ('88888888-8888-8888-8888-888888888888', 'reviewer'),
-  ('77777777-7777-7777-7777-777777777777', 'reviewer');
+  ('88888888-8888-8888-8888-888888888888', 'admin'),
+  ('77777777-7777-7777-7777-777777777777', 'admin');
 
 -- Drafts --------------------------------------------------------------------------------------
 set local role authenticated;
@@ -230,7 +231,7 @@ select is((select reviewer_id::text || '/' || remarks from public.business_appli
 select is((select note from public.application_status_history where application_id = current_setting('test.app')::uuid order by id desc limit 1),
   'Please attach your food handling certificate.', 'the note is in the history');
 select is((select actor_role from public.application_status_history where application_id = current_setting('test.app')::uuid order by id desc limit 1),
-  'reviewer', 'the history records the reviewer role');
+  'admin', 'the history records the administrator role');
 
 set local role authenticated;
 set local request.jwt.claims to '{"sub": "11111111-1111-1111-1111-111111111111", "role": "authenticated"}';
@@ -260,7 +261,7 @@ values ('aaaaaaaa-0000-0000-0000-000000000077', '77777777-7777-7777-7777-7777777
         'Snacks for late-night study sessions.', '011-1111111', 'Desasiswa Restu', 'submitted', now());
 set local role authenticated;
 set local request.jwt.claims to '{"sub": "77777777-7777-7777-7777-777777777777", "role": "authenticated"}';
-select is(pg_temp.error_reason($$ select public.review_business_application('aaaaaaaa-0000-0000-0000-000000000077', 'start_review') $$), 'FORBIDDEN', 'a reviewer cannot review their own application');
+select is(pg_temp.error_reason($$ select public.review_business_application('aaaaaaaa-0000-0000-0000-000000000077', 'start_review') $$), 'FORBIDDEN', 'an administrator cannot review their own application');
 set local request.jwt.claims to '{"sub": "33333333-3333-3333-3333-333333333333", "role": "authenticated"}';
 select is(public.review_business_application('aaaaaaaa-0000-0000-0000-000000000077', 'start_review') ->> 'status', 'under_review', 'an admin may review too');
 reset role;

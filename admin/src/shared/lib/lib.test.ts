@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { AppError, toAppError } from './errors';
-import { escapeLike } from './format';
+import { escapeLike, formatRm } from './format';
 
 describe('toAppError', () => {
   it('keeps the database message for a reason it explains', () => {
@@ -25,6 +25,15 @@ describe('toAppError', () => {
     const error = toAppError({ code: 'XX000', details: null, message: 'internal error at line 4' });
     expect(error.message).toBe('Something went wrong. Please try again.');
     expect(error.reason).toBeUndefined();
+  });
+});
+
+describe('formatRm', () => {
+  it('shows sen as ringgit', () => {
+    expect(formatRm(0)).toBe('RM 0');
+    expect(formatRm(5)).toBe('RM 0.05');
+    expect(formatRm(2500)).toBe('RM 25');
+    expect(formatRm(125050)).toBe('RM 1,250.50');
   });
 });
 

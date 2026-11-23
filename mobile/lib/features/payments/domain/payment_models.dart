@@ -40,7 +40,7 @@ class PaymentView {
     required this.status,
     required this.dueAt,
     this.orderId,
-    this.reservationId,
+    this.purchaseId,
     this.proofPath,
     this.submittedAt,
     this.decidedAt,
@@ -50,12 +50,12 @@ class PaymentView {
 
   final String id;
   final String? orderId;
-  final String? reservationId;
+  final String? purchaseId;
   final bool iAmBuyer;
   final String itemTitle;
   final int qty;
 
-  /// The business's name for an order, the seller's for a reservation.
+  /// The business's name for an order, the seller's for a purchase.
   final String sellerName;
   final int amountSen;
   final PaymentStatus status;
@@ -139,7 +139,7 @@ abstract final class PaymentRules {
   }
 
   /// A buyer may back out until they have sent proof; after that the seller
-  /// cancels (and refunds). Mirrors `resolve_reservation` / `transition_order`.
+  /// cancels (and refunds). Mirrors `cancel_purchase` / `transition_order`.
   static bool buyerMayCancel(PaymentSummary? payment) =>
       payment == null ||
       (payment.status != PaymentStatus.submitted &&

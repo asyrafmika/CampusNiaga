@@ -25,8 +25,8 @@ class MessagesScreen extends ConsumerWidget {
           icon: Icons.chat_bubble_outline_rounded,
           title: 'No chats yet',
           message:
-              'A chat opens when a seller accepts your booking or a '
-              'business confirms your order.',
+              'Chat with a seller from their item, or with a business once '
+              'it confirms your order.',
         ),
         AsyncData(:final value) => RefreshIndicator(
           onRefresh: () => ref.refresh(conversationsProvider.future),

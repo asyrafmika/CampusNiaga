@@ -58,7 +58,7 @@ describe('LoginPage', () => {
   it('sends signed-in staff straight to the dashboard', () => {
     mocks.state = {
       status: 'ready',
-      access: { userId: 'u1', email: 'a@usm.my', isReviewer: true, isAdmin: false },
+      access: { userId: 'u1', email: 'a@usm.my', isAdmin: true },
     };
     renderAt(<LoginPage />, { path: '/login' });
     expect(screen.getByText('page: /')).toBeInTheDocument();
