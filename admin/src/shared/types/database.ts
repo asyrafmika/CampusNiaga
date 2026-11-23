@@ -127,6 +127,7 @@ export type Database = {
       }
       business_applications: {
         Row: {
+          admin_id: string | null
           applicant_id: string
           business_name: string
           category: string
@@ -138,12 +139,12 @@ export type Database = {
           document_paths: string[]
           id: string
           remarks: string | null
-          reviewer_id: string | null
           status: string
           submitted_at: string | null
           updated_at: string
         }
         Insert: {
+          admin_id?: string | null
           applicant_id?: string
           business_name?: string
           category?: string
@@ -155,12 +156,12 @@ export type Database = {
           document_paths?: string[]
           id?: string
           remarks?: string | null
-          reviewer_id?: string | null
           status?: string
           submitted_at?: string | null
           updated_at?: string
         }
         Update: {
+          admin_id?: string | null
           applicant_id?: string
           business_name?: string
           category?: string
@@ -172,22 +173,21 @@ export type Database = {
           document_paths?: string[]
           id?: string
           remarks?: string | null
-          reviewer_id?: string | null
           status?: string
           submitted_at?: string | null
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "business_applications_applicant_id_fkey"
-            columns: ["applicant_id"]
+            foreignKeyName: "business_applications_admin_id_fkey"
+            columns: ["admin_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "business_applications_reviewer_id_fkey"
-            columns: ["reviewer_id"]
+            foreignKeyName: "business_applications_applicant_id_fkey"
+            columns: ["applicant_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]

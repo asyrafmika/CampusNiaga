@@ -187,7 +187,7 @@ Run locally. The database tests ran on PGlite (PostgreSQL compiled to WebAssembl
 |---|---|
 | All 26 pgTAP files (26: deleting listings, ADR 0008; 03, 04, 09-11: one staff role, ADR 0009) | Passed |
 | Upgrade rehearsal: every old reservation and payment state, repeated chats and reports, converted by the migrations | 28 / 28 checks |
-| Mutation testing: rules of the four migrations broken on purpose | 24 of 24 caught |
+| Mutation testing: rules of the five migrations broken on purpose (the fifth renames reviewer_id to admin_id) | 26 of 26 caught |
 | Flutter: format, analyze, tests | 267 / 267 passed |
 | Admin: typecheck, lint, tests, build | 91 / 91 passed |
 | Screens | The changed mobile screens rendered at 360 and 411 wide with the app's fonts; both admin pages rendered in Edge against a fake backend |

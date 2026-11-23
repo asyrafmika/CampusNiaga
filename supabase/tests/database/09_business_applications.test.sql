@@ -3,7 +3,7 @@
 -- review_business_application and every (status, action) pair.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(89);
+select plan(91);
 
 -- Returns the reason (error DETAIL) an SQL statement fails with, or the
 -- SQLSTATE when there is no reason, or 'no error'.
@@ -75,7 +75,7 @@ select lives_ok($$ update public.business_applications set category = 'Food & Be
   contact_details = '012-3456789', collection_details = 'Desasiswa Tekun lobby, 6-8pm' $$, 'the applicant edits their draft');
 -- info_requested would pass the update policy, so only the column privilege stops it.
 select is(pg_temp.error_reason($$ update public.business_applications set status = 'info_requested' $$), '42501', 'the applicant cannot change the status');
-select is(pg_temp.error_reason($$ update public.business_applications set reviewer_id = '88888888-8888-8888-8888-888888888888' $$), '42501', 'the applicant cannot set the reviewer');
+select is(pg_temp.error_reason($$ update public.business_applications set admin_id = '88888888-8888-8888-8888-888888888888' $$), '42501', 'the applicant cannot set the administrator');
 select is(pg_temp.error_reason($$ update public.business_applications set remarks = 'Looks great' $$), '42501', 'the applicant cannot write reviewer remarks');
 select is(pg_temp.error_reason($$ update public.business_applications set submitted_at = now() $$), '42501', 'the applicant cannot set the dates');
 select is(pg_temp.error_reason($$ update public.business_applications set applicant_id = '22222222-2222-2222-2222-222222222222' $$), '42501', 'the applicant cannot hand the application to someone else');
@@ -226,8 +226,11 @@ set local request.jwt.claims to '{"sub": "88888888-8888-8888-8888-888888888888",
 select is(public.review_business_application(current_setting('test.app')::uuid, 'start_review') ->> 'status', 'under_review', 'a reviewer starts the review');
 select is(public.review_business_application(current_setting('test.app')::uuid, 'request_info', ' Please attach your food handling certificate. ') ->> 'status', 'info_requested', 'the reviewer asks for more information');
 reset role;
-select is((select reviewer_id::text || '/' || remarks from public.business_applications where id = current_setting('test.app')::uuid),
-  '88888888-8888-8888-8888-888888888888/Please attach your food handling certificate.', 'the reviewer and their trimmed note are recorded');
+select is((select admin_id::text || '/' || remarks from public.business_applications where id = current_setting('test.app')::uuid),
+  '88888888-8888-8888-8888-888888888888/Please attach your food handling certificate.', 'the administrator and their trimmed note are recorded');
+-- The column says who decides since ADR 0009 (migration 20261123000400).
+select has_column('public', 'business_applications', 'admin_id', 'business_applications records the deciding administrator in admin_id');
+select hasnt_column('public', 'business_applications', 'reviewer_id', 'the old reviewer_id column is gone');
 select is((select note from public.application_status_history where application_id = current_setting('test.app')::uuid order by id desc limit 1),
   'Please attach your food handling certificate.', 'the note is in the history');
 select is((select actor_role from public.application_status_history where application_id = current_setting('test.app')::uuid order by id desc limit 1),

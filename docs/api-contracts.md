@@ -258,7 +258,7 @@ The approval is a **simulated** reviewer workflow for the FYP, not an official U
 | **Input** | `note`: up to 1,000 characters; required (not blank) for `request_info` and `reject`, optional otherwise |
 | **Output** | `{ application_id, status, business_id }`. `business_id` is set only by `approve` |
 | **Errors** | `FORBIDDEN` (not an administrator, or own application) · `INVALID_INPUT` (unknown action, missing or long note) · `NOT_FOUND` (missing, or still a draft) · `INVALID_TRANSITION` · `ALREADY_EXISTS` (approve: the applicant already has a business) · `42501` |
-| **Side effects** | `reviewer_id` = caller; `remarks` = the note when one is given; `decided_at` on approve and reject. History row (`actor_role` `admin`; older rows may say `reviewer`); audit `application.<status>`; notification `application_<status>` to the applicant |
+| **Side effects** | `admin_id` = caller; `remarks` = the note when one is given; `decided_at` on approve and reject. History row (`actor_role` `admin`; older rows may say `reviewer`); audit `application.<status>`; notification `application_<status>` to the applicant |
 | **Approval** | In the same transaction, inserts the `businesses` row (`owner_id` = applicant, name, description, `pickup_details` = collection details, `status` `approved`). Business access follows immediately: `owns_business()` and `get_my_access()` read the table live, so there is no token to refresh |
 
 ## `application_status_summary()`

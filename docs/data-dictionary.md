@@ -150,7 +150,7 @@ A student's request to run a business on CampusNiaga (M2). The approval is a **s
 | `collection_details` | text | Client | Where and when buyers collect; up to 200, at least 5 to submit. Becomes the business's `pickup_details` |
 | `document_paths` | text[] | Client | Uploaded files `{applicant_id}/{application_id}/{file}` in `application-documents` (PDF, JPEG or PNG). Optional; up to `app_config.max_application_documents`, each one must exist to submit |
 | `status` | `draft` \| `submitted` \| `under_review` \| `info_requested` \| `approved` \| `rejected` | Client (`draft` on insert) / Server | See the state machine below |
-| `reviewer_id` | uuid? | Server | The administrator who last acted on it (the column kept its name in ADR 0009) |
+| `admin_id` | uuid? | Server | The HDC administrator who last acted on it (`reviewer_id` until migration `20261123000400`, [ADR 0009](decisions/0009-single-admin-role.md)) |
 | `remarks` | text? | Server | The administrator's latest note |
 | `submitted_at` | timestamptz? | Server | Last (re)submission; the review queue is ordered by it, oldest first |
 | `decided_at` | timestamptz? | Server | Set on approval or rejection |
@@ -167,7 +167,7 @@ A student's request to run a business on CampusNiaga (M2). The approval is a **s
 | `under_review` | `approved` | Administrator | `… 'approve'`; creates the business |
 | `under_review` | `rejected` | Administrator | `… 'reject'`, with a note |
 
-`approved` and `rejected` are final. The content columns can be changed only while `draft` or `info_requested`; `status`, `reviewer_id`, `remarks` and the dates never by the client (column privileges). A student has **at most one unfinished application** (any status except `approved` and `rejected`, drafts included) and at most one business, so a rejected applicant may apply again but an approved one doesn't need to. Staff can't review their own application.
+`approved` and `rejected` are final. The content columns can be changed only while `draft` or `info_requested`; `status`, `admin_id`, `remarks` and the dates never by the client (column privileges). A student has **at most one unfinished application** (any status except `approved` and `rejected`, drafts included) and at most one business, so a rejected applicant may apply again but an approved one doesn't need to. Staff can't review their own application.
 
 Read: the applicant; administrators once it has left `draft` (drafts stay private).
 
